@@ -1,9 +1,7 @@
-from .projects.project_viewsets import ProjectViewSet
-from .workflows.workflow_viewsets import IssueTypeViewSet, WorkflowStatusViewSet, WorkflowTransitionViewSet
+from .project_viewset import ProjectViewSet
+from .project_config_viewset import ProjectConfigViewSet
 
 __all__ = [
     'ProjectViewSet',
-    'IssueTypeViewSet',
-    'WorkflowStatusViewSet',
-    'WorkflowTransitionViewSet'
+    'ProjectConfigViewSet'
 ]

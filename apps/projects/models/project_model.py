@@ -1,7 +1,10 @@
 from django.db import models
 from django.conf import settings
-from apps.organizations.models import Workspace
 import uuid
+
+
+def project_file_path(instance, filename):
+    return f'projects/project_{instance.id}/files/{filename}'
 
 
 class Project(models.Model):
@@ -30,7 +33,7 @@ class Project(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
-        Workspace,
+        'workspaces.Workspace',
         on_delete=models.CASCADE,
         related_name='projects'
     )
@@ -63,6 +66,7 @@ class Project(models.Model):
     end_date = models.DateField(null=True, blank=True)
     estimated_hours = models.PositiveIntegerField(null=True, blank=True)
     budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    attachments = models.FileField(upload_to=project_file_path, null=True, blank=True)
     project_settings = models.JSONField(default=dict)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(

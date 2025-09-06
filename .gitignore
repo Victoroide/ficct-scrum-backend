@@ -3,3 +3,4 @@ logs/
 example.ipynb
 __pycache__
 .venv
+staticfiles/

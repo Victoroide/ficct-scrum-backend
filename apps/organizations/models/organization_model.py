@@ -4,6 +4,10 @@ from django.core.validators import RegexValidator
 import uuid
 
 
+def organization_logo_path(instance, filename):
+    return f'organizations/org_{instance.id}/logo/{filename}'
+
+
 class Organization(models.Model):
     ORGANIZATION_TYPE_CHOICES = [
         ('startup', 'Startup'),
@@ -35,7 +39,7 @@ class Organization(models.Model):
         ]
     )
     description = models.TextField(blank=True)
-    logo = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
+    logo = models.ImageField(upload_to=organization_logo_path, null=True, blank=True)
     website_url = models.URLField(blank=True)
     organization_type = models.CharField(
         max_length=20,

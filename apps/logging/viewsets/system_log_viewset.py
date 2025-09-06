@@ -1,38 +1,34 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
-
+from rest_framework import viewsets, permissions
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from apps.logging.models import SystemLog
-from apps.logging.serializers import SystemLogSerializer, SystemHealthSerializer
-from apps.logging.services import LoggerService
+from apps.logging.serializers import SystemLogSerializer
 
 
-@extend_schema(tags=['Logs: System'])
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Logging'], 
+        operation_id='system_logs_list', 
+        summary='List System Logs',
+        description='Retrieve system logs with filtering and search capabilities. Admin access required.'
+    ),
+    retrieve=extend_schema(
+        tags=['Logging'], 
+        operation_id='system_logs_retrieve', 
+        summary='Get System Log Details',
+        description='Retrieve detailed information about a specific system log entry.'
+    ),
+)
 class SystemLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SystemLog.objects.all()
     serializer_class = SystemLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['level', 'action_type', 'user']
-    search_fields = ['action', 'message']
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    filterset_fields = ['level', 'action_type', 'user', 'ip_address']
+    search_fields = ['action', 'message', 'user__email']
     ordering = ['-created_at']
     
     def get_queryset(self):
-        return SystemLog.objects.select_related('user').all()
-
-    @extend_schema(responses={200: SystemHealthSerializer})
-    @action(detail=False, methods=['get'])
-    def health_metrics(self, request):
-        try:
-            metrics = LoggerService.get_system_health_metrics()
-            serializer = SystemHealthSerializer(metrics)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            LoggerService.log_error(
-                action='get_health_metrics_error',
-                error=str(e),
-                user=request.user
-            )
-            return Response(
-                {'error': 'Failed to retrieve health metrics'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        queryset = super().get_queryset()
+        if not self.request.user.is_superuser:
+            queryset = queryset.exclude(level='DEBUG')
+        return queryset

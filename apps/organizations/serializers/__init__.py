@@ -1,17 +1,7 @@
-from .organization_serializers import (
-    OrganizationSerializer,
-    OrganizationMembershipSerializer,
-    OrganizationInvitationSerializer,
-    WorkspaceSerializer,
-    WorkspaceMembershipSerializer,
-    InvitationAcceptSerializer
-)
+from .organization_serializer import OrganizationSerializer
+from .organization_member_serializer import OrganizationMemberSerializer
 
 __all__ = [
     'OrganizationSerializer',
-    'OrganizationMembershipSerializer',
-    'OrganizationInvitationSerializer',
-    'WorkspaceSerializer',
-    'WorkspaceMembershipSerializer',
-    'InvitationAcceptSerializer'
+    'OrganizationMemberSerializer',
 ]

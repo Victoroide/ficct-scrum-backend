@@ -15,11 +15,13 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    
-    # API v1 Routes
+]
+
+urlpatterns += [
     path('api/v1/auth/', include('apps.authentication.urls')),
-    path('api/v1/', include('apps.organizations.urls')),
-    path('api/v1/', include('apps.projects.urls')),
+    path('api/v1/orgs/', include('apps.organizations.urls')),
+    path('api/v1/workspaces/', include('apps.workspaces.urls')),
+    path('api/v1/projects/', include('apps.projects.urls')),
     path('api/v1/logs/', include('apps.logging.urls')),
 ]
 
@@ -28,6 +30,9 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     
-    # Django Debug Toolbar
-    import debug_toolbar
-    urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
+    # Django Debug Toolbar (only if installed)
+    try:
+        import debug_toolbar
+        urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
+    except ImportError:
+        pass
