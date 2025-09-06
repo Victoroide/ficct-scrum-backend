@@ -16,7 +16,7 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /app/static /app/staticfiles /app/mediafiles
+RUN mkdir -p /app/static /app/staticfiles /app/mediafiles /app/logs
 RUN mkdir -p /app/staticfiles/drf_spectacular_sidecar/swagger-ui-dist
 
 RUN dos2unix entrypoint.sh && chmod +x entrypoint.sh

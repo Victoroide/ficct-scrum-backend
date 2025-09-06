@@ -3,6 +3,9 @@ set -e
 
 echo "=== Starting entrypoint.sh ==="
 
+# Ensure logs directory exists for Django logging
+mkdir -p /app/logs
+
 # Multiple possible directories
 mkdir -p /app/static
 mkdir -p /app/staticfiles/drf_spectacular_sidecar/swagger-ui-dist
