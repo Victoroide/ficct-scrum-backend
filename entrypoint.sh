@@ -1,15 +1,29 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-# Apply database migrations
-python manage.py migrate --noinput
+echo "=== Starting entrypoint.sh ==="
 
-# Collect static files (safe to run again in container runtime for CI parity)
-python manage.py collectstatic --noinput --verbosity 0
+# Multiple possible directories
+mkdir -p /app/static
+mkdir -p /app/staticfiles/drf_spectacular_sidecar/swagger-ui-dist
+mkdir -p /tmp/staticfiles/drf_spectacular_sidecar/swagger-ui-dist
 
-# Start Gunicorn
-exec gunicorn base.wsgi:application \
-    --bind 0.0.0.0:${PORT:-8000} \
-    --workers ${WEB_CONCURRENCY:-3} \
-    --threads ${GUNICORN_THREADS:-3} \
-    --timeout 120
+echo "Extracting Spectacular static files..."
+python extract_spectacular_static.py
+
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
+# Make files accessible in all locations
+cp -r /app/staticfiles/drf_spectacular_sidecar/swagger-ui-dist/* /tmp/staticfiles/drf_spectacular_sidecar/swagger-ui-dist/ || echo "Copy failed, continuing anyway"
+
+# Debug info
+echo "Contents of staticfiles directories:"
+find /app/staticfiles -type f | grep swagger
+find /tmp/staticfiles -type f | grep swagger 2>/dev/null || echo "No files in /tmp/staticfiles"
+
+# Make directories readable
+chmod -R 755 /app/staticfiles
+chmod -R 755 /tmp/staticfiles 2>/dev/null || echo "Chmod failed on /tmp/staticfiles, continuing anyway"
+
+exec gunicorn base.wsgi:application --log-level debug --workers 2 --timeout 120 --access-logfile - --error-logfile - --bind 0.0.0.0:$PORT
