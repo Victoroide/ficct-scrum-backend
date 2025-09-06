@@ -44,8 +44,9 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/*
 # Copy project
 COPY --chown=appuser:appuser . /app
 
-# Ensure entrypoint is executable
+# Ensure entrypoint is executable and prepare log directory
 RUN chmod +x /app/entrypoint.sh \
+    && mkdir -p /app/logs \
     && python manage.py collectstatic --noinput
 
 EXPOSE 8000
