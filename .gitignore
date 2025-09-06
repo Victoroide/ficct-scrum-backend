@@ -1,0 +1,5 @@
+.env
+logs/
+example.ipynb
+__pycache__
+.venv
