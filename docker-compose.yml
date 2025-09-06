@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ficct_scrum_db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ficct_scrum_db}
+      - POSTGRES_USER=${POSTGRES_USER:-ficct}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ficct123}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-ficct}"]
+      interval: 10s
+      retries: 5
+    networks:
+      - ficct-net
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ficct_scrum_app
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - ficct-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.50"
+
+volumes:
+  db-data:
+
+networks:
+  ficct-net:
+    driver: bridge
