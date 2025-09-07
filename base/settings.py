@@ -14,6 +14,12 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:4200,http://127.0.0.1:4200', cast=lambda v: [s.strip() for s in v.split(',')])
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.ficct\.com$",
+]
+
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -130,23 +136,23 @@ AWS_S3_OBJECT_PARAMETERS = {
 USE_S3 = config('USE_S3', default=True, cast=bool)
 
 if USE_S3 and AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+    DEFAULT_FILE_STORAGE = 'base.storage.MediaStorage'
+    
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STATIC_URL = '/static/'
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-    DEFAULT_FILE_STORAGE = 'base.storage.s3_storage.MediaStorage'
-    STATICFILES_STORAGE = 'base.storage.s3_storage.StaticStorage'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
     AWS_S3_VERIFY = True
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 else:
     STATIC_URL = '/static/'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
     STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
