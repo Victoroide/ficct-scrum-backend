@@ -18,7 +18,12 @@ USE_TLS = True
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:4200,http://127.0.0.1:4200', cast=lambda v: [s.strip() for s in v.split(',')])
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS', 
+    default='http://localhost:4200,http://127.0.0.1:4200', 
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
+
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.ficct\.com$",
@@ -286,13 +291,6 @@ SPECTACULAR_SETTINGS = {
         }
     ]
 }
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
 
 CORS_ALLOW_CREDENTIALS = True
 
