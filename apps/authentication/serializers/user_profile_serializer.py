@@ -9,11 +9,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer aligned with UserProfile model definition."""
 
     avatar_url = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'avatar', 'avatar_url', 'bio', 'phone_number', 'timezone',
+            'id', 'user', 'avatar', 'avatar_url', 'bio', 'phone_number', 'timezone',
             'language', 'github_username', 'linkedin_url', 'website_url',
             'notification_preferences', 'is_online', 'last_activity',
             'created_at', 'updated_at'

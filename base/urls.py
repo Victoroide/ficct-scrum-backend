@@ -2,18 +2,18 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from drf_spectacular.views import (
-    SpectacularAPIView,
-    SpectacularRedocView, 
-    SpectacularSwaggerView,
-)
+from django.views.generic import TemplateView, RedirectView
+from django.contrib.auth import views as auth_views
+from .spectacular_views import get_spectacular_urls
 
-urlpatterns = [
+urlpatterns = get_spectacular_urls() + [
+    path('admin/login/', auth_views.LoginView.as_view(template_name='admin/login.html', extra_context={
+        'title': 'Login',
+        'site_title': 'FICCT-SCRUM Admin',
+        'site_header': 'FICCT-SCRUM Administration',
+    }), name='login'),
+    path('admin/logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
     path('admin/', admin.site.urls),
-    
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     path('api/v1/auth/', include('apps.authentication.urls')),
     path('api/v1/orgs/', include('apps.organizations.urls')),

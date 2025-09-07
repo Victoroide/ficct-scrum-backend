@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FICCT-SCRUM API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="/swagger-ui-assets/swagger-ui.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Variables de colores suaves y armoniosos */
+        :root {
+            --primary: #6366f1;
+            --primary-light: #8b5cf6;
+            --primary-dark: #4f46e5;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --surface: #ffffff;
+            --background: #f8fafc;
+            --border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        /* Reset y base */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            margin: 0;
+            padding: 0;
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Header elegante y sutil */
+        .custom-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 3rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .custom-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.1);
+            background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.2) 2px, transparent 2px);
+            background-size: 50px 50px;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .header-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            letter-spacing: -0.02em;
+        }
+
+        .header-subtitle {
+            font-size: 1.125rem;
+            font-weight: 400;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        /* Container de autenticación perfeccionado */
+        .auth-section {
+            max-width: 600px;
+            margin: -2rem auto 3rem;
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .auth-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 1.5rem 0;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .auth-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            background: var(--surface);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgb(99 102 241 / 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .auth-buttons {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+
+        .auth-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 100px;
+            justify-content: center;
+        }
+
+        .auth-btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .auth-btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-btn-secondary {
+            background: var(--error);
+            color: white;
+        }
+
+        .auth-btn-secondary:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-status {
+            grid-column: 1 / -1;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-align: center;
+            border: 1px solid;
+        }
+
+        .status-success {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .status-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .status-info {
+            background: #f0f9ff;
+            color: #1e40af;
+            border-color: #bfdbfe;
+        }
+
+        /* Container principal de Swagger */
+        .swagger-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem 3rem;
+        }
+
+        /* Estilos de Swagger UI refinados */
+        .swagger-ui {
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        /* Ocultar elementos innecesarios */
+        .swagger-ui .topbar,
+        .swagger-ui .info .title,
+        .swagger-ui .scheme-container,
+        .swagger-ui .download-url-wrapper {
+            display: none !important;
+        }
+
+        /* Tags (grupos de endpoints) */
+        .swagger-ui .opblock-tag-section {
+            margin-bottom: 2rem;
+        }
+
+        .swagger-ui .opblock-tag {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 12px !important;
+            padding: 1.25rem 1.5rem !important;
+            margin-bottom: 1rem !important;
+            box-shadow: var(--shadow-sm) !important;
+            font-size: 1.25rem !important;
+            font-weight: 600 !important;
+            color: var(--primary) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .swagger-ui .opblock-tag:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        /* Endpoints individuales */
+        .swagger-ui .opblock {
+            border-radius: 10px !important;
+            border: 1px solid var(--border) !important;
+            margin-bottom: 0.5rem !important;
+            overflow: hidden !important;
+            box-shadow: var(--shadow-sm) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .swagger-ui .opblock:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        /* Colores para métodos HTTP */
+        .swagger-ui .opblock.opblock-get {
+            border-left: 4px solid var(--primary) !important;
+        }
+
+        .swagger-ui .opblock.opblock-post {
+            border-left: 4px solid var(--success) !important;
+        }
+
+        .swagger-ui .opblock.opblock-put {
+            border-left: 4px solid var(--warning) !important;
+        }
+
+        .swagger-ui .opblock.opblock-delete {
+            border-left: 4px solid var(--error) !important;
+        }
+
+        /* Headers de métodos */
+        .swagger-ui .opblock .opblock-summary {
+            padding: 1.25rem 1.5rem !important;
+            background: var(--surface) !important;
+            border-bottom: 1px solid var(--border) !important;
+        }
+
+        .swagger-ui .opblock .opblock-summary-method {
+            border-radius: 6px !important;
+            padding: 0.375rem 0.75rem !important;
+            font-size: 0.75rem !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+        }
+
+        .swagger-ui .opblock.opblock-get .opblock-summary-method {
+            background: var(--primary) !important;
+            color: white !important;
+        }
+
+        .swagger-ui .opblock.opblock-post .opblock-summary-method {
+            background: var(--success) !important;
+            color: white !important;
+        }
+
+        .swagger-ui .opblock.opblock-put .opblock-summary-method {
+            background: var(--warning) !important;
+            color: white !important;
+        }
+
+        .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+            background: var(--error) !important;
+            color: white !important;
+        }
+
+        /* Descripciones */
+        .swagger-ui .opblock .opblock-summary-description {
+            font-size: 0.875rem !important;
+            color: var(--text-secondary) !important;
+            margin-left: 1rem !important;
+        }
+
+        /* Botones de autorización */
+        .swagger-ui .authorization__btn {
+            background: var(--primary) !important;
+            border-radius: 6px !important;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 500 !important;
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 2rem;
+            }
+            
+            .auth-section {
+                margin: -1rem 1rem 2rem;
+                padding: 1.5rem;
+            }
+            
+            .auth-form {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .swagger-container {
+                padding: 0 1rem 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header elegante -->
+    <div class="custom-header">
+        <div class="header-content">
+            <h1 class="header-title">FICCT-SCRUM API</h1>
+            <p class="header-subtitle">Professional Agile Project Management System</p>
+        </div>
+    </div>
+
+    <!-- Sección de autenticación -->
+    <div class="auth-section">
+        <h3 class="auth-title">
+            🔐 API Authentication
+        </h3>
+        <div class="auth-form">
+            <div class="form-group">
+                <label class="form-label" for="auth-email">Email</label>
+                <input type="email" id="auth-email" class="form-input" placeholder="tu@email.com" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="auth-password">Password</label>
+                <input type="password" id="auth-password" class="form-input" placeholder="••••••••" />
+            </div>
+            <div class="auth-buttons">
+                <button class="auth-btn auth-btn-primary" onclick="handleLogin()">
+                    Login
+                </button>
+                <button class="auth-btn auth-btn-secondary" onclick="handleLogout()" style="display: none;" id="logout-btn">
+                    Logout
+                </button>
+            </div>
+            <div id="auth-status" class="auth-status" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Container de Swagger UI -->
+    <div class="swagger-container">
+        <div id="swagger-ui"></div>
+    </div>
+
+    <script src="/swagger-ui-assets/swagger-ui-bundle.js"></script>
+    <script src="/swagger-ui-assets/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            const ui = SwaggerUIBundle({
+                url: '{{ schema_url }}',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "BaseLayout",
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                operationsSorter: "alpha",
+                tagsSorter: "alpha",
+                docExpansion: "list",
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                requestInterceptor: function(request) {
+                    const token = localStorage.getItem('ficct_jwt_token');
+                    if (token) {
+                        request.headers['Authorization'] = 'Bearer ' + token;
+                    }
+                    return request;
+                },
+                onComplete: function() {
+                    const savedToken = localStorage.getItem('ficct_jwt_token');
+                    const savedEmail = localStorage.getItem('ficct_user_email');
+                    if (savedToken && savedEmail) {
+                        ui.preauthorizeApiKey('jwtAuth', 'Bearer ' + savedToken);
+                        showStatus(`Authenticated as ${savedEmail}`, 'success');
+                        document.querySelector('.auth-btn-primary').style.display = 'none';
+                        document.getElementById('logout-btn').style.display = 'inline-flex';
+                    }
+                }
+            });
+            
+            window.ui = ui;
+            
+            document.getElementById('auth-password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+        };
+        
+        async function handleLogin() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            
+            if (!email || !password) {
+                showStatus('Please enter email and password', 'error');
+                return;
+            }
+            
+            showStatus('Authenticating...', 'info');
+            
+            try {
+                const response = await fetch('/api/v1/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.access) {
+                    localStorage.setItem('ficct_jwt_token', data.access);
+                    localStorage.setItem('ficct_user_email', email);
+                    
+                    window.ui.preauthorizeApiKey('jwtAuth', 'Bearer ' + data.access);
+                    
+                    showStatus(`Authenticated as ${email}`, 'success');
+                    
+                    document.querySelector('.auth-btn-primary').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'inline-flex';
+                    
+                    document.getElementById('auth-email').value = '';
+                    document.getElementById('auth-password').value = '';
+                    
+                } else {
+                    const errorMsg = data.detail || data.error || 'Invalid credentials';
+                    showStatus(errorMsg, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showStatus('Connection error', 'error');
+            }
+        }
+        
+        function handleLogout() {
+            localStorage.removeItem('ficct_jwt_token');
+            localStorage.removeItem('ficct_user_email');
+            
+            if (window.ui && window.ui.authActions) {
+                window.ui.authActions.logout(['jwtAuth']);
+            }
+            
+            showStatus('Ready to authenticate', 'info');
+            document.querySelector('.auth-btn-primary').style.display = 'inline-flex';
+            document.getElementById('logout-btn').style.display = 'none';
+        }
+        
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('auth-status');
+            statusElement.textContent = message;
+            statusElement.className = `auth-status status-${type}`;
+            statusElement.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
