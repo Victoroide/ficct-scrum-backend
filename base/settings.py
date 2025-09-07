@@ -122,7 +122,14 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION', 'us-east-1')
 
-if AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+AWS_DEFAULT_ACL = None
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
+USE_S3 = config('USE_S3', default=True, cast=bool)
+
+if USE_S3 and AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     DEFAULT_FILE_STORAGE = 'base.storage.s3_storage.MediaStorage'
     STATICFILES_STORAGE = 'base.storage.s3_storage.StaticStorage'
