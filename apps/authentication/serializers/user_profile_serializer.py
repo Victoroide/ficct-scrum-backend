@@ -5,11 +5,22 @@ from drf_spectacular.types import OpenApiTypes
 from apps.authentication.models import UserProfile
 
 
+class UserBasicSerializer(serializers.ModelSerializer):
+    """Basic user info for nested representation."""
+    full_name = serializers.ReadOnlyField()
+    
+    class Meta:
+        from apps.authentication.models import User
+        model = User
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
+        read_only_fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer aligned with UserProfile model definition."""
 
     avatar_url = serializers.SerializerMethodField()
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = UserBasicSerializer(read_only=True)
 
     class Meta:
         model = UserProfile
@@ -20,7 +31,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'avatar_url', 'is_online', 'last_activity',
+            'id', 'user', 'avatar_url', 'is_online', 'last_activity',
             'created_at', 'updated_at'
         ]
 

@@ -59,25 +59,33 @@ class UserLoginSerializer(serializers.Serializer):
         return attrs
 
 
+class UserProfileNestedSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        from apps.authentication.models import UserProfile
+        model = UserProfile
+        fields = [
+            'id', 'avatar_url', 'bio', 'phone_number', 'timezone',
+            'language', 'github_username', 'linkedin_url', 'website_url',
+            'is_online', 'last_activity'
+        ]
+        read_only_fields = ['id', 'is_online', 'last_activity']
+    
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_avatar_url(self, obj):
+        return obj.avatar.url if getattr(obj, 'avatar', None) else None
+
+
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    avatar_url = serializers.SerializerMethodField()
+    profile = UserProfileNestedSerializer(read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
             'full_name', 'is_active', 'is_verified', 'date_joined',
-            'last_login', 'avatar_url'
+            'last_login', 'profile'
         ]
         read_only_fields = ['id', 'date_joined', 'last_login', 'is_verified']
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_avatar_url(self, obj) -> str:
-        profile = getattr(obj, 'profile', None)
-        if profile and getattr(profile, 'avatar', None):
-            try:
-                return profile.avatar.url
-            except Exception:
-                return None
-        return None
