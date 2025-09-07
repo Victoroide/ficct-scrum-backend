@@ -13,7 +13,10 @@ class SwaggerUIView(TemplateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['schema_url'] = self.request.build_absolute_uri('/api/schema/')
+        schema_url = self.request.build_absolute_uri('/api/schema/')
+        if self.request.is_secure():
+            schema_url = schema_url.replace('http://', 'https://')
+        context['schema_url'] = schema_url
         return context
 
 def serve_swagger_file(request, filename):
