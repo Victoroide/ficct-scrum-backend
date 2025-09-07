@@ -12,6 +12,10 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-=r-&)dvzf1b)o=8jx1ew-
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = False
+USE_TLS = True
+
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:4200,http://127.0.0.1:4200', cast=lambda v: [s.strip() for s in v.split(',')])
@@ -19,6 +23,8 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.ficct\.com$",
 ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 DJANGO_APPS = [
     'django.contrib.admin',
