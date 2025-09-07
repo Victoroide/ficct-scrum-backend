@@ -2,27 +2,7 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 from apps.projects.models import Project
-
-
-class WorkspaceBasicSerializer(serializers.ModelSerializer):
-    """Basic workspace info for nested representation."""
-    
-    class Meta:
-        from apps.workspaces.models import Workspace
-        model = Workspace
-        fields = ['id', 'name', 'slug', 'workspace_type']
-        read_only_fields = ['id', 'name', 'slug', 'workspace_type']
-
-
-class UserBasicSerializer(serializers.ModelSerializer):
-    """Basic user info for nested representation."""
-    full_name = serializers.ReadOnlyField()
-    
-    class Meta:
-        from apps.authentication.models import User
-        model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
-        read_only_fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
+from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 
 
 class ProjectSerializer(serializers.ModelSerializer):

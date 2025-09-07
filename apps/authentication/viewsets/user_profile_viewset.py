@@ -44,7 +44,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 action='user_profile_created',
                 user=request.user,
                 ip_address=request.META.get('REMOTE_ADDR'),
-                details={'profile_id': response.data.get('id')}
+                details={'user_id': request.user.id}
             )
             return response
         except Exception as e:

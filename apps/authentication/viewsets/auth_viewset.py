@@ -104,7 +104,10 @@ class AuthViewSet(viewsets.GenericViewSet):
                     'user': UserSerializer()
                 }
             ),
-            400: "Invalid credentials"
+            400: inline_serializer(
+                name='LoginError',
+                fields={'error': serializers.CharField()}
+            )
         }
     )
     @action(detail=False, methods=['post'], url_path='login')

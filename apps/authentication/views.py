@@ -5,19 +5,19 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework import serializers
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'is_staff', 'is_superuser')
-        read_only_fields = ('is_staff', 'is_superuser')
+from apps.authentication.serializers import UserSerializer
+from drf_spectacular.utils import extend_schema
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = UserSerializer
     
+    @extend_schema(
+        operation_id="auth_login_token",
+        summary="Token-based Login",
+        description="Legacy token-based authentication endpoint",
+        responses={200: UserSerializer}
+    )
     def post(self, request, *args, **kwargs):
         from django.contrib.auth import authenticate
         from rest_framework.authtoken.models import Token
@@ -71,7 +71,14 @@ class LogoutView(APIView):
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
     
+    @extend_schema(
+        operation_id="auth_current_user",
+        summary="Get Current User",
+        description="Retrieve authenticated user information",
+        responses={200: UserSerializer}
+    )
     def get(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)

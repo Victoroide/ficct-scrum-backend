@@ -66,11 +66,11 @@ class UserProfileNestedSerializer(serializers.ModelSerializer):
         from apps.authentication.models import UserProfile
         model = UserProfile
         fields = [
-            'id', 'avatar_url', 'bio', 'phone_number', 'timezone',
+            'avatar_url', 'bio', 'phone_number', 'timezone',
             'language', 'github_username', 'linkedin_url', 'website_url',
             'is_online', 'last_activity'
         ]
-        read_only_fields = ['id', 'is_online', 'last_activity']
+        read_only_fields = ['is_online', 'last_activity']
     
     @extend_schema_field(OpenApiTypes.STR)
     def get_avatar_url(self, obj):

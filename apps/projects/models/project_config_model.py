@@ -16,11 +16,11 @@ class ProjectConfiguration(models.Model):
         ('t_shirt', 'T-Shirt Sizes'),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.OneToOneField(
         'projects.Project',
         on_delete=models.CASCADE,
-        related_name='configuration'
+        related_name='configuration',
+        primary_key=True
     )
     
     # Sprint Configuration

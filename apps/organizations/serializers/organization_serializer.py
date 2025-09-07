@@ -2,24 +2,14 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 from apps.organizations.models import Organization
-
-
-class OwnerBasicSerializer(serializers.ModelSerializer):
-    """Basic owner info for nested representation."""
-    full_name = serializers.ReadOnlyField()
-    
-    class Meta:
-        from apps.authentication.models import User
-        model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
-        read_only_fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
+from base.serializers import UserBasicSerializer
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
     member_count = serializers.ReadOnlyField()
     workspace_count = serializers.ReadOnlyField()
     logo_url = serializers.SerializerMethodField()
-    owner = OwnerBasicSerializer(read_only=True)
+    owner = UserBasicSerializer(read_only=True)
 
     class Meta:
         model = Organization

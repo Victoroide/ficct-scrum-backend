@@ -1,26 +1,6 @@
 from rest_framework import serializers
 from apps.organizations.models import OrganizationMembership
-
-
-class UserBasicSerializer(serializers.ModelSerializer):
-    """Basic user info for nested representation."""
-    full_name = serializers.ReadOnlyField()
-    
-    class Meta:
-        from apps.authentication.models import User
-        model = User
-        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
-        read_only_fields = ['id', 'email', 'username', 'first_name', 'last_name', 'full_name']
-
-
-class OrganizationBasicSerializer(serializers.ModelSerializer):
-    """Basic organization info for nested representation."""
-    
-    class Meta:
-        from apps.organizations.models import Organization
-        model = Organization
-        fields = ['id', 'name', 'slug', 'organization_type']
-        read_only_fields = ['id', 'name', 'slug', 'organization_type']
+from base.serializers import UserBasicSerializer, OrganizationBasicSerializer
 
 
 class OrganizationMemberSerializer(serializers.ModelSerializer):
