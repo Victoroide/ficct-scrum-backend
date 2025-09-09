@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
-from apps.authentication.models import User, UserProfile
+from apps.authentication.models import User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -35,7 +35,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
         user = User.objects.create_user(**validated_data, password=password)
-        UserProfile.objects.create(user=user)
         return user
 
 

@@ -45,6 +45,7 @@ class AuthViewSet(viewsets.GenericViewSet):
         """Extract user agent from request headers."""
         return request.META.get('HTTP_USER_AGENT', '')
 
+    @action(detail=False, methods=["post"], url_path="register")
     @extend_schema(
         operation_id="auth_register",
         summary="User Registration",
@@ -55,7 +56,6 @@ class AuthViewSet(viewsets.GenericViewSet):
             400: "Validation errors"
         }
     )
-    @action(detail=False, methods=['post'], url_path='register')
     @transaction.atomic
     def register(self, request):
         """Register a new user account."""
