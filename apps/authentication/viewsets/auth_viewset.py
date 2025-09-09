@@ -60,6 +60,19 @@ class AuthViewSet(viewsets.GenericViewSet):
     def register(self, request):
         """Register a new user account."""
         try:
+            # Check for required password fields first
+            if 'password' not in request.data:
+                return Response(
+                    {'error': 'Password is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if 'password_confirm' not in request.data:
+                return Response(
+                    {'error': 'Password confirmation is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
             serializer = UserRegistrationSerializer(data=request.data)
             if serializer.is_valid():
                 user = serializer.save()
@@ -86,7 +99,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                 error=str(e)
             )
             return Response(
-                {'error': 'Registration failed'},
+                {'error': f'Registration failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

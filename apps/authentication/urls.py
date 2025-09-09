@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .viewsets import AuthViewSet, UserViewSet, UserProfileViewSet
-from .views import LoginView, LogoutView, CurrentUserView, UserSerializer
+from .views import LoginView, LogoutView, UserSerializer
 
 class CustomAuthToken(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -36,5 +36,4 @@ urlpatterns = [
     # Custom auth endpoints
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
-    path('me/', CurrentUserView.as_view(), name='current_user'),
 ]
