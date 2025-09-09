@@ -1,10 +1,10 @@
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
 
 
-class UserManager(models.Manager):
+class UserManager(BaseUserManager):
     def get_by_natural_key(self, username):
         return self.get(**{self.model.USERNAME_FIELD: username})
         

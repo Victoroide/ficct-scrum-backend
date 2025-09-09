@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from django.db import transaction
 from apps.organizations.models import Organization
-from apps.organizations.serializers import OrganizationSerializer
+from apps.organizations.serializers import OrganizationSerializer, OrganizationMemberSerializer
 from base.utils.file_handlers import upload_organization_logo_to_s3
 
 
@@ -27,6 +28,28 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             memberships__user=self.request.user,
             memberships__is_active=True
         ).distinct()
+
+    def get_object(self):
+        """Return organization if the requesting user is an active member.
+        This avoids false negatives that can occur when queryset joins remove
+        the target organization during `.get()` evaluation.
+        """
+        try:
+            obj = Organization.objects.get(pk=self.kwargs.get(self.lookup_field))
+        except Organization.DoesNotExist:
+            raise NotFound("Organization not found")
+
+        from apps.organizations.models import OrganizationMembership
+        is_member = OrganizationMembership.objects.filter(
+            organization=obj,
+            user=self.request.user,
+            is_active=True
+        ).exists()
+        if not is_member:
+            raise PermissionDenied("You do not have access to this organization")
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -54,3 +77,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response({'logo_url': organization.logo.url}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(tags=['Organizations'], operation_id='organizations_members_list', summary='List Organization Members')
+    @action(detail=True, methods=['get'], url_path='members')
+    def members(self, request, pk=None):
+        """Retrieve a list of members for the given organization"""
+        organization = self.get_object()
+        from apps.organizations.models import OrganizationMembership
+        memberships = OrganizationMembership.objects.filter(organization=organization, is_active=True)
+        serializer = OrganizationMemberSerializer(memberships, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
