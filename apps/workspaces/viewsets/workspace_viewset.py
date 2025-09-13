@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from django.db import transaction
 from apps.workspaces.models import Workspace
@@ -21,6 +22,7 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
     queryset = Workspace.objects.all()
     serializer_class = WorkspaceSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Prioritize multipart parsing
 
     def get_queryset(self):
         return Workspace.objects.filter(
@@ -28,8 +30,35 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
             members__is_active=True
         ).distinct()
 
+    @transaction.atomic
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+    
+    def get_serializer(self, *args, **kwargs):
+        """Enhanced serializer with intelligent content-type handling."""
+        # Add request context for validation
+        kwargs['context'] = kwargs.get('context', {})
+        kwargs['context']['request'] = self.request
+        
+        # Handle both JSON and multipart data formats
+        if self.request.method == 'POST' and hasattr(self.request, 'data'):
+            # Normalize organization field for both JSON and multipart
+            data = self.request.data.copy() if hasattr(self.request.data, 'copy') else dict(self.request.data)
+            
+            # Handle organization field from either format
+            if 'organization' in data:
+                # Ensure organization is properly formatted as UUID string
+                try:
+                    import uuid
+                    if isinstance(data['organization'], str):
+                        # Validate UUID format
+                        uuid.UUID(data['organization'])
+                    kwargs['data'] = data
+                except (ValueError, TypeError):
+                    # Invalid UUID format, let serializer validation handle it
+                    pass
+        
+        return super().get_serializer(*args, **kwargs)
 
     @extend_schema(tags=['Workspaces'], operation_id='workspaces_upload_cover', summary='Upload Workspace Cover Image')
     @action(detail=True, methods=['post'], url_path='upload-cover')
