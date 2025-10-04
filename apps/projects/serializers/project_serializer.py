@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
 from apps.projects.models import Project
 from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 
@@ -16,16 +17,30 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            'id', 'workspace', 'name', 'key', 'description', 'methodology',
-            'status', 'priority', 'lead', 'start_date', 'end_date',
-            'estimated_hours', 'budget', 'attachments', 'attachments_url',
-            'project_settings', 'is_active', 'created_by', 'team_member_count',
-            'created_at', 'updated_at'
+            "id",
+            "workspace",
+            "name",
+            "key",
+            "description",
+            "methodology",
+            "status",
+            "priority",
+            "lead",
+            "start_date",
+            "end_date",
+            "estimated_hours",
+            "budget",
+            "attachments",
+            "attachments_url",
+            "project_settings",
+            "is_active",
+            "created_by",
+            "team_member_count",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
-        extra_kwargs = {
-            'attachments': {'required': False, 'allow_null': True}
-        }
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        extra_kwargs = {"attachments": {"required": False, "allow_null": True}}
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_attachments_url(self, obj):

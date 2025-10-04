@@ -1,9 +1,10 @@
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
-from apps.workspaces.models import Workspace
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
 from apps.organizations.models import Organization
-from base.serializers import UserBasicSerializer, OrganizationBasicSerializer
+from apps.workspaces.models import Workspace
+from base.serializers import OrganizationBasicSerializer, UserBasicSerializer
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):
@@ -11,18 +12,39 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     project_count = serializers.ReadOnlyField()
     cover_image_url = serializers.SerializerMethodField()
     organization = serializers.UUIDField(write_only=True, required=True)
-    organization_details = OrganizationBasicSerializer(source='organization', read_only=True)
+    organization_details = OrganizationBasicSerializer(
+        source="organization", read_only=True
+    )
     created_by = UserBasicSerializer(read_only=True)
 
     class Meta:
         model = Workspace
         fields = [
-            'id', 'organization', 'organization_details', 'name', 'slug', 'description', 'workspace_type',
-            'visibility', 'cover_image', 'cover_image_url', 'workspace_settings',
-            'is_active', 'created_by', 'member_count', 'project_count',
-            'created_at', 'updated_at'
+            "id",
+            "organization",
+            "organization_details",
+            "name",
+            "slug",
+            "description",
+            "workspace_type",
+            "visibility",
+            "cover_image",
+            "cover_image_url",
+            "workspace_settings",
+            "is_active",
+            "created_by",
+            "member_count",
+            "project_count",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'organization_details', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = [
+            "id",
+            "organization_details",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_cover_image_url(self, obj):
@@ -32,57 +54,63 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
     def validate_organization(self, value):
         """Validate that organization exists and user has access."""
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required")
-        
+
         try:
             organization = Organization.objects.get(id=value)
         except Organization.DoesNotExist:
             raise serializers.ValidationError("Organization does not exist")
-        
+
         # Check if user is a member of the organization
         from apps.organizations.models import OrganizationMembership
+
         if not OrganizationMembership.objects.filter(
-            organization=organization,
-            user=request.user,
-            is_active=True
+            organization=organization, user=request.user, is_active=True
         ).exists():
-            raise serializers.ValidationError("You do not have access to this organization")
-        
+            raise serializers.ValidationError(
+                "You do not have access to this organization"
+            )
+
         return value
-    
+
     def validate_slug(self, value):
         """Validate slug is unique within organization."""
-        organization_id = self.initial_data.get('organization')
+        organization_id = self.initial_data.get("organization")
         if organization_id:
-            queryset = Workspace.objects.filter(organization_id=organization_id, slug=value)
+            queryset = Workspace.objects.filter(
+                organization_id=organization_id, slug=value
+            )
             if self.instance:
                 queryset = queryset.exclude(id=self.instance.id)
             if queryset.exists():
-                raise serializers.ValidationError("Workspace with this slug already exists in this organization")
+                raise serializers.ValidationError(
+                    "Workspace with this slug already exists in this organization"
+                )
         return value
 
     def validate_cover_image(self, value):
         if value and value.size > 5 * 1024 * 1024:  # 5MB limit
             raise serializers.ValidationError("Cover image file size cannot exceed 5MB")
         return value
-    
+
     def create(self, validated_data):
         """Handle organization assignment during creation."""
-        organization_id = validated_data.pop('organization')
+        organization_id = validated_data.pop("organization")
         organization = Organization.objects.get(id=organization_id)
-        validated_data['organization'] = organization
-        
+        validated_data["organization"] = organization
+
         workspace = super().create(validated_data)
-        
+
         # Create workspace membership for creator
         from apps.workspaces.models import WorkspaceMember
+
         WorkspaceMember.objects.create(
             workspace=workspace,
-            user=validated_data['created_by'],
-            role='admin',
-            is_active=True
+            user=validated_data["created_by"],
+            role="admin",
+            is_active=True,
         )
-        
+
         return workspace

@@ -1,9 +1,10 @@
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
-import uuid
 import secrets
+import uuid
+from datetime import timedelta
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
 
 
 class PasswordResetToken(models.Model):
@@ -11,7 +12,7 @@ class PasswordResetToken(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='password_reset_tokens'
+        related_name="password_reset_tokens",
     )
     token = models.CharField(max_length=64, unique=True)
     is_used = models.BooleanField(default=False)
@@ -22,10 +23,10 @@ class PasswordResetToken(models.Model):
     user_agent = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'password_reset_tokens'
-        verbose_name = 'Password Reset Token'
-        verbose_name_plural = 'Password Reset Tokens'
-        ordering = ['-created_at']
+        db_table = "password_reset_tokens"
+        verbose_name = "Password Reset Token"
+        verbose_name_plural = "Password Reset Tokens"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"Reset token for {self.user.email}"
@@ -48,4 +49,4 @@ class PasswordResetToken(models.Model):
     def mark_as_used(self):
         self.is_used = True
         self.used_at = timezone.now()
-        self.save(update_fields=['is_used', 'used_at'])
+        self.save(update_fields=["is_used", "used_at"])

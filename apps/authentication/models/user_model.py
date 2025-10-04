@@ -1,42 +1,52 @@
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
-from django.core.validators import RegexValidator
 
 
 class UserManager(BaseUserManager):
     def get_by_natural_key(self, username):
         return self.get(**{self.model.USERNAME_FIELD: username})
-        
-    def create_user(self, email, username, first_name, last_name, password=None, **extra_fields):
+
+    def create_user(
+        self, email, username, first_name, last_name, password=None, **extra_fields
+    ):
         if not email:
-            raise ValueError('Email is required')
+            raise ValueError("Email is required")
         if not username:
-            raise ValueError('Username is required')
-        
+            raise ValueError("Username is required")
+
         email = self.normalize_email(email)
         user = self.model(
             email=email,
             username=username,
             first_name=first_name,
             last_name=last_name,
-            **extra_fields
+            **extra_fields,
         )
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, username, first_name, last_name, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_verified', True)
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True')
-        
-        return self.create_user(email, username, first_name, last_name, password, **extra_fields)
+    def create_superuser(
+        self, email, username, first_name, last_name, password=None, **extra_fields
+    ):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_verified", True)
+
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True")
+
+        return self.create_user(
+            email, username, first_name, last_name, password, **extra_fields
+        )
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -46,10 +56,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         unique=True,
         validators=[
             RegexValidator(
-                regex=r'^[\w.@+-]+$',
-                message='Username may only contain letters, numbers and @/./+/-/_ characters.'
+                regex=r"^[\w.@+-]+$",
+                message="Username may only contain letters, numbers and @/./+/-/_ characters.",
             )
-        ]
+        ],
     )
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
@@ -63,14 +73,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username", "first_name", "last_name"]
 
     class Meta:
-        db_table = 'auth_users'
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
-        ordering = ['-date_joined']
+        db_table = "auth_users"
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+        ordering = ["-date_joined"]
 
     def __str__(self):
         return self.email

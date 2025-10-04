@@ -1,5 +1,7 @@
-from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+
+from rest_framework import serializers
+
 from apps.authentication.models import PasswordResetToken, User
 
 
@@ -16,11 +18,13 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
     new_password_confirm = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password_confirm']:
+        if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError("Passwords don't match")
         return attrs
 

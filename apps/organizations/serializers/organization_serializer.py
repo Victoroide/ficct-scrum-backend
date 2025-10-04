@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
 from apps.organizations.models import Organization
 from base.serializers import UserBasicSerializer
 
@@ -14,11 +15,24 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = [
-            'id', 'name', 'slug', 'description', 'logo', 'logo_url', 'website_url',
-            'organization_type', 'subscription_plan', 'owner', 'organization_settings',
-            'is_active', 'member_count', 'workspace_count', 'created_at', 'updated_at'
+            "id",
+            "name",
+            "slug",
+            "description",
+            "logo",
+            "logo_url",
+            "website_url",
+            "organization_type",
+            "subscription_plan",
+            "owner",
+            "organization_settings",
+            "is_active",
+            "member_count",
+            "workspace_count",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
+        read_only_fields = ["id", "owner", "created_at", "updated_at"]
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_logo_url(self, obj):

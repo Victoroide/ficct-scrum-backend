@@ -1,29 +1,30 @@
-from django.db import models
+import uuid
+
 from django.conf import settings
 from django.core.validators import RegexValidator
-import uuid
+from django.db import models
 
 
 def organization_logo_path(instance, filename):
-    return f'organizations/org_{instance.id}/logo/{filename}'
+    return f"organizations/org_{instance.id}/logo/{filename}"
 
 
 class Organization(models.Model):
     ORGANIZATION_TYPE_CHOICES = [
-        ('startup', 'Startup'),
-        ('enterprise', 'Enterprise'),
-        ('agency', 'Agency'),
-        ('nonprofit', 'Non-profit'),
-        ('education', 'Educational'),
-        ('government', 'Government'),
-        ('other', 'Other'),
+        ("startup", "Startup"),
+        ("enterprise", "Enterprise"),
+        ("agency", "Agency"),
+        ("nonprofit", "Non-profit"),
+        ("education", "Educational"),
+        ("government", "Government"),
+        ("other", "Other"),
     ]
 
     SUBSCRIPTION_PLAN_CHOICES = [
-        ('free', 'Free'),
-        ('basic', 'Basic'),
-        ('professional', 'Professional'),
-        ('enterprise', 'Enterprise'),
+        ("free", "Free"),
+        ("basic", "Basic"),
+        ("professional", "Professional"),
+        ("enterprise", "Enterprise"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -33,28 +34,24 @@ class Organization(models.Model):
         unique=True,
         validators=[
             RegexValidator(
-                regex=r'^[a-z0-9-]+$',
-                message='Slug may only contain lowercase letters, numbers and hyphens.'
+                regex=r"^[a-z0-9-]+$",
+                message="Slug may only contain lowercase letters, numbers and hyphens.",
             )
-        ]
+        ],
     )
     description = models.TextField(blank=True)
     logo = models.ImageField(upload_to=organization_logo_path, null=True, blank=True)
     website_url = models.URLField(blank=True)
     organization_type = models.CharField(
-        max_length=20,
-        choices=ORGANIZATION_TYPE_CHOICES,
-        default='startup'
+        max_length=20, choices=ORGANIZATION_TYPE_CHOICES, default="startup"
     )
     subscription_plan = models.CharField(
-        max_length=20,
-        choices=SUBSCRIPTION_PLAN_CHOICES,
-        default='free'
+        max_length=20, choices=SUBSCRIPTION_PLAN_CHOICES, default="free"
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='owned_organizations'
+        related_name="owned_organizations",
     )
     organization_settings = models.JSONField(default=dict)
     is_active = models.BooleanField(default=True)
@@ -62,10 +59,10 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'organizations'
-        verbose_name = 'Organization'
-        verbose_name_plural = 'Organizations'
-        ordering = ['name']
+        db_table = "organizations"
+        verbose_name = "Organization"
+        verbose_name_plural = "Organizations"
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
