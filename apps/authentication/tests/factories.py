@@ -14,6 +14,7 @@ class UserFactory(DjangoModelFactory):
         model = User
     
     email = factory.Sequence(lambda n: f'testuser{n}@testexample{n}.com')
+    username = factory.Sequence(lambda n: f'testuser{n}')
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
     is_active = True
@@ -37,6 +38,7 @@ class AdminUserFactory(UserFactory):
     """Factory for admin User."""
     
     email = factory.Sequence(lambda n: f"admin{n}@testexample{n}.com")
+    username = factory.Sequence(lambda n: f'admin{n}')
     is_staff = True
     is_superuser = True
 

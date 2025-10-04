@@ -122,6 +122,7 @@ if DATABASE_URL:
             "HOST": tmpPostgres.hostname,
             "PORT": 5432,
             "OPTIONS": dict(parse_qsl(tmpPostgres.query)),
+            "ATOMIC_REQUESTS": False,
         }
     }
 else:
@@ -129,6 +130,7 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            "ATOMIC_REQUESTS": False,
         }
     }
 

@@ -207,3 +207,92 @@ class CanModifyProjectConfiguration(permissions.BasePermission):
         project = obj.project
 
         return IsProjectLeadOrAdmin().has_object_permission(request, view, project)
+
+
+class CanModifyIssue(permissions.BasePermission):
+    """
+    Permission to modify issues.
+    Assignee, reporter, or project admin can modify.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return CanAccessProject().has_object_permission(request, view, obj)
+
+        issue = obj if hasattr(obj, 'assignee') else obj
+
+        if issue.assignee == request.user or issue.reporter == request.user:
+            return True
+
+        project_member = ProjectTeamMember.objects.filter(
+            project=issue.project,
+            user=request.user,
+            is_active=True
+        ).first()
+
+        if project_member and project_member.can_manage_project:
+            return True
+
+        return IsProjectLeadOrAdmin().has_object_permission(request, view, issue.project)
+
+
+class CanDeleteIssue(permissions.BasePermission):
+    """
+    Permission to delete issues.
+    Only project lead or admin can delete issues.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        issue = obj if hasattr(obj, 'project') else obj.issue
+        return IsProjectLeadOrAdmin().has_object_permission(request, view, issue.project)
+
+
+class CanManageSprint(permissions.BasePermission):
+    """
+    Permission to manage sprints.
+    Only project lead or admin can manage sprints.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return CanAccessProject().has_object_permission(request, view, obj)
+
+        sprint = obj if hasattr(obj, 'project') else obj
+        return IsProjectLeadOrAdmin().has_object_permission(request, view, sprint.project)
+
+
+class CanModifyBoard(permissions.BasePermission):
+    """
+    Permission to modify boards.
+    Board creator or project admin can modify.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return CanAccessProject().has_object_permission(request, view, obj)
+
+        board = obj if hasattr(obj, 'created_by') else obj
+
+        if board.created_by == request.user:
+            return True
+
+        return IsProjectLeadOrAdmin().has_object_permission(request, view, board.project)
+
+
+class IsProjectTeamMember(permissions.BasePermission):
+    """
+    Permission to check if user is a team member of the project.
+    """
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if hasattr(obj, "project"):
+            project = obj.project
+        else:
+            project = obj
+
+        return ProjectTeamMember.objects.filter(
+            project=project, user=request.user, is_active=True
+        ).exists()

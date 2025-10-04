@@ -9,8 +9,6 @@ from factory.django import DjangoModelFactory
 from apps.authentication.tests.factories import UserFactory
 from apps.organizations.models import Organization, OrganizationMembership
 
-{{...}}
-
 
 class OrganizationFactory(DjangoModelFactory):
     """Factory for Organization model."""
@@ -22,10 +20,10 @@ class OrganizationFactory(DjangoModelFactory):
     slug = factory.LazyAttribute(lambda o: f"org-{uuid.uuid4().hex[:8]}")
     description = factory.Faker("text", max_nb_chars=200)
     owner = factory.SubFactory(UserFactory)
-    industry = factory.Iterator(
-        ["technology", "healthcare", "finance", "education", "other"]
+    organization_type = factory.Iterator(
+        ("startup", "enterprise", "agency", "nonprofit", "education", "government", "other")
     )
-    size = factory.Iterator(["1-10", "11-50", "51-200", "201-500", "501+"])
+    subscription_plan = "free"
     is_active = True
 
 
