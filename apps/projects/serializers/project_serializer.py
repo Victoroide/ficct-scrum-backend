@@ -8,6 +8,7 @@ from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 class ProjectSerializer(serializers.ModelSerializer):
     team_member_count = serializers.ReadOnlyField()
     attachments_url = serializers.SerializerMethodField()
+    attachments = serializers.FileField(required=False, allow_null=True)
     workspace = WorkspaceBasicSerializer(read_only=True)
     lead = UserBasicSerializer(read_only=True)
     created_by = UserBasicSerializer(read_only=True)
@@ -22,6 +23,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'attachments': {'required': False, 'allow_null': True}
+        }
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_attachments_url(self, obj):
