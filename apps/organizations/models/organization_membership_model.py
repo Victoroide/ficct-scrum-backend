@@ -41,6 +41,14 @@ class OrganizationMembership(models.Model):
         blank=True,
         related_name="sent_invitations",
     )
+    invitation = models.ForeignKey(
+        "OrganizationInvitation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="memberships",
+        help_text="The invitation that originated this membership",
+    )
     invited_at = models.DateTimeField(auto_now_add=True)
     joined_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)

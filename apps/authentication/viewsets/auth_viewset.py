@@ -53,14 +53,38 @@ class AuthViewSet(viewsets.GenericViewSet):
         operation_id="auth_register",
         summary="User Registration",
         description=(
-            "Register a new user account. **NEW:** Automatically sends welcome email via AWS SES. "
+            "Register a new user account. **NEW FEATURES:** "
+            "1) Automatically sends welcome email via AWS SES. "
+            "2) Auto-accepts pending organization invitations for the registered email. "
+            "3) Returns auto_joined_organizations if user had pending invitations. "
             "Email delivery failures are logged but do not block registration. "
-            "Returns full user object with nested profile. Frontend should display: "
-            "'Registration successful! Welcome email sent to your inbox.'"
+            "Frontend should check for auto_joined_organizations and redirect to suggested organization."
         ),
         request=UserRegistrationSerializer,
         responses={
-            201: UserSerializer,
+            201: inline_serializer(
+                name="RegistrationSuccess",
+                fields={
+                    "id": serializers.IntegerField(),
+                    "email": serializers.EmailField(),
+                    "username": serializers.CharField(),
+                    "first_name": serializers.CharField(),
+                    "last_name": serializers.CharField(),
+                    "auto_joined_organizations": serializers.ListField(
+                        child=serializers.DictField(),
+                        required=False,
+                        help_text="Organizations auto-joined from pending invitations"
+                    ),
+                    "pending_invitations_accepted": serializers.IntegerField(
+                        required=False,
+                        help_text="Number of invitations auto-accepted"
+                    ),
+                    "redirect_suggestion": serializers.CharField(
+                        required=False,
+                        help_text="Suggested redirect URL to first organization"
+                    ),
+                },
+            ),
             400: inline_serializer(
                 name="RegistrationError",
                 fields={
@@ -101,6 +125,53 @@ class AuthViewSet(viewsets.GenericViewSet):
             if serializer.is_valid():
                 user = serializer.save()
 
+                # Auto-accept pending invitations for this email
+                auto_joined_organizations = []
+                pending_invitations_count = 0
+                
+                try:
+                    from apps.organizations.models import OrganizationInvitation
+                    
+                    pending_invitations = OrganizationInvitation.objects.filter(
+                        email=user.email, status="pending"
+                    ).select_related("organization", "invited_by")
+                    
+                    for invitation in pending_invitations:
+                        if not invitation.is_expired:
+                            try:
+                                membership = invitation.accept(user)
+                                auto_joined_organizations.append({
+                                    "id": str(invitation.organization.id),
+                                    "name": invitation.organization.name,
+                                    "role": invitation.role,
+                                })
+                                pending_invitations_count += 1
+                                
+                                # Send welcome email for each organization
+                                try:
+                                    EmailService.send_organization_welcome_email(
+                                        user=user,
+                                        organization=invitation.organization,
+                                        role=invitation.role,
+                                    )
+                                except Exception:
+                                    pass  # Email failure shouldn't block registration
+                                    
+                            except Exception as e:
+                                LoggerService.log_error(
+                                    action="auto_accept_invitation_failed",
+                                    user=user,
+                                    error=str(e),
+                                    details={"invitation_id": str(invitation.id)},
+                                )
+                                
+                except Exception as e:
+                    LoggerService.log_error(
+                        action="auto_accept_invitations_check_failed",
+                        user=user,
+                        error=str(e),
+                    )
+
                 # Send welcome email
                 try:
                     EmailService.send_welcome_email(user)
@@ -116,11 +187,26 @@ class AuthViewSet(viewsets.GenericViewSet):
                     action="user_registered",
                     user=user,
                     ip_address=self.get_client_ip(request),
-                    details={"email": user.email, "username": user.username},
+                    details={
+                        "email": user.email,
+                        "username": user.username,
+                        "auto_joined_organizations_count": pending_invitations_count,
+                    },
                 )
 
                 user_serializer = UserSerializer(user)
-                return Response(user_serializer.data, status=status.HTTP_201_CREATED)
+                response_data = user_serializer.data
+                
+                # Add invitation acceptance info to response
+                if auto_joined_organizations:
+                    response_data["auto_joined_organizations"] = auto_joined_organizations
+                    response_data["pending_invitations_accepted"] = pending_invitations_count
+                    if auto_joined_organizations:
+                        response_data["redirect_suggestion"] = (
+                            f"/organizations/{auto_joined_organizations[0]['id']}/dashboard"
+                        )
+                
+                return Response(response_data, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
