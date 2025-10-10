@@ -7,13 +7,13 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.workspaces.models import Workspace
+from apps.workspaces.models import Workspace, WorkspaceMember
 from apps.workspaces.permissions import (
     CanAccessWorkspace,
     IsWorkspaceAdmin,
     IsWorkspaceMember,
 )
-from apps.workspaces.serializers import WorkspaceSerializer
+from apps.workspaces.serializers import WorkspaceMemberSerializer, WorkspaceSerializer
 from base.utils.file_handlers import upload_workspace_asset_to_s3
 
 
@@ -126,3 +126,30 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        tags=["Workspaces"],
+        operation_id="workspaces_members_list",
+        summary="List Workspace Members",
+        description="Retrieve a list of all active members for the given workspace.",
+    )
+    @action(detail=True, methods=["get"], url_path="members")
+    def members(self, request, pk=None):
+        """Retrieve a list of members for the given workspace."""
+        workspace = self.get_object()
+        
+        # Query optimization to prevent N+1
+        members = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            is_active=True
+        ).select_related(
+            'user',
+            'workspace'
+        ).order_by('-joined_at')
+        
+        serializer = WorkspaceMemberSerializer(
+            members,
+            many=True,
+            context={"request": request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
