@@ -64,6 +64,8 @@ LOCAL_APPS = [
     "apps.workspaces",
     "apps.projects",
     "apps.logging",
+    "apps.integrations",
+    "apps.reporting",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -399,3 +401,14 @@ LOGGING = {
         },
     },
 }
+
+# ============================================================================
+# GitHub OAuth Configuration
+# ============================================================================
+
+GITHUB_CLIENT_ID = config("GITHUB_CLIENT_ID", default="")
+GITHUB_CLIENT_SECRET = config("GITHUB_CLIENT_SECRET", default="")
+GITHUB_OAUTH_CALLBACK_URL = config(
+    "GITHUB_OAUTH_CALLBACK_URL",
+    default="http://localhost:8000/api/v1/integrations/github/oauth/callback/",
+)

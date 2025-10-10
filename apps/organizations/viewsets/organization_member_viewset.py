@@ -64,6 +64,10 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanManageMembers]
 
     def get_queryset(self):
+        # Handle schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return OrganizationMembership.objects.none()
+            
         return OrganizationMembership.objects.filter(
             organization__memberships__user=self.request.user,
             organization__memberships__is_active=True,
@@ -88,31 +92,19 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
                 },
             )
 
-            if created or invitation.status == "pending":
-                # Send invitation email
-                try:
-                    EmailService.send_organization_invitation_email(
-                        invitation=invitation,
-                        invited_by_name=self.request.user.full_name,
-                        organization_name=membership.organization.name,
-                    )
-                    LoggerService.log_info(
-                        action="organization_invitation_sent",
-                        user=self.request.user,
-                        ip_address=self.request.META.get("REMOTE_ADDR"),
-                        details={
-                            "organization": membership.organization.name,
-                            "invitee_email": membership.user.email,
-                            "role": membership.role,
-                        },
-                    )
-                except Exception as email_error:
-                    LoggerService.log_error(
-                        action="organization_invitation_email_failed",
-                        user=self.request.user,
-                        ip_address=self.request.META.get("REMOTE_ADDR"),
-                        error=str(email_error),
-                    )
+            # Send invitation email
+            try:
+                EmailService.send_organization_invitation_email(
+                    invitation=invitation,
+                    invited_by_name=self.request.user.full_name,
+                )
+            except Exception as email_error:
+                LoggerService.log_error(
+                    action="organization_invitation_email_failed",
+                    user=self.request.user,
+                    ip_address=self.request.META.get("REMOTE_ADDR"),
+                    error=str(email_error),
+                )
         except Exception as e:
             LoggerService.log_error(
                 action="organization_invitation_creation_failed",

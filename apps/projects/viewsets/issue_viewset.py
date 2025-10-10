@@ -34,18 +34,58 @@ class IssueFilter(filters.FilterSet):
     issue_type = filters.UUIDFilter(field_name="issue_type__id")
     priority = filters.ChoiceFilter(choices=Issue.PRIORITY_CHOICES)
     search = filters.CharFilter(method="filter_search")
+    
+    has_attachments = filters.BooleanFilter(method="filter_has_attachments")
+    has_comments = filters.BooleanFilter(method="filter_has_comments")
+    has_links = filters.BooleanFilter(method="filter_has_links")
+    
+    created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
+    created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
+    updated_after = filters.DateTimeFilter(field_name="updated_at", lookup_expr="gte")
+    updated_before = filters.DateTimeFilter(field_name="updated_at", lookup_expr="lte")
+    resolved_after = filters.DateTimeFilter(field_name="resolved_at", lookup_expr="gte")
+    resolved_before = filters.DateTimeFilter(field_name="resolved_at", lookup_expr="lte")
 
     class Meta:
         model = Issue
         fields = ["project", "sprint", "assignee", "reporter", "status", "issue_type", "priority"]
 
     def filter_search(self, queryset, name, value):
+        from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
         from django.db import models as django_models
-        return queryset.filter(
-            django_models.Q(title__icontains=value) |
-            django_models.Q(description__icontains=value) |
-            django_models.Q(key__icontains=value)
-        )
+        
+        try:
+            search_vector = SearchVector("title", weight="A") + SearchVector("description", weight="B") + SearchVector("key", weight="A")
+            search_query = SearchQuery(value)
+            
+            return queryset.annotate(
+                search=search_vector,
+                rank=SearchRank(search_vector, search_query)
+            ).filter(search=search_query).order_by("-rank")
+        except Exception:
+            return queryset.filter(
+                django_models.Q(title__icontains=value) |
+                django_models.Q(description__icontains=value) |
+                django_models.Q(key__icontains=value)
+            )
+    
+    def filter_has_attachments(self, queryset, name, value):
+        if value:
+            return queryset.filter(attachments__isnull=False).distinct()
+        return queryset.filter(attachments__isnull=True)
+    
+    def filter_has_comments(self, queryset, name, value):
+        if value:
+            return queryset.filter(comments__isnull=False).distinct()
+        return queryset.filter(comments__isnull=True)
+    
+    def filter_has_links(self, queryset, name, value):
+        from django.db import models as django_models
+        if value:
+            return queryset.filter(
+                django_models.Q(source_links__isnull=False) | django_models.Q(target_links__isnull=False)
+            ).distinct()
+        return queryset.filter(source_links__isnull=True, target_links__isnull=True)
 
 
 @extend_schema_view(

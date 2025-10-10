@@ -36,21 +36,30 @@ from apps.workspaces.serializers import WorkspaceMemberSerializer
         operation_id="workspace_members_partial_update",
         summary="Partial Update Member",
     ),
-    destroy=extend_schema(
-        tags=["Workspaces"],
-        operation_id="workspace_members_destroy",
-        summary="Remove Member from Workspace",
-    ),
 )
 class WorkspaceMemberViewSet(viewsets.ModelViewSet):
     serializer_class = WorkspaceMemberSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return WorkspaceMember.objects.filter(
-            workspace__members__user=self.request.user,
-            workspace__members__is_active=True,
-        ).distinct()
+        # Handle schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return WorkspaceMember.objects.none()
+            
+        if not self.request.user.is_authenticated:
+            return WorkspaceMember.objects.none()
+
+        user = self.request.user
+        workspace_id = self.kwargs.get("workspace_id")
+
+        if workspace_id:
+            queryset = WorkspaceMember.objects.filter(workspace_id=workspace_id)
+        else:
+            queryset = WorkspaceMember.objects.filter(
+                workspace__members__user=user, workspace__members__is_active=True
+            ).distinct()
+
+        return queryset.select_related("workspace", "user")
 
     @extend_schema(
         tags=["Workspaces"],

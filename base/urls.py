@@ -27,6 +27,8 @@ urlpatterns = get_spectacular_urls() + [
     path("api/v1/workspaces/", include("apps.workspaces.urls")),
     path("api/v1/projects/", include("apps.projects.urls")),
     path("api/v1/logs/", include("apps.logging.urls")),
+    path("api/v1/integrations/", include("apps.integrations.urls")),
+    path("api/v1/reporting/", include("apps.reporting.urls")),
 ]
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
