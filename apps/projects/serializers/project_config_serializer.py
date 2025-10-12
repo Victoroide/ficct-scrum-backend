@@ -55,6 +55,23 @@ class ProjectConfigSerializer(serializers.ModelSerializer):
         from apps.projects.models import Project
         self.fields['project'].queryset = Project.objects.all()
     
+    def validate(self, attrs):
+        """
+        Validate that a configuration doesn't already exist for the project.
+        
+        This prevents UniqueViolation errors and provides clear error messages.
+        """
+        project = attrs.get('project')
+        
+        # Only check for duplicates on creation (not on update)
+        if self.instance is None and project:
+            if ProjectConfiguration.objects.filter(project=project).exists():
+                raise serializers.ValidationError({
+                    'project': 'A configuration already exists for this project.'
+                })
+        
+        return attrs
+    
     def to_representation(self, instance):
         """
         Override to return nested ProjectBasicSerializer for reading.
