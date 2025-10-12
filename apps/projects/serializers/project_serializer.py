@@ -8,10 +8,23 @@ from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Project model.
+    
+    Handles workspace assignment using PrimaryKeyRelatedField for automatic
+    UUID to instance conversion on both create and update operations.
+    """
     team_member_count = serializers.ReadOnlyField()
     attachments_url = serializers.SerializerMethodField()
     attachments = serializers.FileField(required=False, allow_null=True)
-    workspace = serializers.UUIDField(write_only=True, required=True)
+    
+    # Use PrimaryKeyRelatedField for automatic UUID to instance conversion
+    workspace = serializers.PrimaryKeyRelatedField(
+        queryset=Workspace.objects.all(),
+        required=True,
+        help_text="UUID of the workspace this project belongs to"
+    )
+    
     workspace_details = WorkspaceBasicSerializer(source="workspace", read_only=True)
     lead = UserBasicSerializer(read_only=True)
     created_by = UserBasicSerializer(read_only=True)
@@ -58,15 +71,25 @@ class ProjectSerializer(serializers.ModelSerializer):
         return None
 
     def validate_workspace(self, value):
+        """
+        Validate that the user has access to the workspace.
+        
+        Args:
+            value: Workspace instance (automatically converted from UUID by PrimaryKeyRelatedField)
+        
+        Returns:
+            Validated Workspace instance
+        
+        Raises:
+            ValidationError: If user doesn't have access to workspace
+        """
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required")
 
-        try:
-            workspace = Workspace.objects.get(id=value)
-        except Workspace.DoesNotExist:
-            raise serializers.ValidationError("Workspace does not exist")
-
+        # value is already a Workspace instance (converted by PrimaryKeyRelatedField)
+        workspace = value
+        
         from apps.workspaces.models import WorkspaceMember
 
         if not WorkspaceMember.objects.filter(
@@ -76,15 +99,10 @@ class ProjectSerializer(serializers.ModelSerializer):
                 "You do not have access to this workspace"
             )
 
-        return value
+        return workspace
 
     def validate_attachments(self, value):
+        """Validate attachment file size."""
         if value and value.size > 50 * 1024 * 1024:
             raise serializers.ValidationError("Attachment file size cannot exceed 50MB")
         return value
-
-    def create(self, validated_data):
-        workspace_id = validated_data.pop("workspace")
-        workspace = Workspace.objects.get(id=workspace_id)
-        validated_data["workspace"] = workspace
-        return super().create(validated_data)
