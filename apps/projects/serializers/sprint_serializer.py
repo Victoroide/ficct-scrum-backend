@@ -87,10 +87,19 @@ class SprintCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Project does not exist")
 
         from apps.projects.models import ProjectTeamMember
+        from apps.workspaces.models import WorkspaceMember
 
-        if not ProjectTeamMember.objects.filter(
+        # Check if user is a project team member
+        is_project_member = ProjectTeamMember.objects.filter(
             project=project, user=request.user, is_active=True
-        ).exists():
+        ).exists()
+
+        # Check if user is a workspace member (has access to all projects in workspace)
+        is_workspace_member = WorkspaceMember.objects.filter(
+            workspace=project.workspace, user=request.user, is_active=True
+        ).exists()
+
+        if not (is_project_member or is_workspace_member):
             raise serializers.ValidationError("You are not a member of this project")
 
         return value
