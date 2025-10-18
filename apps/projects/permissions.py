@@ -95,6 +95,11 @@ class CanAccessProject(permissions.BasePermission):
     """
     Permission for accessing project resources.
     Checks if user has access through project, workspace, or organization membership.
+    
+    ARCHITECTURE:
+    - Workspace members have access to ALL projects in their workspace (read + write)
+    - Project members have access to their specific project (read + write)
+    - Organization members have read-only access to public workspaces
     """
 
     def has_object_permission(self, request, view, obj):
@@ -105,7 +110,7 @@ class CanAccessProject(permissions.BasePermission):
         else:
             project = obj
 
-        # Check project membership
+        # Check project membership (full access)
         is_project_member = ProjectTeamMember.objects.filter(
             project=project, user=request.user, is_active=True
         ).exists()
@@ -113,15 +118,13 @@ class CanAccessProject(permissions.BasePermission):
         if is_project_member:
             return True
 
-        # Check workspace membership
+        # Check workspace membership (full access)
+        # Workspace members can access ALL projects in their workspace
         is_workspace_member = WorkspaceMember.objects.filter(
             workspace=project.workspace, user=request.user, is_active=True
         ).exists()
 
         if is_workspace_member:
-            # For write operations, need to be project member
-            if request.method not in permissions.SAFE_METHODS:
-                return False
             return True
 
         # Check organization membership (read-only for public workspaces)

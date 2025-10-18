@@ -87,8 +87,25 @@ class SprintViewSet(viewsets.ModelViewSet):
         return SprintListSerializer
 
     def get_permissions(self):
+        """
+        Define granular permissions for sprint operations.
+        
+        PERMISSION LOGIC:
+        - Structural Management (create, update, delete): Requires CanManageSprint
+          → Only project lead/admin can create/edit/delete sprint structure
+        
+        - Sprint Operations (start, complete, add_issue, remove_issue): Requires CanAccessProject
+          → Any project or workspace member can operate sprints
+        
+        - Read Operations (list, retrieve, progress, burndown): Requires CanAccessProject
+          → Any project or workspace member can view sprints
+        """
+        # Structural management requires admin/lead role
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAuthenticated(), CanManageSprint()]
+        
+        # All other operations (including custom actions) require project access only
+        # Custom actions: start_sprint, complete_sprint, add_issue, remove_issue, progress, burndown
         return [IsAuthenticated(), CanAccessProject()]
 
     @transaction.atomic
