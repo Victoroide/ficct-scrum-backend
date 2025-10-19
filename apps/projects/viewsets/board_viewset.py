@@ -37,13 +37,13 @@ class BoardFilter(filters.FilterSet):
     retrieve=extend_schema(
         tags=["Boards"],
         operation_id="boards_retrieve",
-        summary="Get Board Details (UC-045)",
+        summary="Get Board Details ",
         description="Get board with columns and issues. Support filtering by assignee, priority, sprint.",
     ),
     create=extend_schema(
         tags=["Boards"],
         operation_id="boards_create",
-        summary="Create Board (UC-042)",
+        summary="Create Board ",
     ),
     update=extend_schema(
         tags=["Boards"],
@@ -112,7 +112,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Boards"],
         operation_id="boards_add_column",
-        summary="Add Column to Board (UC-043)",
+        summary="Add Column to Board ",
         description="Add a new column to the board mapped to a workflow status.",
     )
     @action(detail=True, methods=["post"], url_path="columns")
@@ -164,7 +164,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Boards"],
         operation_id="boards_update_column",
-        summary="Update/Delete Board Column (UC-043)",
+        summary="Update/Delete Board Column ",
         description="Update or delete a board column.",
     )
     @action(detail=True, methods=["patch", "delete"], url_path="columns/(?P<column_id>[^/.]+)")
@@ -209,7 +209,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Boards"],
         operation_id="boards_create_issue",
-        summary="Create Issue from Board (UC-046)",
+        summary="Create Issue from Board ",
         description="Create a new issue directly from the board view.",
     )
     @action(detail=True, methods=["post"], url_path="issues")
@@ -240,7 +240,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Boards"],
         operation_id="boards_move_issue",
-        summary="Move Issue in Board (UC-044)",
+        summary="Move Issue in Board ",
         description="Move issue between columns. Updates issue status to match column's workflow status.",
     )
     @action(detail=True, methods=["patch"], url_path="issues/(?P<issue_id>[^/.]+)/move")

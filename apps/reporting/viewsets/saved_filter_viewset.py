@@ -11,14 +11,14 @@ from apps.reporting.serializers import SavedFilterSerializer
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List saved filters", tags=["Filters"]),
-    retrieve=extend_schema(summary="Get filter details", tags=["Filters"]),
-    create=extend_schema(summary="Create saved filter", tags=["Filters"]),
-    update=extend_schema(summary="Update saved filter", tags=["Filters"]),
+    list=extend_schema(summary="List saved filters", tags=["Reporting"]),
+    retrieve=extend_schema(summary="Get filter details", tags=["Reporting"]),
+    create=extend_schema(summary="Create saved filter", tags=["Reporting"]),
+    update=extend_schema(summary="Update saved filter", tags=["Reporting"]),
     partial_update=extend_schema(
-        summary="Partially update saved filter", tags=["Filters"]
+        summary="Partially update saved filter", tags=["Reporting"]
     ),
-    destroy=extend_schema(summary="Delete saved filter", tags=["Filters"]),
+    destroy=extend_schema(summary="Delete saved filter", tags=["Reporting"]),
 )
 class SavedFilterViewSet(viewsets.ModelViewSet):
     queryset = SavedFilter.objects.all()
@@ -56,7 +56,7 @@ class SavedFilterViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Apply filter to get issues",
-        tags=["Filters"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )

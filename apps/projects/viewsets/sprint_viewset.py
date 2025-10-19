@@ -42,12 +42,12 @@ class SprintFilter(filters.FilterSet):
     create=extend_schema(
         tags=["Sprints"],
         operation_id="sprints_create",
-        summary="Create Sprint (UC-035)",
+        summary="Create Sprint ",
     ),
     update=extend_schema(
         tags=["Sprints"],
         operation_id="sprints_update",
-        summary="Update Sprint (UC-036)",
+        summary="Update Sprint ",
     ),
     partial_update=extend_schema(
         tags=["Sprints"],
@@ -126,7 +126,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_start",
-        summary="Start Sprint (UC-038)",
+        summary="Start Sprint ",
         description="Start a sprint. Only one active sprint allowed per project. Sprint must have issues.",
     )
     @action(detail=True, methods=["post"], url_path="start")
@@ -186,7 +186,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_complete",
-        summary="Complete Sprint (UC-040)",
+        summary="Complete Sprint ",
         description="Complete a sprint. Moves incomplete issues to backlog. Calculates final metrics.",
     )
     @action(detail=True, methods=["post"], url_path="complete")
@@ -241,7 +241,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_progress",
-        summary="View Sprint Progress (UC-039)",
+        summary="View Sprint Progress ",
         description="Get detailed progress metrics for the sprint.",
     )
     @action(detail=True, methods=["get"], url_path="progress")
@@ -286,7 +286,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_burndown",
-        summary="Get Burndown Chart Data (UC-041)",
+        summary="Get Burndown Chart Data ",
         description="Generate burndown chart data with ideal and actual lines.",
     )
     @action(detail=True, methods=["get"], url_path="burndown")
@@ -350,7 +350,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_add_issue",
-        summary="Add Issue to Sprint (UC-037)",
+        summary="Add Issue to Sprint ",
         description="Add an issue to the sprint.",
     )
     @action(detail=True, methods=["post"], url_path="issues")

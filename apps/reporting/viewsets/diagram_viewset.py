@@ -12,14 +12,14 @@ from apps.reporting.services.diagram_service import DiagramService
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List cached diagrams", tags=["Diagrams"]),
+    list=extend_schema(summary="List cached diagrams", tags=["Reporting"]),
 )
 class DiagramViewSet(viewsets.ViewSet):
     permission_classes = [CanGenerateReports]
 
     @extend_schema(
         summary="Generate diagram",
-        tags=["Diagrams"],
+        tags=["Reporting"],
         request=DiagramRequestSerializer,
         responses={200: DiagramResponseSerializer},
     )
@@ -80,7 +80,7 @@ class DiagramViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="List cached diagrams",
-        tags=["Diagrams"],
+        tags=["Reporting"],
         responses={200: {"type": "array"}},
     )
     def list(self, request):

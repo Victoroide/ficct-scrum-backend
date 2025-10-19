@@ -1,4 +1,5 @@
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
@@ -10,6 +11,19 @@ from apps.projects.serializers.issue_type_serializer import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Issues"],
+        operation_id="issue_types_list",
+        summary="List Issue Types",
+        description="List available issue types for projects user has access to. Filter by project UUID.",
+    ),
+    retrieve=extend_schema(
+        tags=["Issues"],
+        operation_id="issue_types_retrieve",
+        summary="Get Issue Type Details",
+    ),
+)
 class IssueTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for IssueType model.

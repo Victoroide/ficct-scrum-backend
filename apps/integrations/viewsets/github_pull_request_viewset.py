@@ -14,10 +14,10 @@ from apps.integrations.serializers import (
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List GitHub pull requests", tags=["GitHub Pull Requests"]
+        summary="List GitHub pull requests", tags=["Integrations"]
     ),
     retrieve=extend_schema(
-        summary="Get pull request details", tags=["GitHub Pull Requests"]
+        summary="Get pull request details", tags=["Integrations"]
     ),
 )
 class GitHubPullRequestViewSet(viewsets.ReadOnlyModelViewSet):
@@ -49,7 +49,7 @@ class GitHubPullRequestViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Link pull request to issue",
-        tags=["GitHub Pull Requests"],
+        tags=["Integrations"],
         request=LinkPullRequestToIssueSerializer,
         responses={200: {"type": "object"}},
     )

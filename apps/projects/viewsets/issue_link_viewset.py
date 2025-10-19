@@ -11,20 +11,28 @@ from apps.projects.serializers import IssueLinkSerializer
 
 @extend_schema_view(
     list=extend_schema(
-        tags=["Issue Links"],
+        tags=["Issues"],
         operation_id="issue_links_list",
         summary="List Issue Links",
+        description="Retrieve all links for a specific issue",
+    ),
+    retrieve=extend_schema(
+        tags=["Issues"],
+        operation_id="issue_links_retrieve",
+        summary="Get Issue Link Details",
+        description="Retrieve details of a specific issue link",
     ),
     create=extend_schema(
-        tags=["Issue Links"],
+        tags=["Issues"],
         operation_id="issue_links_create",
-        summary="Create Issue Link (UC-032)",
+        summary="Create Issue Link ",
         description="Link issues together. Creates reciprocal link automatically (e.g., 'blocks' creates 'blocked_by').",
     ),
     destroy=extend_schema(
-        tags=["Issue Links"],
+        tags=["Issues"],
         operation_id="issue_links_destroy",
         summary="Delete Issue Link",
+        description="Delete an issue link and its reciprocal relationship",
     ),
 )
 class IssueLinkViewSet(viewsets.ModelViewSet):

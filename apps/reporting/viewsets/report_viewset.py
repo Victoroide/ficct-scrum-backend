@@ -14,14 +14,14 @@ from apps.reporting.services.analytics_service import AnalyticsService
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List report snapshots", tags=["Reports"]),
+    list=extend_schema(summary="List report snapshots", tags=["Reporting"]),
 )
 class ReportViewSet(viewsets.ViewSet):
     permission_classes = [CanGenerateReports]
 
     @extend_schema(
         summary="Generate velocity chart",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -52,7 +52,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Generate sprint report",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -90,7 +90,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Generate team metrics",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -121,7 +121,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Generate cumulative flow diagram",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -152,7 +152,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Export data to CSV",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=ExportRequestSerializer,
         responses={200: {"type": "object"}},
     )
@@ -200,7 +200,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="Get project dashboard",
-        tags=["Reports"],
+        tags=["Reporting"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -230,7 +230,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     @extend_schema(
         summary="List report snapshots",
-        tags=["Reports"],
+        tags=["Reporting"],
         responses={200: ReportSnapshotSerializer(many=True)},
     )
     def list(self, request):

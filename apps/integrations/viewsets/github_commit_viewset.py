@@ -13,8 +13,8 @@ from apps.integrations.serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List GitHub commits", tags=["GitHub Commits"]),
-    retrieve=extend_schema(summary="Get commit details", tags=["GitHub Commits"]),
+    list=extend_schema(summary="List GitHub commits", tags=["Integrations"]),
+    retrieve=extend_schema(summary="Get commit details", tags=["Integrations"]),
 )
 class GitHubCommitViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GitHubCommit.objects.all()
@@ -45,7 +45,7 @@ class GitHubCommitViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Link commit to issue",
-        tags=["GitHub Commits"],
+        tags=["Integrations"],
         request=LinkCommitToIssueSerializer,
         responses={200: {"type": "object"}},
     )
@@ -69,7 +69,7 @@ class GitHubCommitViewSet(viewsets.ReadOnlyModelViewSet):
 
     @extend_schema(
         summary="Unlink commit from issue",
-        tags=["GitHub Commits"],
+        tags=["Integrations"],
         request=LinkCommitToIssueSerializer,
         responses={200: {"type": "object"}},
     )

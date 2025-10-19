@@ -20,7 +20,7 @@ from apps.organizations.serializers import (
 
 @extend_schema_view(
     list=extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_list",
         summary="List Organization Invitations",
         description="List all invitations for an organization. Requires owner/admin/manager role.",
@@ -42,12 +42,12 @@ from apps.organizations.serializers import (
         ],
     ),
     retrieve=extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_retrieve",
         summary="Get Invitation Details",
     ),
     destroy=extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_revoke",
         summary="Revoke Invitation",
         description="Revoke/cancel a pending invitation. Only owner/admin or inviter can revoke.",
@@ -97,7 +97,7 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         return queryset
 
     @extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_create",
         summary="Invite User by Email",
         description=(
@@ -123,7 +123,7 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         return Response(result, status=status.HTTP_201_CREATED)
 
     @extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_verify",
         summary="Verify Invitation Token",
         description=(
@@ -194,7 +194,7 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         return Response(invitation_data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        tags=["Organizations - Invitations"],
+        tags=["Organizations"],
         operation_id="organization_invitations_accept",
         summary="Accept Invitation",
         description=(

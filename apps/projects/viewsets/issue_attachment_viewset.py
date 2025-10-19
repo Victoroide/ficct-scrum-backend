@@ -11,19 +11,28 @@ from apps.projects.serializers import IssueAttachmentSerializer
 
 @extend_schema_view(
     list=extend_schema(
-        tags=["Issue Attachments"],
+        tags=["Issues"],
         operation_id="issue_attachments_list",
         summary="List Issue Attachments",
+        description="Retrieve all attachments for a specific issue",
+    ),
+    retrieve=extend_schema(
+        tags=["Issues"],
+        operation_id="issue_attachments_retrieve",
+        summary="Get Attachment Details",
+        description="Retrieve details of a specific issue attachment",
     ),
     create=extend_schema(
-        tags=["Issue Attachments"],
+        tags=["Issues"],
         operation_id="issue_attachments_create",
-        summary="Upload Attachment to Issue (UC-034)",
+        summary="Upload Attachment to Issue ",
+        description="Upload a file attachment to an issue",
     ),
     destroy=extend_schema(
-        tags=["Issue Attachments"],
+        tags=["Issues"],
         operation_id="issue_attachments_destroy",
         summary="Delete Attachment",
+        description="Delete an attachment from an issue",
     ),
 )
 class IssueAttachmentViewSet(viewsets.ModelViewSet):

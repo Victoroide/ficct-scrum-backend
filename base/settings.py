@@ -298,6 +298,50 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
+def postprocess_schema_tags(result, generator, request, public):
+    """Remap lowercase tags to proper capitalized versions and fix nested routes"""
+    tag_mapping = {
+        'auth': 'Authentication',
+        'workspaces': 'Workspaces',
+        'workspace-members': 'Workspaces',
+        'projects': 'Projects',
+        'project-config': 'Projects',
+        'issue': 'Issues',
+        'issue-type': 'Issues',
+        'sprint': 'Sprints',
+        'board': 'Boards',
+        'github-integration': 'Integrations',
+        'github-commit': 'Integrations',
+        'github-pull-request': 'Integrations',
+        'integrations': 'Integrations',
+    }
+    
+    # Path-based tag assignment for nested routes
+    path_patterns = {
+        '/issues/': 'Issues',
+        '/sprints/': 'Sprints',
+        '/boards/': 'Boards',
+    }
+    
+    for path, path_item in result.get('paths', {}).items():
+        for operation in path_item.values():
+            if isinstance(operation, dict) and 'tags' in operation:
+                # First, remap existing tags via mapping
+                operation['tags'] = [
+                    tag_mapping.get(tag, tag) 
+                    for tag in operation['tags']
+                ]
+                
+                # Then, override based on path patterns for nested routes
+                for pattern, correct_tag in path_patterns.items():
+                    if pattern in path and correct_tag not in operation['tags']:
+                        # Replace incorrect tag with correct one
+                        operation['tags'] = [correct_tag]
+                        break
+    
+    return result
+
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "FICCT-SCRUM API",
     "DESCRIPTION": "API documentation for FICCT-SCRUM application",
@@ -307,6 +351,7 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
     "COMPONENT_SPLIT_REQUEST": True,
+    "POSTPROCESSING_HOOKS": ["base.settings.postprocess_schema_tags"],
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "persistAuthorization": True,
@@ -329,7 +374,7 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Organizations",
-            "description": "Organization creation, management and member administration",
+            "description": "Organization creation, management, member administration and invitations",
         },
         {
             "name": "Workspaces",
@@ -338,6 +383,26 @@ SPECTACULAR_SETTINGS = {
         {
             "name": "Projects",
             "description": "Project creation, configuration and lifecycle management",
+        },
+        {
+            "name": "Issues",
+            "description": "Issue tracking, types, attachments, comments and links",
+        },
+        {
+            "name": "Boards",
+            "description": "Kanban board management, columns and workflow visualization",
+        },
+        {
+            "name": "Sprints",
+            "description": "Sprint planning, execution and progress tracking",
+        },
+        {
+            "name": "Integrations",
+            "description": "Third-party integrations including GitHub repositories, commits and pull requests",
+        },
+        {
+            "name": "Reporting",
+            "description": "Analytics, reports, diagrams, activity logs and custom filters",
         },
         {
             "name": "Logging",

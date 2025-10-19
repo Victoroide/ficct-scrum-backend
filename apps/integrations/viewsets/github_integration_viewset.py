@@ -19,15 +19,15 @@ from apps.integrations.services.github_service import GitHubService
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List GitHub integrations", tags=["GitHub Integration"]),
+    list=extend_schema(summary="List GitHub integrations", tags=["Integrations"]),
     retrieve=extend_schema(
-        summary="Get GitHub integration details", tags=["GitHub Integration"]
+        summary="Get GitHub integration details", tags=["Integrations"]
     ),
     create=extend_schema(
-        summary="Connect GitHub repository", tags=["GitHub Integration"]
+        summary="Connect GitHub repository", tags=["Integrations"]
     ),
     destroy=extend_schema(
-        summary="Disconnect GitHub repository", tags=["GitHub Integration"]
+        summary="Disconnect GitHub repository", tags=["Integrations"]
     ),
 )
 class GitHubIntegrationViewSet(viewsets.ModelViewSet):
@@ -51,7 +51,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Sync commits from GitHub",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -77,7 +77,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Sync pull requests from GitHub",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         request=None,
         responses={200: {"type": "object"}},
     )
@@ -102,7 +102,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Get code metrics",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         responses={200: {"type": "object"}},
     )
     @action(detail=True, methods=["get"], permission_classes=[CanViewIntegrations])
@@ -120,7 +120,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Get commits for integration",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         responses={200: {"type": "array"}},
     )
     @action(detail=True, methods=["get"], permission_classes=[CanViewIntegrations])
@@ -134,7 +134,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Get pull requests for integration",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         responses={200: {"type": "array"}},
     )
     @action(detail=True, methods=["get"], permission_classes=[CanViewIntegrations])
@@ -148,7 +148,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="Initiate GitHub OAuth flow",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         request={
             "application/json": {
                 "type": "object",
@@ -219,7 +219,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         summary="GitHub OAuth callback endpoint",
-        tags=["GitHub Integration"],
+        tags=["Integrations"],
         parameters=[
             {
                 "name": "code",

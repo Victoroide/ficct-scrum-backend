@@ -11,29 +11,40 @@ from apps.projects.serializers import IssueCommentSerializer
 
 @extend_schema_view(
     list=extend_schema(
-        tags=["Issue Comments"],
+        tags=["Issues"],
         operation_id="issue_comments_list",
         summary="List Issue Comments",
+        description="Retrieve all comments for a specific issue",
+    ),
+    retrieve=extend_schema(
+        tags=["Issues"],
+        operation_id="issue_comments_retrieve",
+        summary="Get Comment Details",
+        description="Retrieve details of a specific comment",
     ),
     create=extend_schema(
-        tags=["Issue Comments"],
+        tags=["Issues"],
         operation_id="issue_comments_create",
-        summary="Add Comment to Issue (UC-033)",
+        summary="Add Comment to Issue ",
+        description="Add a new comment to an issue",
     ),
     update=extend_schema(
-        tags=["Issue Comments"],
+        tags=["Issues"],
         operation_id="issue_comments_update",
         summary="Edit Comment",
+        description="Update an existing comment (author only)",
     ),
     partial_update=extend_schema(
-        tags=["Issue Comments"],
+        tags=["Issues"],
         operation_id="issue_comments_partial_update",
         summary="Partial Update Comment",
+        description="Partially update an existing comment (author only)",
     ),
     destroy=extend_schema(
-        tags=["Issue Comments"],
+        tags=["Issues"],
         operation_id="issue_comments_destroy",
         summary="Delete Comment",
+        description="Delete a comment (author or project admin)",
     ),
 )
 class IssueCommentViewSet(viewsets.ModelViewSet):

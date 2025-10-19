@@ -109,7 +109,7 @@ class IssueFilter(filters.FilterSet):
     update=extend_schema(
         tags=["Issues"],
         operation_id="issues_update",
-        summary="Update Issue (UC-028)",
+        summary="Update Issue ",
     ),
     partial_update=extend_schema(
         tags=["Issues"],
@@ -200,7 +200,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Issues"],
         operation_id="issues_assign",
-        summary="Assign Issue to User (UC-029)",
+        summary="Assign Issue to User ",
         description="Assign or reassign issue to a project team member.",
     )
     @action(detail=True, methods=["patch"], url_path="assign")
@@ -256,7 +256,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Issues"],
         operation_id="issues_transition",
-        summary="Change Issue Status (UC-030)",
+        summary="Change Issue Status ",
         description="Transition issue to a new status. Validates workflow transitions.",
     )
     @action(detail=True, methods=["patch"], url_path="transition")
@@ -312,7 +312,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Issues"],
         operation_id="issues_set_priority",
-        summary="Set Issue Priority (UC-031)",
+        summary="Set Issue Priority ",
         description="Update issue priority level.",
     )
     @action(detail=True, methods=["patch"], url_path="priority")

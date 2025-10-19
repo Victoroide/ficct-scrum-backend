@@ -7,8 +7,8 @@ from apps.reporting.serializers import ActivityLogSerializer
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List activity logs", tags=["Activity"]),
-    retrieve=extend_schema(summary="Get activity log details", tags=["Activity"]),
+    list=extend_schema(summary="List activity logs", tags=["Reporting"]),
+    retrieve=extend_schema(summary="Get activity log details", tags=["Reporting"]),
 )
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ActivityLog.objects.all()
