@@ -99,7 +99,8 @@ class IssueDetailSerializer(serializers.ModelSerializer):
 
 class IssueCreateSerializer(serializers.ModelSerializer):
     project = serializers.UUIDField(write_only=True, required=True)
-    issue_type = serializers.UUIDField(write_only=True, required=True)
+    # Accept either UUID or category string (task, bug, epic, story, improvement, sub_task)
+    issue_type = serializers.CharField(write_only=True, required=True)
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     parent_issue = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     sprint = serializers.UUIDField(write_only=True, required=False, allow_null=True)
@@ -148,11 +149,37 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_issue_type(self, value):
+        """
+        Accept either:
+        1. UUID string - looks up IssueType by ID
+        2. Category string - looks up IssueType by category for the project
+           Valid categories: epic, story, task, bug, improvement, sub_task
+        """
+        import uuid as uuid_module
+        
+        # Try to parse as UUID first
         try:
-            issue_type = IssueType.objects.get(id=value)
-        except IssueType.DoesNotExist:
-            raise serializers.ValidationError("Issue type does not exist")
-        return value
+            uuid_obj = uuid_module.UUID(value)
+            # It's a valid UUID, try to fetch by ID
+            try:
+                issue_type = IssueType.objects.get(id=uuid_obj)
+                return str(uuid_obj)  # Return UUID string
+            except IssueType.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Issue type with ID '{value}' does not exist"
+                )
+        except (ValueError, AttributeError):
+            # Not a UUID, treat as category string
+            valid_categories = ["epic", "story", "task", "bug", "improvement", "sub_task"]
+            value_lower = value.lower()
+            
+            if value_lower not in valid_categories:
+                raise serializers.ValidationError(
+                    f"Invalid issue type. Must be a valid UUID or one of: {', '.join(valid_categories)}"
+                )
+            
+            # Return the category string, will be resolved in validate() with project context
+            return value_lower
 
     def validate_assignee(self, value):
         if not value:
@@ -167,16 +194,43 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        import uuid as uuid_module
+        
         project_id = attrs.get("project")
-        issue_type_id = attrs.get("issue_type")
+        issue_type_value = attrs.get("issue_type")
 
         project = Project.objects.get(id=project_id)
-        issue_type = IssueType.objects.get(id=issue_type_id)
-
-        if issue_type.project != project:
-            raise serializers.ValidationError(
-                {"issue_type": "Issue type does not belong to this project"}
+        
+        # Resolve issue_type: could be UUID string or category string
+        try:
+            # Check if it's a UUID
+            uuid_module.UUID(issue_type_value)
+            # It's a UUID, get the IssueType
+            issue_type = IssueType.objects.get(id=issue_type_value)
+            
+            if issue_type.project != project:
+                raise serializers.ValidationError(
+                    {"issue_type": "Issue type does not belong to this project"}
+                )
+        except (ValueError, AttributeError):
+            # It's a category string, find matching IssueType for this project
+            issue_types = IssueType.objects.filter(
+                project=project, 
+                category=issue_type_value,
+                is_active=True
             )
+            
+            if not issue_types.exists():
+                raise serializers.ValidationError({
+                    "issue_type": f"No issue type with category '{issue_type_value}' found for this project. "
+                                 f"Please create issue types for this project first."
+                })
+            
+            # Prefer default issue type, otherwise take first
+            issue_type = issue_types.filter(is_default=True).first() or issue_types.first()
+            
+            # Replace category string with actual UUID for create() method
+            attrs["issue_type"] = str(issue_type.id)
 
         assignee_id = attrs.get("assignee")
         if assignee_id:

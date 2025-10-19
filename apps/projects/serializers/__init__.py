@@ -14,6 +14,7 @@ from .issue_serializer import (
     IssueListSerializer,
     IssueUpdateSerializer,
 )
+from .issue_type_serializer import IssueTypeListSerializer, IssueTypeSerializer
 from .project_config_serializer import ProjectConfigSerializer
 from .project_serializer import ProjectSerializer
 from .sprint_serializer import (
@@ -30,6 +31,8 @@ __all__ = [
     "IssueDetailSerializer",
     "IssueCreateSerializer",
     "IssueUpdateSerializer",
+    "IssueTypeListSerializer",
+    "IssueTypeSerializer",
     "SprintListSerializer",
     "SprintDetailSerializer",
     "SprintCreateSerializer",

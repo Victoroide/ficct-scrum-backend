@@ -6,6 +6,7 @@ from .viewsets import (
     IssueAttachmentViewSet,
     IssueCommentViewSet,
     IssueLinkViewSet,
+    IssueTypeViewSet,
     IssueViewSet,
     ProjectConfigViewSet,
     ProjectViewSet,
@@ -16,6 +17,7 @@ router = DefaultRouter()
 router.register(r"projects", ProjectViewSet, basename="project")
 router.register(r"configs", ProjectConfigViewSet, basename="project-config")
 router.register(r"issues", IssueViewSet, basename="issue")
+router.register(r"issue-types", IssueTypeViewSet, basename="issue-type")
 router.register(r"sprints", SprintViewSet, basename="sprint")
 router.register(r"boards", BoardViewSet, basename="board")
 
