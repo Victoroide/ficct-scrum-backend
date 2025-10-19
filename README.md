@@ -136,13 +136,15 @@ Run migrations:
 python manage.py migrate
 ```
 
-**Seed default data (REQUIRED):**
+**Seed default data for existing projects:**
 
 ```bash
 python manage.py seed_issue_types
 ```
 
-This creates default issue types (Epic, Story, Task, Bug, Improvement, Sub-task) for all projects. Without this step, issue creation will fail.
+This creates default issue types (Epic, Story, Task, Bug, Improvement, Sub-task) for all **existing** projects in the database.
+
+**Note**: New projects automatically get default issue types via Django signals - no manual seeding required.
 
 Create superuser:
 

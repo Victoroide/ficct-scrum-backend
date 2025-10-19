@@ -1,10 +1,16 @@
 """
-Management command to seed default IssueTypes for projects.
+Management command to seed default IssueTypes for EXISTING/LEGACY projects.
+
+NOTE: New projects created after signals implementation automatically get
+      IssueTypes via post_save signal. This command is only needed for:
+      - Existing projects created before signals were implemented
+      - Migration/seeding of legacy data
+      - Manual recreation with --force flag
 
 Usage:
-    python manage.py seed_issue_types
-    python manage.py seed_issue_types --project=PROJECT_UUID
-    python manage.py seed_issue_types --force  # Recreate for all projects
+    python manage.py seed_issue_types                  # Seed all existing projects
+    python manage.py seed_issue_types --project=UUID   # Seed specific project
+    python manage.py seed_issue_types --force          # Recreate for all projects
 """
 
 from django.core.management.base import BaseCommand
@@ -13,7 +19,10 @@ from apps.projects.models import IssueType, Project
 
 
 class Command(BaseCommand):
-    help = "Seed default issue types for projects that don't have them"
+    help = (
+        "Seed default issue types for EXISTING projects. "
+        "New projects automatically get issue types via signals."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
