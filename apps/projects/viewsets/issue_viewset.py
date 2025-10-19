@@ -103,7 +103,7 @@ class IssueFilter(filters.FilterSet):
     create=extend_schema(
         tags=["Issues"],
         operation_id="issues_create",
-        summary="Create Issue (UC-024 to UC-027)",
+        summary="Create Issue",
         description="Create Epic, User Story, Task, or Bug. Issue key is auto-generated. Initial status is set to project's default.",
     ),
     update=extend_schema(

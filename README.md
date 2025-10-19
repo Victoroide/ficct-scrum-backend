@@ -136,6 +136,14 @@ Run migrations:
 python manage.py migrate
 ```
 
+**Seed default data (REQUIRED):**
+
+```bash
+python manage.py seed_issue_types
+```
+
+This creates default issue types (Epic, Story, Task, Bug, Improvement, Sub-task) for all projects. Without this step, issue creation will fail.
+
 Create superuser:
 
 ```bash

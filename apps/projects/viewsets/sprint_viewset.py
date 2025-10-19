@@ -350,8 +350,54 @@ class SprintViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Sprints"],
         operation_id="sprints_add_issue",
-        summary="Add Issue to Sprint ",
-        description="Add an issue to the sprint.",
+        summary="Add Issue to Sprint",
+        description="Add an issue to the sprint. Requires issue_id in request body.",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'issue_id': {
+                        'type': 'string',
+                        'format': 'uuid',
+                        'description': 'UUID of the issue to add to sprint'
+                    }
+                },
+                'required': ['issue_id'],
+                'example': {
+                    'issue_id': '123e4567-e89b-12d3-a456-426614174000'
+                }
+            }
+        },
+        responses={
+            200: {
+                'description': 'Issue added successfully',
+                'content': {
+                    'application/json': {
+                        'example': {'message': 'Issue added to sprint successfully'}
+                    }
+                }
+            },
+            400: {
+                'description': 'Bad request - missing issue_id, wrong project, or sprint completed',
+                'content': {
+                    'application/json': {
+                        'examples': {
+                            'missing_id': {'value': {'error': 'issue_id is required'}},
+                            'wrong_project': {'value': {'error': 'Issue does not belong to this project'}},
+                            'completed': {'value': {'error': 'Cannot add issues to a completed sprint'}}
+                        }
+                    }
+                }
+            },
+            404: {
+                'description': 'Issue not found',
+                'content': {
+                    'application/json': {
+                        'example': {'error': 'Issue does not exist'}
+                    }
+                }
+            }
+        }
     )
     @action(detail=True, methods=["post"], url_path="issues")
     def add_issue(self, request, pk=None):
