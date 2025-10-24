@@ -11,6 +11,7 @@ from .viewsets import (
     ProjectConfigViewSet,
     ProjectViewSet,
     SprintViewSet,
+    WorkflowStatusViewSet,
 )
 
 router = DefaultRouter()
@@ -18,6 +19,7 @@ router.register(r"projects", ProjectViewSet, basename="project")
 router.register(r"configs", ProjectConfigViewSet, basename="project-config")
 router.register(r"issues", IssueViewSet, basename="issue")
 router.register(r"issue-types", IssueTypeViewSet, basename="issue-type")
+router.register(r"workflow-statuses", WorkflowStatusViewSet, basename="workflow-status")
 router.register(r"sprints", SprintViewSet, basename="sprint")
 router.register(r"boards", BoardViewSet, basename="board")
 
