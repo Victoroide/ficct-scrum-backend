@@ -18,26 +18,45 @@ class BoardConsumer(AsyncWebsocketConsumer):
     """
     
     async def connect(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         self.board_id = self.scope["url_route"]["kwargs"]["board_id"]
         self.room_group_name = f"board_{self.board_id}"
         self.user = self.scope["user"]
         
+        # Diagnostic logging
+        logger.info(f"[WS CONSUMER] Connection attempt to board {self.board_id}")
+        logger.info(f"[WS CONSUMER] User: {self.user}")
+        logger.info(f"[WS CONSUMER] User authenticated: {self.user.is_authenticated}")
+        if self.user.is_authenticated:
+            logger.info(f"[WS CONSUMER] User ID: {self.user.id}")
+            logger.info(f"[WS CONSUMER] User username: {self.user.username}")
+        
         if not self.user.is_authenticated:
+            logger.warning(f"[WS CONSUMER] Rejecting connection: User not authenticated")
             await self.close()
             return
         
+        logger.info(f"[WS CONSUMER] Checking board access permissions...")
         has_permission = await self.check_board_access()
+        logger.info(f"[WS CONSUMER] Board access permission: {has_permission}")
+        
         if not has_permission:
+            logger.warning(f"[WS CONSUMER] Rejecting connection: User does not have board access")
             await self.close()
             return
         
+        logger.info(f"[WS CONSUMER] Adding user to group {self.room_group_name}")
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         
+        logger.info(f"[WS CONSUMER] Accepting WebSocket connection")
         await self.accept()
         
+        logger.info(f"[WS CONSUMER] Broadcasting user_joined event")
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -46,6 +65,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
                 "user_name": self.user.get_full_name() or self.user.username,
             }
         )
+        logger.info(f"[WS CONSUMER] Connection established successfully")
     
     async def disconnect(self, close_code):
         # Only send user_left event if user is authenticated
