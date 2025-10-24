@@ -484,14 +484,29 @@ GITHUB_OAUTH_CALLBACK_URL = config(
 # Django Channels Configuration
 # ============================================================================
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(config("REDIS_HOST", default="127.0.0.1"), config("REDIS_PORT", default=6379, cast=int))],
+# Support for both URL-based and host/port-based Redis configuration
+CHANNEL_LAYERS_REDIS_URL = os.getenv("CHANNEL_LAYERS_REDIS_URL")
+
+if CHANNEL_LAYERS_REDIS_URL:
+    # Docker/Production: Use Redis URL with password
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNEL_LAYERS_REDIS_URL],
+            },
         },
-    },
-}
+    }
+else:
+    # Local development: Use host/port
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [(config("REDIS_HOST", default="127.0.0.1"), config("REDIS_PORT", default=6379, cast=int))],
+            },
+        },
+    }
 
 # WebSocket CORS
 CORS_ALLOW_CREDENTIALS = True
