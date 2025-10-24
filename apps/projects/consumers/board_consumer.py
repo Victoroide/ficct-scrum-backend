@@ -48,16 +48,20 @@ class BoardConsumer(AsyncWebsocketConsumer):
         )
     
     async def disconnect(self, close_code):
+        # Only send user_left event if user is authenticated
+        # This prevents AttributeError when AnonymousUser disconnects
         if hasattr(self, 'room_group_name'):
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "user_left",
-                    "user_id": str(self.user.id),
-                    "user_name": self.user.get_full_name() or self.user.username,
-                }
-            )
+            if hasattr(self, 'user') and self.user.is_authenticated:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "user_left",
+                        "user_id": str(self.user.id),
+                        "user_name": self.user.get_full_name() or self.user.username,
+                    }
+                )
             
+            # Always remove from group (authenticated or not)
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
