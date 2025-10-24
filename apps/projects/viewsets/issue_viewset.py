@@ -218,6 +218,31 @@ class IssueViewSet(viewsets.ModelViewSet):
                 "issue_key": issue.full_key,
             },
         )
+    
+    def update(self, request, *args, **kwargs):
+        """
+        Override update to return detailed serializer with expanded relations.
+        Uses IssueUpdateSerializer for validation but IssueDetailSerializer for response.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        # Return with detailed serializer (expanded relations)
+        response_serializer = IssueDetailSerializer(instance, context=self.get_serializer_context())
+        return Response(response_serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Override partial_update to return detailed serializer with expanded relations.
+        """
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
     @extend_schema(
         tags=["Issues"],
@@ -272,7 +297,8 @@ class IssueViewSet(viewsets.ModelViewSet):
             },
         )
 
-        serializer = self.get_serializer(issue)
+        # Return with detailed serializer (expanded relations)
+        serializer = IssueDetailSerializer(issue, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -328,7 +354,8 @@ class IssueViewSet(viewsets.ModelViewSet):
             },
         )
 
-        serializer = self.get_serializer(issue)
+        # Return with detailed serializer (expanded relations)
+        serializer = IssueDetailSerializer(issue, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -371,5 +398,6 @@ class IssueViewSet(viewsets.ModelViewSet):
             },
         )
 
-        serializer = self.get_serializer(issue)
+        # Return with detailed serializer (expanded relations)
+        serializer = IssueDetailSerializer(issue, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
