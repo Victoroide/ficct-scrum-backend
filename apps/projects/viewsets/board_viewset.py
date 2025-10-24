@@ -17,6 +17,7 @@ from apps.projects.serializers import (
     BoardUpdateSerializer,
     IssueCreateSerializer,
 )
+from apps.projects.utils.websocket_utils import BoardWebSocketNotifier
 
 
 class BoardFilter(filters.FilterSet):
@@ -98,6 +99,54 @@ class BoardViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         board = serializer.save()
 
+        # Auto-create columns based on project's workflow statuses
+        workflow_statuses = WorkflowStatus.objects.filter(
+            project=board.project,
+            is_active=True
+        ).order_by('order', 'name')
+
+        if workflow_statuses.exists():
+            # Create column for each workflow status
+            for index, workflow_status in enumerate(workflow_statuses):
+                BoardColumn.objects.create(
+                    board=board,
+                    workflow_status=workflow_status,
+                    name=workflow_status.name,
+                    order=index,
+                    min_wip=None,
+                    max_wip=None
+                )
+        else:
+            # If no workflow statuses exist, create default columns
+            # Get or create default statuses for the project
+            default_statuses = [
+                {"name": "To Do", "category": "to_do", "color": "#DFE1E6", "is_initial": True, "order": 0},
+                {"name": "In Progress", "category": "in_progress", "color": "#0052CC", "order": 1},
+                {"name": "Done", "category": "done", "color": "#00875A", "is_final": True, "order": 2},
+            ]
+            
+            for index, status_data in enumerate(default_statuses):
+                workflow_status, created = WorkflowStatus.objects.get_or_create(
+                    project=board.project,
+                    name=status_data["name"],
+                    defaults={
+                        "category": status_data["category"],
+                        "color": status_data["color"],
+                        "is_initial": status_data.get("is_initial", False),
+                        "is_final": status_data.get("is_final", False),
+                        "order": status_data["order"],
+                    }
+                )
+                
+                BoardColumn.objects.create(
+                    board=board,
+                    workflow_status=workflow_status,
+                    name=workflow_status.name,
+                    order=index,
+                    min_wip=None,
+                    max_wip=None
+                )
+
         LoggerService.log_info(
             action="board_created",
             user=self.request.user,
@@ -106,6 +155,7 @@ class BoardViewSet(viewsets.ModelViewSet):
                 "board_id": str(board.id),
                 "board_name": board.name,
                 "project_id": str(board.project.id),
+                "columns_created": board.columns.count(),
             },
         )
 
@@ -159,6 +209,13 @@ class BoardViewSet(viewsets.ModelViewSet):
         )
 
         response_serializer = BoardColumnSerializer(column)
+        
+        BoardWebSocketNotifier.send_column_created(
+            board_id=board.id,
+            column_data=response_serializer.data,
+            user=request.user
+        )
+        
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -190,20 +247,39 @@ class BoardViewSet(viewsets.ModelViewSet):
             )
             serializer.is_valid(raise_exception=True)
             serializer.save()
+            
+            BoardWebSocketNotifier.send_column_updated(
+                board_id=board.id,
+                column_data=serializer.data,
+                user=request.user
+            )
+            
             return Response(serializer.data, status=status.HTTP_200_OK)
         
         elif request.method == "DELETE":
+            column_id = column.id
+            column_name = column.name
+            
             LoggerService.log_info(
                 action="board_column_deleted",
                 user=request.user,
                 ip_address=request.META.get("REMOTE_ADDR"),
                 details={
                     "board_id": str(board.id),
-                    "column_id": str(column.id),
-                    "column_name": column.name,
+                    "column_id": str(column_id),
+                    "column_name": column_name,
                 },
             )
+            
             column.delete()
+            
+            BoardWebSocketNotifier.send_column_deleted(
+                board_id=board.id,
+                column_id=column_id,
+                column_name=column_name,
+                user=request.user
+            )
+            
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
@@ -235,6 +311,13 @@ class BoardViewSet(viewsets.ModelViewSet):
 
         from apps.projects.serializers import IssueDetailSerializer
         response_serializer = IssueDetailSerializer(issue)
+        
+        BoardWebSocketNotifier.send_issue_created(
+            board_id=board.id,
+            issue_data=response_serializer.data,
+            user=request.user
+        )
+        
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -310,4 +393,13 @@ class BoardViewSet(viewsets.ModelViewSet):
 
         from apps.projects.serializers import IssueDetailSerializer
         serializer = IssueDetailSerializer(issue)
+        
+        BoardWebSocketNotifier.send_issue_moved(
+            board_id=board.id,
+            issue_data=serializer.data,
+            old_status_id=old_status.id,
+            new_status_id=column.workflow_status.id,
+            user=request.user
+        )
+        
         return Response(serializer.data, status=status.HTTP_200_OK)

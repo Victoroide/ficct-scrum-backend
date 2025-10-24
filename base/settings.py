@@ -56,6 +56,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "django_filters",
     "storages",
+    "channels",
 ]
 
 LOCAL_APPS = [
@@ -68,7 +69,7 @@ LOCAL_APPS = [
     "apps.reporting",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = ["daphne"] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -110,6 +111,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "base.wsgi.application"
+ASGI_APPLICATION = "base.asgi.application"
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -477,3 +479,19 @@ GITHUB_OAUTH_CALLBACK_URL = config(
     "GITHUB_OAUTH_CALLBACK_URL",
     default="http://localhost:8000/api/v1/integrations/github/oauth/callback/",
 )
+
+# ============================================================================
+# Django Channels Configuration
+# ============================================================================
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(config("REDIS_HOST", default="127.0.0.1"), config("REDIS_PORT", default=6379, cast=int))],
+        },
+    },
+}
+
+# WebSocket CORS
+CORS_ALLOW_CREDENTIALS = True

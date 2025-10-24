@@ -28,6 +28,7 @@ from apps.projects.services import WorkflowValidator
 class IssueFilter(filters.FilterSet):
     project = filters.UUIDFilter(field_name="project__id")
     sprint = filters.UUIDFilter(field_name="sprint__id")
+    board = filters.UUIDFilter(method="filter_board")
     assignee = filters.UUIDFilter(field_name="assignee__id")
     reporter = filters.UUIDFilter(field_name="reporter__id")
     status = filters.UUIDFilter(field_name="status__id")
@@ -48,7 +49,7 @@ class IssueFilter(filters.FilterSet):
 
     class Meta:
         model = Issue
-        fields = ["project", "sprint", "assignee", "reporter", "status", "issue_type", "priority"]
+        fields = ["project", "sprint", "board", "assignee", "reporter", "status", "issue_type", "priority"]
 
     def filter_search(self, queryset, name, value):
         from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
@@ -86,6 +87,27 @@ class IssueFilter(filters.FilterSet):
                 django_models.Q(source_links__isnull=False) | django_models.Q(target_links__isnull=False)
             ).distinct()
         return queryset.filter(source_links__isnull=True, target_links__isnull=True)
+    
+    def filter_board(self, queryset, name, value):
+        from apps.projects.models import Board
+        try:
+            board = Board.objects.get(id=value)
+            # Return ALL active issues from the board's project (Board as a View, not a container)
+            filtered_queryset = queryset.filter(project=board.project, is_active=True)
+            
+            # Apply saved_filter from board if exists
+            if board.saved_filter:
+                # Apply additional filters from board configuration
+                if 'priority' in board.saved_filter:
+                    filtered_queryset = filtered_queryset.filter(priority__in=board.saved_filter['priority'])
+                if 'assignee' in board.saved_filter:
+                    filtered_queryset = filtered_queryset.filter(assignee__id__in=board.saved_filter['assignee'])
+                if 'issue_type' in board.saved_filter:
+                    filtered_queryset = filtered_queryset.filter(issue_type__id__in=board.saved_filter['issue_type'])
+            
+            return filtered_queryset
+        except Board.DoesNotExist:
+            return queryset.none()
 
 
 @extend_schema_view(
@@ -93,7 +115,7 @@ class IssueFilter(filters.FilterSet):
         tags=["Issues"],
         operation_id="issues_list",
         summary="List Issues",
-        description="Get all issues with filtering by project, sprint, assignee, status, priority, etc.",
+        description="Get all issues with filtering by project, sprint, board, assignee, status, priority, etc. Use board filter to get issues displayed in a specific Kanban board.",
     ),
     retrieve=extend_schema(
         tags=["Issues"],
