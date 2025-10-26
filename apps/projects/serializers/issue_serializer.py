@@ -315,6 +315,103 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class IssueTransitionSerializer(serializers.Serializer):
+    """
+    Serializer for issue status transitions.
+    
+    Accepts both 'status' and 'status_uuid' field names for backward
+    compatibility with different frontend implementations.
+    
+    Validates:
+    - UUID format
+    - Status exists in database
+    - Status belongs to same project as issue
+    - Workflow allows the transition
+    - Sets/clears resolved_at timestamp based on final status
+    
+    Args:
+        status: UUID of the target WorkflowStatus (optional)
+        status_uuid: UUID of the target WorkflowStatus (optional)
+        
+    Raises:
+        ValidationError: If validation fails with clear error message
+        
+    Example:
+        serializer = IssueTransitionSerializer(
+            data={'status_uuid': 'abc-123'},
+            context={'issue': issue_instance, 'request': request}
+        )
+        if serializer.is_valid():
+            new_status = serializer.validated_data['new_status']
+    """
+    
+    status = serializers.UUIDField(
+        required=False,
+        allow_null=False,
+        help_text="UUID of the target workflow status"
+    )
+    status_uuid = serializers.UUIDField(
+        required=False,
+        allow_null=False,
+        help_text="UUID of the target workflow status (alternative field name)"
+    )
+    
+    def validate(self, attrs):
+        """
+        Validate the status transition.
+        
+        Checks that either 'status' or 'status_uuid' is provided,
+        validates the status exists and belongs to the project,
+        and verifies the workflow allows the transition.
+        """
+        # Get status_id from either field name
+        status_id = attrs.get('status') or attrs.get('status_uuid')
+        
+        if not status_id:
+            raise serializers.ValidationError(
+                "Either 'status' or 'status_uuid' field is required"
+            )
+        
+        # Get issue from context
+        issue = self.context.get('issue')
+        if not issue:
+            raise serializers.ValidationError(
+                "Issue instance must be provided in serializer context"
+            )
+        
+        # Validate status exists
+        try:
+            new_status = WorkflowStatus.objects.select_related(
+                'project'
+            ).get(id=status_id)
+        except WorkflowStatus.DoesNotExist:
+            raise serializers.ValidationError({
+                'status': f"Workflow status with ID '{status_id}' does not exist"
+            })
+        
+        # Validate status belongs to same project
+        if new_status.project != issue.project:
+            raise serializers.ValidationError({
+                'status': (
+                    f"Status '{new_status.name}' does not belong to "
+                    f"project '{issue.project.name}'"
+                )
+            })
+        
+        # Validate workflow transition is allowed
+        can_transition, message = WorkflowValidator.can_transition(
+            issue, new_status
+        )
+        if not can_transition:
+            raise serializers.ValidationError({'status': message})
+        
+        # Store the validated status object for use in viewset
+        attrs['new_status'] = new_status
+        attrs['old_status'] = issue.status
+        
+        return attrs
+
+
 class IssueUpdateSerializer(serializers.ModelSerializer):
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     status = serializers.UUIDField(write_only=True, required=False)

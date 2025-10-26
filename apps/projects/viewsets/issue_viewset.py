@@ -1,6 +1,5 @@
-from datetime import datetime
-
 from django.db import transaction
+from django.utils import timezone
 from django_filters import rest_framework as filters
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -20,6 +19,7 @@ from apps.projects.serializers import (
     IssueCreateSerializer,
     IssueDetailSerializer,
     IssueListSerializer,
+    IssueTransitionSerializer,
     IssueUpdateSerializer,
 )
 from apps.projects.services import WorkflowValidator
@@ -176,6 +176,8 @@ class IssueViewSet(viewsets.ModelViewSet):
             return IssueUpdateSerializer
         elif self.action == "retrieve":
             return IssueDetailSerializer
+        elif self.action == "transition":
+            return IssueTransitionSerializer
         return IssueListSerializer
 
     def get_permissions(self):
@@ -304,44 +306,74 @@ class IssueViewSet(viewsets.ModelViewSet):
     @extend_schema(
         tags=["Issues"],
         operation_id="issues_transition",
-        summary="Change Issue Status ",
-        description="Transition issue to a new status. Validates workflow transitions.",
+        summary="Change Issue Status",
+        description="Transition issue to a new workflow status. Validates workflow transitions and updates resolved_at timestamp for final statuses. Accepts both 'status' and 'status_uuid' field names.",
+        request=IssueTransitionSerializer,
+        responses={
+            200: IssueDetailSerializer,
+            400: {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "error": {"type": "string"},
+                },
+            },
+            403: {
+                "type": "object",
+                "properties": {"error": {"type": "string"}},
+            },
+        },
     )
     @action(detail=True, methods=["patch"], url_path="transition")
     def transition(self, request, pk=None):
+        """
+        Transition issue to a new workflow status.
+        
+        Validates that the transition is allowed by the workflow rules,
+        updates the issue status, and sets/clears the resolved_at timestamp
+        based on whether the target status is a final status.
+        
+        Args:
+            request: HTTP request containing status or status_uuid
+            pk: Issue primary key
+            
+        Returns:
+            Response with updated issue data including expanded relations
+            
+        Raises:
+            400: Validation error (status required, doesn't exist, 
+                 wrong project, workflow disallows transition)
+            403: Permission denied
+        """
         issue = self.get_object()
-        status_id = request.data.get("status")
-
-        if not status_id:
-            return Response(
-                {"error": "Status ID is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            new_status = WorkflowStatus.objects.get(id=status_id)
-        except WorkflowStatus.DoesNotExist:
-            return Response(
-                {"error": "Status does not exist"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        can_transition, message = WorkflowValidator.can_transition(issue, new_status)
-
-        if not can_transition:
-            return Response(
-                {"error": message},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        old_status = issue.status
+        
+        # Use serializer for validation
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'issue': issue, 'request': request}
+        )
+        
+        # Validate and return 400 with clear errors if validation fails
+        serializer.is_valid(raise_exception=True)
+        
+        # Get validated status objects from serializer
+        new_status = serializer.validated_data['new_status']
+        old_status = serializer.validated_data['old_status']
+        
+        # Perform the transition
         issue.status = new_status
-
+        
+        # Handle resolved_at timestamp
         if new_status.is_final and not issue.resolved_at:
-            issue.resolved_at = datetime.now()
-
+            # Transitioning to final status - set resolved timestamp
+            issue.resolved_at = timezone.now()
+        elif not new_status.is_final and issue.resolved_at:
+            # Transitioning away from final status - clear resolved timestamp
+            issue.resolved_at = None
+        
         issue.save()
-
+        
+        # Log the transition
         LoggerService.log_info(
             action="issue_status_changed",
             user=request.user,
@@ -353,10 +385,17 @@ class IssueViewSet(viewsets.ModelViewSet):
                 "new_status": new_status.name,
             },
         )
-
+        
+        # Clear prefetched cache to ensure fresh data
+        if getattr(issue, '_prefetched_objects_cache', None):
+            issue._prefetched_objects_cache = {}
+        
         # Return with detailed serializer (expanded relations)
-        serializer = IssueDetailSerializer(issue, context=self.get_serializer_context())
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        response_serializer = IssueDetailSerializer(
+            issue, 
+            context=self.get_serializer_context()
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         tags=["Issues"],

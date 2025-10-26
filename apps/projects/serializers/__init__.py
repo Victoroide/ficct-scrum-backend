@@ -12,6 +12,7 @@ from .issue_serializer import (
     IssueCreateSerializer,
     IssueDetailSerializer,
     IssueListSerializer,
+    IssueTransitionSerializer,
     IssueUpdateSerializer,
 )
 from .issue_type_serializer import IssueTypeListSerializer, IssueTypeSerializer
@@ -34,6 +35,7 @@ __all__ = [
     "IssueListSerializer",
     "IssueDetailSerializer",
     "IssueCreateSerializer",
+    "IssueTransitionSerializer",
     "IssueUpdateSerializer",
     "IssueTypeListSerializer",
     "IssueTypeSerializer",
