@@ -4,13 +4,20 @@ Django signals for automatic creation of related objects when projects are creat
 This ensures that every new project automatically gets:
 - Default IssueTypes (Epic, Story, Task, Bug, Improvement, Sub-task)
 - Default WorkflowStatuses (To Do, In Progress, Done)
+- Default WorkflowTransitions (automatic transitions between states)
 - Default ProjectConfiguration (with sensible defaults)
 """
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from apps.projects.models import IssueType, Project, ProjectConfiguration, WorkflowStatus
+from apps.projects.models import (
+    IssueType,
+    Project,
+    ProjectConfiguration,
+    WorkflowStatus,
+    WorkflowTransition,
+)
 
 
 @receiver(post_save, sender=Project)
@@ -177,10 +184,168 @@ def create_default_workflow_statuses(sender, instance, created, **kwargs):
         workflow_statuses.append(status)
     
     # Bulk create for efficiency
-    WorkflowStatus.objects.bulk_create(workflow_statuses)
+    created_statuses = WorkflowStatus.objects.bulk_create(workflow_statuses)
     
     # Log for debugging (optional)
-    print(f"✅ Auto-created {len(workflow_statuses)} default WorkflowStatuses for project: {instance.name}")
+    print(f"✅ Auto-created {len(created_statuses)} default WorkflowStatuses for project: {instance.name}")
+    
+    # Automatically create transitions between the default statuses
+    # This happens immediately after creating statuses to ensure transitions are available
+    _create_default_workflow_transitions(instance, created_statuses)
+
+
+def _create_default_workflow_transitions(project, statuses):
+    """
+    Helper function to create default workflow transitions for a project.
+    
+    Creates a flexible workflow that allows transitions between all states:
+    - To Do → In Progress (Start Work)
+    - In Progress → Done (Complete)
+    - In Progress → To Do (Reopen)
+    - Done → In Progress (Reopen from Done)
+    - Done → To Do (Reopen to Backlog)
+    
+    Args:
+        project: The Project instance
+        statuses: List of WorkflowStatus objects for this project
+    """
+    # Organize statuses by category for easy access
+    status_map = {status.category: status for status in statuses}
+    
+    # Define default transitions based on Scrum/Agile workflow
+    default_transitions = []
+    
+    # Get statuses (they might not all exist if custom workflow)
+    to_do = status_map.get('to_do')
+    in_progress = status_map.get('in_progress')
+    done = status_map.get('done')
+    
+    # Create transitions only if the statuses exist
+    if to_do and in_progress:
+        default_transitions.append(
+            WorkflowTransition(
+                project=project,
+                name="Start Work",
+                from_status=to_do,
+                to_status=in_progress,
+                is_active=True,
+            )
+        )
+    
+    if in_progress and done:
+        default_transitions.append(
+            WorkflowTransition(
+                project=project,
+                name="Complete",
+                from_status=in_progress,
+                to_status=done,
+                is_active=True,
+            )
+        )
+    
+    if in_progress and to_do:
+        default_transitions.append(
+            WorkflowTransition(
+                project=project,
+                name="Reopen",
+                from_status=in_progress,
+                to_status=to_do,
+                is_active=True,
+            )
+        )
+    
+    if done and in_progress:
+        default_transitions.append(
+            WorkflowTransition(
+                project=project,
+                name="Reopen from Done",
+                from_status=done,
+                to_status=in_progress,
+                is_active=True,
+            )
+        )
+    
+    if done and to_do:
+        default_transitions.append(
+            WorkflowTransition(
+                project=project,
+                name="Reopen to Backlog",
+                from_status=done,
+                to_status=to_do,
+                is_active=True,
+            )
+        )
+    
+    # Bulk create all transitions
+    if default_transitions:
+        WorkflowTransition.objects.bulk_create(default_transitions)
+        print(f"✅ Auto-created {len(default_transitions)} default WorkflowTransitions for project: {project.name}")
+
+
+@receiver(post_save, sender=WorkflowStatus)
+def create_transitions_for_new_status(sender, instance, created, **kwargs):
+    """
+    Automatically create bi-directional transitions when a new WorkflowStatus is added.
+    
+    This signal fires after a WorkflowStatus is saved. If it's a new status (created=True),
+    it creates transitions FROM all existing statuses TO this new status, and FROM this
+    new status TO all existing statuses. This ensures maximum flexibility for custom workflows.
+    
+    Args:
+        sender: The WorkflowStatus model class
+        instance: The actual WorkflowStatus instance being saved
+        created: Boolean indicating if this is a new record
+        **kwargs: Additional signal parameters
+    """
+    if not created:
+        return  # Only run for new statuses, not updates
+    
+    # Get all other active statuses in the same project (excluding the newly created one)
+    existing_statuses = WorkflowStatus.objects.filter(
+        project=instance.project,
+        is_active=True
+    ).exclude(id=instance.id)
+    
+    if not existing_statuses.exists():
+        # This is the first status in the project, no transitions to create
+        return
+    
+    transitions_to_create = []
+    
+    # Create transitions FROM existing statuses TO new status
+    for existing_status in existing_statuses:
+        transitions_to_create.append(
+            WorkflowTransition(
+                project=instance.project,
+                name=f"{existing_status.name} → {instance.name}",
+                from_status=existing_status,
+                to_status=instance,
+                is_active=True,
+            )
+        )
+    
+    # Create transitions FROM new status TO existing statuses
+    for existing_status in existing_statuses:
+        transitions_to_create.append(
+            WorkflowTransition(
+                project=instance.project,
+                name=f"{instance.name} → {existing_status.name}",
+                from_status=instance,
+                to_status=existing_status,
+                is_active=True,
+            )
+        )
+    
+    # Bulk create all transitions
+    if transitions_to_create:
+        WorkflowTransition.objects.bulk_create(
+            transitions_to_create,
+            ignore_conflicts=True  # Ignore if transition already exists
+        )
+        print(
+            f"✅ Auto-created {len(transitions_to_create)} transitions for new status: "
+            f"{instance.name} in project {instance.project.name}"
+        )
 
 
 @receiver(post_save, sender=Project)
