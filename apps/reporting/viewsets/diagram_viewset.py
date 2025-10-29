@@ -31,13 +31,7 @@ class DiagramViewSet(viewsets.ViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         diagram_type = serializer.validated_data["diagram_type"]
-        project_id = request.query_params.get("project")
-
-        if not project_id:
-            return Response(
-                {"error": "project parameter is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        project_id = serializer.validated_data["project"]
 
         from apps.projects.models import Project
 
