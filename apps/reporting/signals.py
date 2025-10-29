@@ -14,6 +14,7 @@ from django.dispatch import receiver
 from apps.projects.models import Board, Issue, Project, Sprint
 from apps.workspaces.models import Workspace
 
+from .middleware import get_current_request, get_current_user
 from .models import ActivityLog
 
 
@@ -86,39 +87,33 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
 @receiver(post_save, sender=Board)
 def log_board_activity(sender, instance, created, **kwargs):
     """Log Board create/update."""
-    # Get user from thread local or instance
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     action_type = "created" if created else "updated"
-    
-    # Get changes if updated
-    changes = {}
-    if not created and hasattr(instance, '_field_changes'):
-        changes = instance._field_changes
     
     create_activity_log(
         user=user,
         action_type=action_type,
         obj=instance,
-        changes=changes,
-        request=getattr(instance, '_current_request', None)
+        changes={},
+        request=get_current_request()
     )
 
 
 @receiver(post_delete, sender=Board)
 def log_board_delete(sender, instance, **kwargs):
     """Log Board deletion."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     create_activity_log(
         user=user,
         action_type="deleted",
         obj=instance,
-        request=getattr(instance, '_current_request', None)
+        request=get_current_request()
     )
 
 
@@ -129,37 +124,33 @@ def log_board_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Sprint)
 def log_sprint_activity(sender, instance, created, **kwargs):
     """Log Sprint create/update."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     action_type = "created" if created else "updated"
-    
-    changes = {}
-    if not created and hasattr(instance, '_field_changes'):
-        changes = instance._field_changes
     
     create_activity_log(
         user=user,
         action_type=action_type,
         obj=instance,
-        changes=changes,
-        request=getattr(instance, '_current_request', None)
+        changes={},
+        request=get_current_request()
     )
 
 
 @receiver(post_delete, sender=Sprint)
 def log_sprint_delete(sender, instance, **kwargs):
     """Log Sprint deletion."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     create_activity_log(
         user=user,
         action_type="deleted",
         obj=instance,
-        request=getattr(instance, '_current_request', None)
+        request=get_current_request()
     )
 
 
@@ -170,37 +161,33 @@ def log_sprint_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Issue)
 def log_issue_activity(sender, instance, created, **kwargs):
     """Log Issue create/update."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     action_type = "created" if created else "updated"
-    
-    changes = {}
-    if not created and hasattr(instance, '_field_changes'):
-        changes = instance._field_changes
     
     create_activity_log(
         user=user,
         action_type=action_type,
         obj=instance,
-        changes=changes,
-        request=getattr(instance, '_current_request', None)
+        changes={},
+        request=get_current_request()
     )
 
 
 @receiver(post_delete, sender=Issue)
 def log_issue_delete(sender, instance, **kwargs):
     """Log Issue deletion."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     create_activity_log(
         user=user,
         action_type="deleted",
         obj=instance,
-        request=getattr(instance, '_current_request', None)
+        request=get_current_request()
     )
 
 
@@ -211,37 +198,33 @@ def log_issue_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Project)
 def log_project_activity(sender, instance, created, **kwargs):
     """Log Project create/update."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     action_type = "created" if created else "updated"
-    
-    changes = {}
-    if not created and hasattr(instance, '_field_changes'):
-        changes = instance._field_changes
     
     create_activity_log(
         user=user,
         action_type=action_type,
         obj=instance,
-        changes=changes,
-        request=getattr(instance, '_current_request', None)
+        changes={},
+        request=get_current_request()
     )
 
 
 @receiver(post_delete, sender=Project)
 def log_project_delete(sender, instance, **kwargs):
     """Log Project deletion."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     create_activity_log(
         user=user,
         action_type="deleted",
         obj=instance,
-        request=getattr(instance, '_current_request', None)
+        request=get_current_request()
     )
 
 
@@ -252,35 +235,31 @@ def log_project_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=Workspace)
 def log_workspace_activity(sender, instance, created, **kwargs):
     """Log Workspace create/update."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     action_type = "created" if created else "updated"
-    
-    changes = {}
-    if not created and hasattr(instance, '_field_changes'):
-        changes = instance._field_changes
     
     create_activity_log(
         user=user,
         action_type=action_type,
         obj=instance,
-        changes=changes,
-        request=getattr(instance, '_current_request', None)
+        changes={},
+        request=get_current_request()
     )
 
 
 @receiver(post_delete, sender=Workspace)
 def log_workspace_delete(sender, instance, **kwargs):
     """Log Workspace deletion."""
-    user = getattr(instance, '_current_user', None)
-    if not user:
+    user = get_current_user()
+    if not user or not user.is_authenticated:
         return
     
     create_activity_log(
         user=user,
         action_type="deleted",
         obj=instance,
-        request=getattr(instance, '_current_request', None)
+        request=get_current_request()
     )
