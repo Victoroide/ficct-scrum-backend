@@ -16,7 +16,7 @@ class DiagramRequestSerializer(serializers.Serializer):
         ("json", "JSON"),
     ]
 
-    project = serializers.UUIDField(required=True, help_text="Project UUID")
+    project_id = serializers.UUIDField(required=True, help_text="Project UUID")
     diagram_type = serializers.ChoiceField(choices=DIAGRAM_TYPE_CHOICES, required=True)
     format = serializers.ChoiceField(choices=FORMAT_CHOICES, default="svg")
     parameters = serializers.JSONField(required=False, default=dict)

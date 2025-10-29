@@ -31,7 +31,7 @@ class DiagramViewSet(viewsets.ViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         diagram_type = serializer.validated_data["diagram_type"]
-        project_id = serializer.validated_data["project"]
+        project_id = serializer.validated_data["project_id"]
 
         from apps.projects.models import Project
 
