@@ -417,3 +417,244 @@ def calculate_grid_points(min_val: float, max_val: float, num_lines: int = 5) ->
         current += nice_step
     
     return points if points else [min_val, max_val]
+
+
+# ============================================================================
+# TEXT MEASUREMENT AND COLLISION DETECTION
+# ============================================================================
+
+def estimate_text_width(text: str, font_size: int, font_family: str = 'Arial') -> float:
+    """
+    Estimate text width in pixels for SVG rendering.
+    
+    Uses character-based approximation since server-side SVG generation
+    cannot access browser text measurement APIs.
+    
+    Args:
+        text: Text string to measure
+        font_size: Font size in pixels
+        font_family: Font family (affects character width)
+        
+    Returns:
+        Estimated width in pixels (includes 20% safety buffer)
+    """
+    if not text:
+        return 0
+    
+    # Character width multipliers (proportion of font_size)
+    char_widths = {
+        # Narrow characters
+        'i': 0.3, 'l': 0.3, 't': 0.35, 'I': 0.3, 'j': 0.3, 'f': 0.35,
+        # Medium characters (most lowercase)
+        'a': 0.55, 'b': 0.55, 'c': 0.5, 'd': 0.55, 'e': 0.55, 'g': 0.55,
+        'h': 0.55, 'k': 0.5, 'n': 0.55, 'o': 0.55, 'p': 0.55, 'q': 0.55,
+        'r': 0.35, 's': 0.5, 'u': 0.55, 'v': 0.5, 'x': 0.5, 'y': 0.5, 'z': 0.5,
+        # Wide characters
+        'm': 0.85, 'w': 0.75,
+        # Uppercase (generally wider)
+        'A': 0.65, 'B': 0.65, 'C': 0.65, 'D': 0.65, 'E': 0.6, 'F': 0.55,
+        'G': 0.7, 'H': 0.65, 'J': 0.5, 'K': 0.65, 'L': 0.55, 'M': 0.8,
+        'N': 0.65, 'O': 0.7, 'P': 0.6, 'Q': 0.7, 'R': 0.65, 'S': 0.6,
+        'T': 0.6, 'U': 0.65, 'V': 0.65, 'W': 0.9, 'X': 0.65, 'Y': 0.6, 'Z': 0.6,
+        # Numbers
+        '0': 0.55, '1': 0.4, '2': 0.55, '3': 0.55, '4': 0.55,
+        '5': 0.55, '6': 0.55, '7': 0.5, '8': 0.55, '9': 0.55,
+        # Common punctuation
+        ' ': 0.3, '.': 0.3, ',': 0.3, ':': 0.3, ';': 0.3,
+        '-': 0.35, '_': 0.5, '(': 0.35, ')': 0.35,
+    }
+    
+    # Default width for characters not in map
+    default_width = 0.55
+    
+    total_width = 0
+    for char in text:
+        char_width = char_widths.get(char, default_width)
+        total_width += char_width * font_size
+    
+    # Add 20% safety buffer for approximation errors
+    return total_width * 1.2
+
+
+def estimate_text_height(font_size: int, line_height: float = 1.2) -> float:
+    """
+    Estimate text height including line height.
+    
+    Args:
+        font_size: Font size in pixels
+        line_height: Line height multiplier
+        
+    Returns:
+        Estimated height in pixels
+    """
+    return font_size * line_height
+
+
+class BoundingBox:
+    """Represents a rectangular bounding box for collision detection."""
+    
+    def __init__(self, x: float, y: float, width: float, height: float, label: str = ''):
+        """
+        Initialize bounding box.
+        
+        Args:
+            x: Left edge X coordinate
+            y: Top edge Y coordinate
+            width: Box width
+            height: Box height
+            label: Optional label for debugging
+        """
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.label = label
+    
+    @property
+    def left(self) -> float:
+        return self.x
+    
+    @property
+    def right(self) -> float:
+        return self.x + self.width
+    
+    @property
+    def top(self) -> float:
+        return self.y
+    
+    @property
+    def bottom(self) -> float:
+        return self.y + self.height
+    
+    @property
+    def center_x(self) -> float:
+        return self.x + self.width / 2
+    
+    @property
+    def center_y(self) -> float:
+        return self.y + self.height / 2
+    
+    def overlaps(self, other: 'BoundingBox', margin: float = 0) -> bool:
+        """
+        Check if this box overlaps with another box.
+        
+        Args:
+            other: Another bounding box
+            margin: Additional margin to consider (for spacing)
+            
+        Returns:
+            True if boxes overlap (with margin)
+        """
+        return not (
+            self.right + margin < other.left or
+            self.left - margin > other.right or
+            self.bottom + margin < other.top or
+            self.top - margin > other.bottom
+        )
+    
+    def contains_point(self, x: float, y: float) -> bool:
+        """Check if a point is inside this box."""
+        return self.left <= x <= self.right and self.top <= y <= self.bottom
+    
+    def __repr__(self) -> str:
+        return f"BoundingBox({self.label}: x={self.x:.1f}, y={self.y:.1f}, w={self.width:.1f}, h={self.height:.1f})"
+
+
+def find_non_overlapping_position(
+    desired_x: float,
+    desired_y: float,
+    width: float,
+    height: float,
+    existing_boxes: list,
+    margin: float = 8,
+    max_attempts: int = 20
+) -> tuple:
+    """
+    Find a position that doesn't overlap with existing bounding boxes.
+    
+    Tries moving vertically first, then horizontally if needed.
+    
+    Args:
+        desired_x: Desired X position (center or left, depending on context)
+        desired_y: Desired Y position (center or top)
+        width: Element width
+        height: Element height
+        existing_boxes: List of BoundingBox objects already placed
+        margin: Minimum spacing between elements
+        max_attempts: Maximum position adjustment attempts
+        
+    Returns:
+        Tuple of (x, y) for non-overlapping position, or original if can't find one
+    """
+    # Try the desired position first
+    test_box = BoundingBox(desired_x - width/2, desired_y - height/2, width, height)
+    
+    if not any(test_box.overlaps(box, margin) for box in existing_boxes):
+        return (desired_x, desired_y)
+    
+    # Try moving vertically (up then down)
+    vertical_offsets = []
+    for i in range(1, max_attempts // 2):
+        vertical_offsets.extend([-(i * 15), i * 15])  # Try 15px increments
+    
+    for offset_y in vertical_offsets:
+        test_y = desired_y + offset_y
+        test_box = BoundingBox(desired_x - width/2, test_y - height/2, width, height)
+        
+        if not any(test_box.overlaps(box, margin) for box in existing_boxes):
+            return (desired_x, test_y)
+    
+    # Try moving horizontally if vertical didn't work
+    horizontal_offsets = []
+    for i in range(1, max_attempts // 2):
+        horizontal_offsets.extend([-(i * 20), i * 20])  # Try 20px increments
+    
+    for offset_x in horizontal_offsets:
+        test_x = desired_x + offset_x
+        test_box = BoundingBox(test_x - width/2, desired_y - height/2, width, height)
+        
+        if not any(test_box.overlaps(box, margin) for box in existing_boxes):
+            return (test_x, desired_y)
+    
+    # If all else fails, return original position
+    return (desired_x, desired_y)
+
+
+def create_text_bounding_box(
+    x: float,
+    y: float,
+    text: str,
+    font_size: int,
+    anchor: str = 'start',
+    padding: float = 4
+) -> BoundingBox:
+    """
+    Create a bounding box for text element.
+    
+    Args:
+        x: Text X position
+        y: Text Y position (baseline)
+        text: Text content
+        font_size: Font size in pixels
+        anchor: Text anchor (start, middle, end)
+        padding: Additional padding around text
+        
+    Returns:
+        BoundingBox for the text element
+    """
+    width = estimate_text_width(text, font_size) + (padding * 2)
+    height = estimate_text_height(font_size) + (padding * 2)
+    
+    # Adjust X based on anchor
+    if anchor == 'middle':
+        box_x = x - width / 2
+    elif anchor == 'end':
+        box_x = x - width
+    else:  # start
+        box_x = x
+    
+    # Y is baseline, so adjust for text height
+    # SVG text baseline is typically at 75% of height from top
+    box_y = y - (height * 0.75)
+    
+    return BoundingBox(box_x, box_y, width, height, label=text[:20])

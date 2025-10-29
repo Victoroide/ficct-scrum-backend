@@ -17,7 +17,11 @@ from typing import Dict, List, Optional, Tuple
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from .diagram_utils import DesignSystem, calculate_canvas_size, calculate_grid_points
+from .diagram_utils import (
+    DesignSystem, calculate_canvas_size, calculate_grid_points,
+    estimate_text_width, estimate_text_height, BoundingBox,
+    find_non_overlapping_position, create_text_bounding_box
+)
 from .svg_builder import (
     create_svg_canvas, close_svg, create_svg_defs,
     create_rect, create_circle, create_text, create_multiline_text,
@@ -127,8 +131,38 @@ def generate_workflow_diagram_svg(project) -> str:
         subtitle=f"{num_nodes} statuses, {len(edges)} transitions"
     ))
     
-    # Draw transition arrows first (so they appear behind nodes)
-    y_center = padding + node_height / 2 + 50
+    # Track bounding boxes for collision detection
+    bounding_boxes = []
+    
+    # Calculate status node positions and create bounding boxes FIRST
+    status_node_positions = []
+    y_nodes = padding + 50
+    y_center = y_nodes + node_height / 2
+    
+    for node in status_nodes:
+        idx = node['index']
+        x = padding + (idx * spacing_x)
+        status_node_positions.append((x, y_nodes))
+        
+        # Add status box to bounding boxes
+        box = BoundingBox(x, y_nodes, node_width, node_height, label=f"Status: {node['name']}")
+        bounding_boxes.append(box)
+        
+        # Add START/END badge bounding boxes
+        if node['is_initial'] or node['is_final']:
+            badge_text = "START" if node['is_initial'] else "END"
+            badge_width = estimate_text_width(badge_text, ds.FONTS['size_tiny'])
+            badge_height = estimate_text_height(ds.FONTS['size_tiny'])
+            badge_box = BoundingBox(
+                x + node_width / 2 - badge_width / 2,
+                y_nodes - 20,
+                badge_width,
+                badge_height,
+                label=f"Badge: {badge_text}"
+            )
+            bounding_boxes.append(badge_box)
+    
+    # Draw transition arrows and labels with collision avoidance
     for edge in edges:
         from_idx = edge['from_idx']
         to_idx = edge['to_idx']
@@ -144,23 +178,45 @@ def generate_workflow_diagram_svg(project) -> str:
             arrow_type='default'
         ))
         
-        # Draw transition label if exists
+        # Draw transition label with collision avoidance
         if edge['label']:
+            label_font_size = ds.FONTS['size_tiny']
+            label_width = estimate_text_width(edge['label'], label_font_size)
+            label_height = estimate_text_height(label_font_size)
+            
+            # Try positioning above arrow first
             mid_x = (from_x + to_x) / 2
+            desired_y = y_center - 25  # Move further above arrow to avoid curve
+            
+            # Find non-overlapping position
+            final_x, final_y = find_non_overlapping_position(
+                mid_x, desired_y,
+                label_width, label_height,
+                bounding_boxes,
+                margin=8
+            )
+            
+            # Create and add label
             parts.append(create_text(
-                mid_x, y_center - 15,
+                final_x, final_y,
                 edge['label'],
-                size=ds.FONTS['size_tiny'],
+                size=label_font_size,
                 fill=ds.COLORS['text_tertiary'],
                 anchor='middle',
                 truncate_at=15
             ))
+            
+            # Add label bounding box to prevent future overlaps
+            label_box = create_text_bounding_box(
+                final_x, final_y,
+                edge['label'][:15] if len(edge['label']) > 15 else edge['label'],
+                label_font_size,
+                anchor='middle'
+            )
+            bounding_boxes.append(label_box)
     
     # Draw status nodes
-    for node in status_nodes:
-        idx = node['index']
-        x = padding + (idx * spacing_x)
-        y = padding + 50
+    for node, (x, y) in zip(status_nodes, status_node_positions):
         
         # Node background with special styling for initial/final
         border_color = ds.COLORS['border']
