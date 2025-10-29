@@ -1,7 +1,8 @@
 from django.db import transaction
 from django.utils import timezone
 from django_filters import rest_framework as filters
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -26,6 +27,30 @@ from apps.projects.services import WorkflowValidator
 
 
 class IssueFilter(filters.FilterSet):
+    """
+    Flexible filtering for issues supporting multiple filter types.
+    
+    Supports both UUID-based and user-friendly filters:
+    - project (UUID) or project_key (string) - Filter by project
+    - workspace (UUID) or workspace_key (string) - Filter by workspace
+    - organization (UUID) - Filter by organization
+    - sprint (UUID) - Filter by sprint
+    - board (UUID) - Filter by board
+    - assignee (UUID) or assignee_email (string) - Filter by assignee
+    - reporter (UUID) or reporter_email (string) - Filter by reporter
+    - status (UUID) or status_name (string) - Filter by status
+    - issue_type (UUID) or issue_type_category (string) - Filter by issue type
+    - priority (P0-P4) - Filter by priority
+    - search (string) - Full-text search across title, description, key
+    
+    Examples:
+    - /api/v1/projects/issues/?project_key=FICCT
+    - /api/v1/projects/issues/?workspace_key=SCRUM
+    - /api/v1/projects/issues/?status_name=In Progress
+    - /api/v1/projects/issues/?assignee_email=user@example.com
+    - /api/v1/projects/issues/?search=login bug
+    """
+    # UUID-based filters (original)
     project = filters.UUIDFilter(field_name="project__id")
     sprint = filters.UUIDFilter(field_name="sprint__id")
     board = filters.UUIDFilter(method="filter_board")
@@ -33,13 +58,36 @@ class IssueFilter(filters.FilterSet):
     reporter = filters.UUIDFilter(field_name="reporter__id")
     status = filters.UUIDFilter(field_name="status__id")
     issue_type = filters.UUIDFilter(field_name="issue_type__id")
+    
+    # User-friendly alternative filters (NEW)
+    project_key = filters.CharFilter(field_name="project__key", lookup_expr="iexact")
+    workspace = filters.UUIDFilter(field_name="project__workspace__id")
+    workspace_key = filters.CharFilter(field_name="project__workspace__key", lookup_expr="iexact")
+    organization = filters.UUIDFilter(field_name="project__workspace__organization__id")
+    assignee_email = filters.CharFilter(field_name="assignee__email", lookup_expr="iexact")
+    reporter_email = filters.CharFilter(field_name="reporter__email", lookup_expr="iexact")
+    status_name = filters.CharFilter(field_name="status__name", lookup_expr="iexact")
+    status_category = filters.ChoiceFilter(
+        field_name="status__category",
+        choices=[("to_do", "To Do"), ("in_progress", "In Progress"), ("done", "Done")]
+    )
+    issue_type_category = filters.ChoiceFilter(
+        field_name="issue_type__category",
+        choices=[("epic", "Epic"), ("story", "Story"), ("task", "Task"), 
+                 ("bug", "Bug"), ("improvement", "Improvement"), ("sub_task", "Sub-task")]
+    )
+    
+    # General filters
     priority = filters.ChoiceFilter(choices=Issue.PRIORITY_CHOICES)
     search = filters.CharFilter(method="filter_search")
     
+    # Boolean filters
     has_attachments = filters.BooleanFilter(method="filter_has_attachments")
     has_comments = filters.BooleanFilter(method="filter_has_comments")
     has_links = filters.BooleanFilter(method="filter_has_links")
+    is_active = filters.BooleanFilter(field_name="is_active")
     
+    # Date range filters
     created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
     created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
     updated_after = filters.DateTimeFilter(field_name="updated_at", lookup_expr="gte")
@@ -49,7 +97,16 @@ class IssueFilter(filters.FilterSet):
 
     class Meta:
         model = Issue
-        fields = ["project", "sprint", "board", "assignee", "reporter", "status", "issue_type", "priority"]
+        fields = [
+            # UUID filters
+            "project", "sprint", "board", "assignee", "reporter", "status", "issue_type",
+            # Alternative filters
+            "project_key", "workspace", "workspace_key", "organization",
+            "assignee_email", "reporter_email", "status_name", "status_category",
+            "issue_type_category",
+            # General
+            "priority", "search", "is_active"
+        ]
 
     def filter_search(self, queryset, name, value):
         from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
@@ -115,7 +172,29 @@ class IssueFilter(filters.FilterSet):
         tags=["Issues"],
         operation_id="issues_list",
         summary="List Issues",
-        description="Get all issues with filtering by project, sprint, board, assignee, status, priority, etc. Use board filter to get issues displayed in a specific Kanban board.",
+        description=(
+            "Get all issues with flexible filtering options. Supports both UUID-based and user-friendly filters.\n\n"
+            "**Filter Examples:**\n"
+            "- By project key: `?project_key=FICCT`\n"
+            "- By workspace: `?workspace_key=SCRUM`\n"
+            "- By status: `?status_name=In Progress` or `?status_category=in_progress`\n"
+            "- By assignee: `?assignee_email=user@example.com`\n"
+            "- By issue type: `?issue_type_category=bug`\n"
+            "- Search: `?search=login bug`\n"
+            "- Combine filters: `?project_key=FICCT&status_category=in_progress&priority=P1`\n\n"
+            "**Available Filters:**\n"
+            "- `project` (UUID) or `project_key` (string)\n"
+            "- `workspace` (UUID) or `workspace_key` (string)\n"
+            "- `organization` (UUID)\n"
+            "- `status` (UUID), `status_name` (string), or `status_category` (to_do|in_progress|done)\n"
+            "- `issue_type` (UUID) or `issue_type_category` (epic|story|task|bug|improvement|sub_task)\n"
+            "- `assignee` (UUID) or `assignee_email` (string)\n"
+            "- `reporter` (UUID) or `reporter_email` (string)\n"
+            "- `priority` (P0|P1|P2|P3|P4)\n"
+            "- `search` (full-text search)\n"
+            "- `board` (UUID)\n"
+            "- `sprint` (UUID)\n"
+        ),
     ),
     retrieve=extend_schema(
         tags=["Issues"],

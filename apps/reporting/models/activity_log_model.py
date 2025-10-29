@@ -50,6 +50,13 @@ class ActivityLog(models.Model):
         blank=True,
         related_name="activity_logs",
     )
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activity_logs",
+    )
     changes = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -62,6 +69,8 @@ class ActivityLog(models.Model):
         indexes = [
             models.Index(fields=["user", "created_at"]),
             models.Index(fields=["project", "created_at"]),
+            models.Index(fields=["workspace", "created_at"]),
+            models.Index(fields=["organization", "created_at"]),
             models.Index(fields=["action_type", "created_at"]),
             models.Index(fields=["content_type", "object_id"]),
         ]
