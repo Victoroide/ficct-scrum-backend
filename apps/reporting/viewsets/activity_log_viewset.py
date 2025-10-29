@@ -203,8 +203,9 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         
         # Get all accessible logs based on user memberships
+        # Note: organization.memberships (not members), workspace.members, project.team_members
         queryset = ActivityLog.objects.filter(
-            Q(organization__members__user=user, organization__members__is_active=True) |
+            Q(organization__memberships__user=user, organization__memberships__is_active=True) |
             Q(workspace__members__user=user, workspace__members__is_active=True) |
             Q(project__workspace__members__user=user, project__workspace__members__is_active=True) |
             Q(project__team_members__user=user, project__team_members__is_active=True)
