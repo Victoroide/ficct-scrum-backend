@@ -20,6 +20,12 @@ class IsProjectMember(permissions.BasePermission):
         # obj could be Project or related model
         if hasattr(obj, "project"):
             project = obj.project
+        elif hasattr(obj, "issue"):
+            # Handle IssueComment, IssueAttachment
+            project = obj.issue.project
+        elif hasattr(obj, "source_issue"):
+            # Handle IssueLink
+            project = obj.source_issue.project
         else:
             project = obj
 
@@ -54,6 +60,12 @@ class IsProjectLeadOrAdmin(permissions.BasePermission):
         # obj could be Project or related model
         if hasattr(obj, "project"):
             project = obj.project
+        elif hasattr(obj, "issue"):
+            # Handle IssueComment, IssueAttachment
+            project = obj.issue.project
+        elif hasattr(obj, "source_issue"):
+            # Handle IssueLink
+            project = obj.source_issue.project
         else:
             project = obj
 
@@ -107,6 +119,12 @@ class CanAccessProject(permissions.BasePermission):
         # obj could be Project or related model
         if hasattr(obj, "project"):
             project = obj.project
+        elif hasattr(obj, "issue"):
+            # Handle IssueComment, IssueAttachment
+            project = obj.issue.project
+        elif hasattr(obj, "source_issue"):
+            # Handle IssueLink
+            project = obj.source_issue.project
         else:
             project = obj
 
@@ -293,6 +311,12 @@ class IsProjectTeamMember(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if hasattr(obj, "project"):
             project = obj.project
+        elif hasattr(obj, "issue"):
+            # Handle IssueComment, IssueAttachment
+            project = obj.issue.project
+        elif hasattr(obj, "source_issue"):
+            # Handle IssueLink
+            project = obj.source_issue.project
         else:
             project = obj
 
