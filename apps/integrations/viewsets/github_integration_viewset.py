@@ -552,8 +552,9 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             )
 
             # Redirect to frontend repository selection page
+            # Frontend expects: /projects/github/oauth/callback?github=select_repo&temp_token=XXX
             frontend_url = settings.FRONTEND_URL
-            redirect_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=select&token={temp_token_id}"
+            redirect_url = f"{frontend_url}/projects/github/oauth/callback?github=select_repo&temp_token={temp_token_id}"
             
             logger.info(f"[OAuth Callback] Redirecting to frontend: {redirect_url}")
             return redirect(redirect_url)
