@@ -1,0 +1,365 @@
+"""
+RAG (Retrieval-Augmented Generation) service for semantic search.
+
+Handles indexing issues in Pinecone and semantic search operations.
+"""
+
+import hashlib
+import logging
+from typing import Any, Dict, List, Optional
+
+from django.utils import timezone
+
+from apps.ai_assistant.models import IssueEmbedding
+from apps.projects.models import Issue
+from base.services import get_azure_openai_service, get_pinecone_service
+
+logger = logging.getLogger(__name__)
+
+
+class RAGService:
+    """Service for RAG operations with Pinecone and Azure OpenAI."""
+
+    def __init__(self):
+        """Initialize RAG service with Azure OpenAI and Pinecone."""
+        self.available = False
+        self.error_message = None
+        
+        try:
+            self.openai = get_azure_openai_service()
+            self.pinecone = get_pinecone_service()
+            self.available = True
+        except ModuleNotFoundError as e:
+            if 'readline' in str(e):
+                self.error_message = (
+                    "RAG service unavailable on Windows. "
+                    "Pinecone requires Unix/Linux environment or Docker. "
+                    "Use Docker to access AI features."
+                )
+                logger.warning(f"RAGService unavailable: {self.error_message}")
+            else:
+                raise
+        except Exception as e:
+            self.error_message = f"Failed to initialize RAG service: {str(e)}"
+            logger.error(f"RAGService initialization failed: {e}")
+    
+    def _check_available(self):
+        """Check if service is available, raise exception if not."""
+        if not self.available:
+            from apps.ai_assistant.exceptions import ServiceUnavailable
+            raise ServiceUnavailable(
+                detail=self.error_message or "RAG service is not available"
+            )
+
+    def index_issue(self, issue_id: str, force_reindex: bool = False) -> bool:
+        """
+        Index a single issue in Pinecone.
+
+        Args:
+            issue_id: Issue UUID
+            force_reindex: Force reindexing even if already indexed
+
+        Returns:
+            True if successful
+        """
+        self._check_available()
+        try:
+            issue = Issue.objects.select_related(
+                "project", "issue_type", "status", "assignee", "reporter"
+            ).get(id=issue_id)
+            
+            # Prepare text for embedding
+            text_content = self._prepare_issue_text(issue)
+            content_hash = self._calculate_hash(text_content)
+            
+            # Check if already indexed with same content
+            existing_embedding = IssueEmbedding.objects.filter(issue_id=issue_id).first()
+            
+            if existing_embedding and not force_reindex:
+                if existing_embedding.content_hash == content_hash:
+                    logger.debug(f"Issue {issue_id} already indexed with same content")
+                    return True
+            
+            # Generate embedding
+            logger.info(f"Generating embedding for issue {issue_id}")
+            embedding_vector = self.openai.generate_embedding(text_content)
+            
+            # Prepare metadata
+            metadata = self._prepare_metadata(issue)
+            
+            # Upsert to Pinecone
+            vector_id = f"issue_{issue_id}"
+            self.pinecone.upsert_vector(
+                vector_id=vector_id,
+                vector=embedding_vector,
+                metadata=metadata,
+                namespace="issues",
+            )
+            
+            # Update or create embedding record
+            IssueEmbedding.objects.update_or_create(
+                issue_id=issue_id,
+                defaults={
+                    "vector_id": vector_id,
+                    "project_id": issue.project_id,
+                    "title": issue.title,
+                    "content_hash": content_hash,
+                    "is_indexed": True,
+                    "indexed_at": timezone.now(),
+                },
+            )
+            
+            logger.info(f"Successfully indexed issue {issue_id}")
+            return True
+            
+        except Exception as e:
+            logger.exception(f"Error indexing issue {issue_id}: {str(e)}")
+            return False
+
+    def index_project_issues(
+        self, project_id: str, batch_size: int = 50
+    ) -> Dict[str, Any]:
+        """
+        Index all issues in a project.
+
+        Args:
+            project_id: Project UUID
+            batch_size: Number of issues to process per batch
+
+        Returns:
+            Dictionary with indexing statistics
+        """
+        self._check_available()
+        try:
+            issues = Issue.objects.filter(
+                project_id=project_id, is_active=True
+            ).select_related("project", "issue_type", "status")
+            
+            total = issues.count()
+            indexed = 0
+            failed = 0
+            
+            logger.info(f"Starting batch indexing for project {project_id}: {total} issues")
+            
+            for i, issue in enumerate(issues, 1):
+                try:
+                    if self.index_issue(str(issue.id)):
+                        indexed += 1
+                    else:
+                        failed += 1
+                except Exception as e:
+                    logger.error(f"Failed to index issue {issue.id}: {str(e)}")
+                    failed += 1
+                
+                if i % batch_size == 0:
+                    logger.info(f"Progress: {i}/{total} issues processed")
+            
+            return {
+                "total": total,
+                "indexed": indexed,
+                "failed": failed,
+                "success_rate": (indexed / total * 100) if total > 0 else 0,
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error in batch indexing: {str(e)}")
+            raise
+
+    def semantic_search(
+        self,
+        query: str,
+        project_id: Optional[str] = None,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for issues using natural language query.
+
+        Args:
+            query: Natural language search query
+            project_id: Optional project filter
+            top_k: Number of results to return
+            filters: Additional metadata filters
+
+        Returns:
+            List of matching issues with scores
+        """
+        self._check_available()
+        try:
+            # Generate query embedding
+            logger.info(f"Semantic search: '{query}'")
+            query_vector = self.openai.generate_embedding(query)
+            
+            # Prepare filters
+            search_filters = filters or {}
+            if project_id:
+                search_filters["project_id"] = project_id
+            
+            # Query Pinecone
+            results = self.pinecone.query(
+                vector=query_vector,
+                top_k=top_k,
+                filter_dict=search_filters if search_filters else None,
+                namespace="issues",
+                include_metadata=True,
+            )
+            
+            # Enrich results with full issue data
+            enriched_results = []
+            for result in results:
+                issue_id = result["metadata"].get("issue_id")
+                if issue_id:
+                    try:
+                        issue = Issue.objects.select_related(
+                            "issue_type", "status", "assignee", "project"
+                        ).get(id=issue_id)
+                        
+                        enriched_results.append({
+                            "issue_id": str(issue.id),
+                            "title": issue.title,
+                            "description": issue.description,
+                            "issue_type": issue.issue_type.name,
+                            "status": issue.status.name,
+                            "priority": issue.priority,
+                            "assignee": issue.assignee.get_full_name() if issue.assignee else None,
+                            "project_key": issue.project.key,
+                            "similarity_score": round(result["score"], 3),
+                            "metadata": result["metadata"],
+                        })
+                    except Issue.DoesNotExist:
+                        logger.warning(f"Issue {issue_id} not found in database")
+            
+            logger.info(f"Found {len(enriched_results)} results for query")
+            return enriched_results
+            
+        except Exception as e:
+            logger.exception(f"Error in semantic search: {str(e)}")
+            raise
+
+    def find_similar_issues(
+        self,
+        issue_id: str,
+        top_k: int = 5,
+        same_project_only: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        Find issues similar to a given issue.
+
+        Args:
+            issue_id: Source issue UUID
+            top_k: Number of similar issues to return
+            same_project_only: Limit to same project
+
+        Returns:
+            List of similar issues with similarity scores
+        """
+        self._check_available()
+        try:
+            issue = Issue.objects.get(id=issue_id)
+            
+            # Check if issue is indexed
+            embedding = IssueEmbedding.objects.filter(issue_id=issue_id).first()
+            if not embedding or not embedding.is_indexed:
+                # Index it first
+                self.index_issue(issue_id)
+            
+            # Prepare filters
+            filters = {"project_id": str(issue.project_id)} if same_project_only else None
+            
+            # Query for similar vectors
+            vector_id = f"issue_{issue_id}"
+            results = self.pinecone.query_by_id(
+                vector_id=vector_id,
+                top_k=top_k,
+                filter_dict=filters,
+                namespace="issues",
+                include_metadata=True,
+            )
+            
+            # Enrich results
+            similar_issues = []
+            for result in results:
+                similar_id = result["metadata"].get("issue_id")
+                if similar_id and similar_id != issue_id:
+                    try:
+                        similar_issue = Issue.objects.select_related(
+                            "issue_type", "status", "project"
+                        ).get(id=similar_id)
+                        
+                        similar_issues.append({
+                            "issue_id": str(similar_issue.id),
+                            "title": similar_issue.title,
+                            "issue_type": similar_issue.issue_type.name,
+                            "status": similar_issue.status.name,
+                            "project_key": similar_issue.project.key,
+                            "similarity_score": round(result["score"], 3),
+                        })
+                    except Issue.DoesNotExist:
+                        continue
+            
+            return similar_issues
+            
+        except Exception as e:
+            logger.exception(f"Error finding similar issues: {str(e)}")
+            raise
+
+    def delete_issue_embedding(self, issue_id: str) -> bool:
+        """
+        Remove issue from Pinecone index.
+
+        Args:
+            issue_id: Issue UUID
+
+        Returns:
+            True if successful
+        """
+        self._check_available()
+        try:
+            vector_id = f"issue_{issue_id}"
+            self.pinecone.delete_vector(vector_id, namespace="issues")
+            
+            IssueEmbedding.objects.filter(issue_id=issue_id).delete()
+            
+            logger.info(f"Deleted embedding for issue {issue_id}")
+            return True
+            
+        except Exception as e:
+            logger.exception(f"Error deleting embedding: {str(e)}")
+            return False
+
+    def _prepare_issue_text(self, issue: Issue) -> str:
+        """Prepare issue text for embedding generation."""
+        # Combine title, description, and key metadata
+        parts = [
+            f"Title: {issue.title}",
+            f"Type: {issue.issue_type.name}",
+            f"Priority: {issue.priority}",
+        ]
+        
+        if issue.description:
+            parts.append(f"Description: {issue.description}")
+        
+        # Add comments if needed (can be expensive)
+        # comments = issue.comments.values_list("content", flat=True)[:5]
+        # if comments:
+        #     parts.append(f"Comments: {' '.join(comments)}")
+        
+        return "\n".join(parts)
+
+    def _prepare_metadata(self, issue: Issue) -> Dict[str, Any]:
+        """Prepare metadata for Pinecone storage."""
+        return {
+            "issue_id": str(issue.id),
+            "project_id": str(issue.project_id),
+            "title": issue.title,
+            "issue_type": issue.issue_type.name,
+            "status": issue.status.name,
+            "priority": issue.priority,
+            "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
+            "created_at": issue.created_at.isoformat(),
+            "updated_at": issue.updated_at.isoformat(),
+        }
+
+    def _calculate_hash(self, text: str) -> str:
+        """Calculate SHA-256 hash of text content."""
+        return hashlib.sha256(text.encode()).hexdigest()

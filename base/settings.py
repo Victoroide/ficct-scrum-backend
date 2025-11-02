@@ -67,6 +67,10 @@ LOCAL_APPS = [
     "apps.logging",
     "apps.integrations",
     "apps.reporting",
+    "apps.ml",
+    "apps.ai_assistant",
+    "apps.notifications",
+    "apps.admin_tools",
 ]
 
 INSTALLED_APPS = ["daphne"] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -79,6 +83,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.reporting.middleware.ActivityLogMiddleware",  # Track user for ActivityLog
+    "apps.admin_tools.middleware.PerformanceMonitoringMiddleware",  # Monitor performance
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -511,3 +516,35 @@ else:
 
 # WebSocket CORS
 CORS_ALLOW_CREDENTIALS = True
+
+# ==========================================================================
+# CELERY CONFIGURATION
+# ==========================================================================
+
+# Celery Broker URL (use same Redis as Channel Layers)
+CELERY_BROKER_URL = os.getenv(
+    "CELERY_BROKER_URL",
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/0"
+)
+
+# Celery Result Backend
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND",
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1"
+)
+
+# Celery Task Settings
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600  # 1 hour max
+CELERY_TASK_SOFT_TIME_LIMIT = 3300  # 55 minutes soft limit
+
+# Celery Worker Settings
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# Celery Beat Schedule (defined in base/celery.py)
