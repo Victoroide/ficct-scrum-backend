@@ -19,15 +19,152 @@ from apps.integrations.services.github_service import GitHubService
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List GitHub integrations", tags=["Integrations"]),
+    list=extend_schema(
+        summary="List GitHub integrations", 
+        tags=["Integrations"],
+        description="Returns all GitHub integrations the user has access to. Filter by project using ?project={uuid}"
+    ),
     retrieve=extend_schema(
-        summary="Get GitHub integration details", tags=["Integrations"]
+        summary="Get GitHub integration details", 
+        tags=["Integrations"],
+        description="Returns detailed information about a specific GitHub integration including commit and PR counts"
     ),
     create=extend_schema(
-        summary="Connect GitHub repository", tags=["Integrations"]
+        summary="Connect GitHub repository (Direct - Use OAuth flow instead)", 
+        tags=["Integrations"],
+        description="""
+        **IMPORTANT**: This endpoint requires a GitHub Personal Access Token. 
+        For production use, prefer the OAuth flow: POST /oauth/initiate/
+        
+        **Required Fields**:
+        - project (UUID): Project to connect integration to
+        - repository_url (string): GitHub repository URL (https://github.com/owner/repo)
+        - access_token (string): GitHub Personal Access Token with 'repo' and 'read:user' scopes
+        
+        **Optional Fields**:
+        - sync_commits (boolean): Auto-sync commits (default: true)
+        - sync_pull_requests (boolean): Auto-sync pull requests (default: true)
+        - auto_link_commits (boolean): Auto-link commits to issues (default: true)
+        
+        **Permissions**: User must be Project owner/admin, Workspace admin, or Organization owner/admin
+        
+        **Recommended**: Use POST /oauth/initiate/ for secure OAuth flow
+        """,
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "project": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Project UUID (REQUIRED)"
+                    },
+                    "repository_url": {
+                        "type": "string",
+                        "description": "GitHub repository URL (REQUIRED)",
+                        "example": "https://github.com/Victoroide/ficct-scrum-backend"
+                    },
+                    "access_token": {
+                        "type": "string",
+                        "description": "GitHub Personal Access Token (REQUIRED)",
+                        "example": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    },
+                    "sync_commits": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Auto-sync commits from repository"
+                    },
+                    "sync_pull_requests": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Auto-sync pull requests from repository"
+                    },
+                    "auto_link_commits": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Auto-link commits to issues based on commit messages"
+                    }
+                },
+                "required": ["project", "repository_url", "access_token"]
+            }
+        },
+        responses={
+            201: {
+                "description": "GitHub integration created successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "id": "uuid-of-integration",
+                            "project": "uuid-of-project",
+                            "repository_url": "https://github.com/Victoroide/ficct-scrum-backend",
+                            "repository_owner": "Victoroide",
+                            "repository_name": "ficct-scrum-backend",
+                            "repository_full_name": "Victoroide/ficct-scrum-backend",
+                            "is_active": True,
+                            "connected_at": "2025-11-02T15:30:00Z"
+                        }
+                    }
+                }
+            },
+            400: {
+                "description": "Bad Request - Missing required fields",
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "missing_project": {
+                                "value": {
+                                    "project": ["Field 'project' is required to create GitHub integration"]
+                                }
+                            },
+                            "missing_token": {
+                                "value": {
+                                    "access_token": ["Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."]
+                                }
+                            },
+                            "invalid_url": {
+                                "value": {
+                                    "repository_url": ["Repository URL must be a valid GitHub repository URL"]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            403: {
+                "description": "Forbidden - Insufficient permissions",
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "missing_project_field": {
+                                "value": {
+                                    "detail": "Missing required field 'project'. Please provide project ID in request body."
+                                }
+                            },
+                            "no_permission": {
+                                "value": {
+                                    "detail": "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            404: {
+                "description": "Project not found",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "detail": "Project with ID 'xxx' does not exist."
+                        }
+                    }
+                }
+            }
+        }
     ),
     destroy=extend_schema(
-        summary="Disconnect GitHub repository", tags=["Integrations"]
+        summary="Disconnect GitHub repository", 
+        tags=["Integrations"],
+        description="Removes GitHub integration from project. Commits and PRs are preserved but no longer synced."
     ),
 )
 class GitHubIntegrationViewSet(viewsets.ModelViewSet):

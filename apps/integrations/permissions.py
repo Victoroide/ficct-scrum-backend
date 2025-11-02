@@ -21,6 +21,7 @@ class CanManageIntegrations(permissions.BasePermission):
 
         project_id = request.data.get("project") or view.kwargs.get("project_id")
         if not project_id:
+            self.message = "Missing required field 'project'. Please provide project ID in request body."
             return False
 
         from apps.projects.models import Project, ProjectTeamMember
@@ -30,6 +31,7 @@ class CanManageIntegrations(permissions.BasePermission):
         try:
             project = Project.objects.select_related('workspace', 'workspace__organization').get(id=project_id)
         except Project.DoesNotExist:
+            self.message = f"Project with ID '{project_id}' does not exist."
             return False
 
         # Check project membership
@@ -55,6 +57,9 @@ class CanManageIntegrations(permissions.BasePermission):
             role__in=["owner", "admin"],
             is_active=True
         ).exists()
+        
+        if not is_org_admin:
+            self.message = "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
         
         return is_org_admin
 

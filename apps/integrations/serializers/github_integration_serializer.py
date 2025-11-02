@@ -48,6 +48,28 @@ class GitHubIntegrationSerializer(serializers.ModelSerializer):
                 "Repository URL must be a valid GitHub repository URL"
             )
         return value
+    
+    def validate_project(self, value):
+        """Validate that project exists and user has access"""
+        if not value:
+            raise serializers.ValidationError(
+                "Field 'project' is required to create GitHub integration"
+            )
+        return value
+    
+    def validate(self, attrs):
+        """Validate required fields for GitHub integration"""
+        if 'project' not in attrs or attrs['project'] is None:
+            raise serializers.ValidationError({
+                "project": "Field 'project' is required to create GitHub integration"
+            })
+        
+        if 'access_token' not in attrs:
+            raise serializers.ValidationError({
+                "access_token": "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."
+            })
+        
+        return attrs
 
     def create(self, validated_data):
         access_token = validated_data.pop("access_token")
