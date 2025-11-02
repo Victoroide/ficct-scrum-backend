@@ -19,49 +19,56 @@ class CanManageIntegrations(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        project_id = request.data.get("project") or view.kwargs.get("project_id")
-        if not project_id:
-            self.message = "Missing required field 'project'. Please provide project ID in request body."
-            return False
+        # Only POST (CREATE) requires project_id in request body
+        # DELETE, PATCH, PUT use has_object_permission() which gets project from object
+        if request.method == 'POST':
+            project_id = request.data.get("project") or view.kwargs.get("project_id")
+            if not project_id:
+                self.message = "Missing required field 'project'. Please provide project ID in request body."
+                return False
+            
+            from apps.projects.models import Project, ProjectTeamMember
+            from apps.workspaces.models import WorkspaceMember
+            from apps.organizations.models import OrganizationMembership
 
-        from apps.projects.models import Project, ProjectTeamMember
-        from apps.workspaces.models import WorkspaceMember
-        from apps.organizations.models import OrganizationMembership
+            try:
+                project = Project.objects.select_related('workspace', 'workspace__organization').get(id=project_id)
+            except Project.DoesNotExist:
+                self.message = f"Project with ID '{project_id}' does not exist."
+                return False
 
-        try:
-            project = Project.objects.select_related('workspace', 'workspace__organization').get(id=project_id)
-        except Project.DoesNotExist:
-            self.message = f"Project with ID '{project_id}' does not exist."
-            return False
+            # Check project membership
+            is_project_admin = ProjectTeamMember.objects.filter(
+                project=project, user=request.user, role__in=["owner", "admin"], is_active=True
+            ).exists()
+            
+            if is_project_admin:
+                return True
 
-        # Check project membership
-        is_project_admin = ProjectTeamMember.objects.filter(
-            project=project, user=request.user, role__in=["owner", "admin"], is_active=True
-        ).exists()
-        
-        if is_project_admin:
+            # Check workspace membership
+            is_workspace_admin = WorkspaceMember.objects.filter(
+                workspace=project.workspace, user=request.user, role="admin", is_active=True
+            ).exists()
+            
+            if is_workspace_admin:
+                return True
+
+            # Check organization membership
+            is_org_admin = OrganizationMembership.objects.filter(
+                organization=project.workspace.organization,
+                user=request.user,
+                role__in=["owner", "admin"],
+                is_active=True
+            ).exists()
+            
+            if not is_org_admin:
+                self.message = "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
+            
+            return is_org_admin
+        else:
+            # For object-level operations (DELETE, PATCH, PUT), 
+            # has_object_permission() will be called with the actual object
             return True
-
-        # Check workspace membership
-        is_workspace_admin = WorkspaceMember.objects.filter(
-            workspace=project.workspace, user=request.user, role="admin", is_active=True
-        ).exists()
-        
-        if is_workspace_admin:
-            return True
-
-        # Check organization membership
-        is_org_admin = OrganizationMembership.objects.filter(
-            organization=project.workspace.organization,
-            user=request.user,
-            role__in=["owner", "admin"],
-            is_active=True
-        ).exists()
-        
-        if not is_org_admin:
-            self.message = "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
-        
-        return is_org_admin
 
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:

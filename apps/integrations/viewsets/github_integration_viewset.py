@@ -11,6 +11,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
 
@@ -524,67 +525,291 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             access_token = token_data.get("access_token")
 
             if not access_token:
-                return Response(
-                    {"status": "error", "error": "No access token received"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                # Redirect to frontend with error
+                frontend_url = settings.FRONTEND_URL
+                error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=no_token"
+                return redirect(error_url)
 
-            # Get repository information from GitHub
-            from github import Github
-
-            gh = Github(access_token)
-            user = gh.get_user()
-
-            # For now, let's get the first repository or ask for repo URL
-            # In production, you'd want to let user select repository
-            repos = list(user.get_repos()[:1])
-            if not repos:
-                return Response(
-                    {
-                        "status": "error",
-                        "error": "No repositories found for this user",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            repo = repos[0]
-
-            # Create GitHubIntegration
-            from apps.projects.models import Project
-
-            project = Project.objects.get(id=project_id)
-
-            integration = GitHubIntegration.objects.create(
-                project=project,
-                repository_url=repo.html_url,
-                repository_name=repo.full_name,
-                is_active=True,
+            # Store access_token temporarily in Redis for repository selection
+            # Generate a temporary token ID
+            import secrets
+            temp_token_id = secrets.token_urlsafe(32)
+            temp_cache_key = f"github_temp_token_{temp_token_id}"
+            
+            temp_token_data = {
+                "access_token": access_token,
+                "project_id": project_id,
+                "user_id": user_id,
+                "created_at": timezone.now().isoformat(),
+            }
+            
+            # Store with 5-minute TTL (enough time to select repository)
+            cache.set(temp_cache_key, temp_token_data, timeout=300)
+            
+            logger.info(
+                f"[OAuth Callback] Access token stored temporarily. "
+                f"Temp ID: {temp_token_id[:10]}..., Project: {project_id}, User: {user_id}"
             )
 
+            # Redirect to frontend repository selection page
+            frontend_url = settings.FRONTEND_URL
+            redirect_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=select&token={temp_token_id}"
+            
+            logger.info(f"[OAuth Callback] Redirecting to frontend: {redirect_url}")
+            return redirect(redirect_url)
+
+        except Exception as e:
+            logger.exception(
+                f"[OAuth Callback] Unexpected error during OAuth callback: {str(e)}"
+            )
+            # Redirect to frontend with error
+            frontend_url = settings.FRONTEND_URL
+            error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=server_error"
+            return redirect(error_url)
+
+    @extend_schema(
+        summary="List user's GitHub repositories",
+        tags=["Integrations"],
+        parameters=[
+            {
+                "name": "temp_token",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "string"},
+                "description": "Temporary token ID from OAuth callback redirect",
+            }
+        ],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "repositories": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "integer"},
+                                "name": {"type": "string"},
+                                "full_name": {"type": "string"},
+                                "html_url": {"type": "string"},
+                                "description": {"type": "string"},
+                                "private": {"type": "boolean"},
+                                "default_branch": {"type": "string"},
+                            },
+                        },
+                    },
+                    "project_id": {"type": "string"},
+                },
+            },
+            400: {
+                "type": "object",
+                "properties": {
+                    "error": {"type": "string"},
+                },
+            },
+        },
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="oauth/repositories",
+        permission_classes=[IsAuthenticated],
+    )
+    def list_repositories(self, request):
+        """
+        List user's accessible GitHub repositories using temporary OAuth token.
+        Called by frontend after OAuth callback redirect.
+        """
+        temp_token = request.query_params.get("temp_token")
+        
+        if not temp_token:
+            logger.error("[List Repos] Missing temp_token parameter")
+            return Response(
+                {"error": "Missing temp_token parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Retrieve temporary token data from cache
+        temp_cache_key = f"github_temp_token_{temp_token}"
+        temp_token_data = cache.get(temp_cache_key)
+        
+        if not temp_token_data:
+            logger.error(f"[List Repos] Temp token not found or expired: {temp_token[:10]}...")
+            return Response(
+                {"error": "Temporary token expired or invalid. Please restart OAuth flow."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        access_token = temp_token_data.get("access_token")
+        project_id = temp_token_data.get("project_id")
+        user_id = temp_token_data.get("user_id")
+        
+        # Verify the requesting user is the same as the one who initiated OAuth
+        if str(request.user.id) != str(user_id):
+            logger.warning(
+                f"[List Repos] User mismatch. Expected: {user_id}, Got: {request.user.id}"
+            )
+            return Response(
+                {"error": "Unauthorized. Token belongs to different user."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        try:
+            # Get user's repositories from GitHub
+            from github import Github
+            
+            gh = Github(access_token)
+            user = gh.get_user()
+            
+            # Get all accessible repositories
+            repos_data = []
+            for repo in user.get_repos():
+                repos_data.append({
+                    "id": repo.id,
+                    "name": repo.name,
+                    "full_name": repo.full_name,
+                    "html_url": repo.html_url,
+                    "description": repo.description or "",
+                    "private": repo.private,
+                    "default_branch": repo.default_branch,
+                })
+            
+            logger.info(
+                f"[List Repos] Retrieved {len(repos_data)} repositories for user {user_id}"
+            )
+            
+            return Response(
+                {
+                    "repositories": repos_data,
+                    "project_id": project_id,
+                },
+                status=status.HTTP_200_OK,
+            )
+        
+        except Exception as e:
+            logger.exception(f"[List Repos] Error fetching repositories: {str(e)}")
+            return Response(
+                {"error": f"Failed to fetch repositories: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @extend_schema(
+        summary="Complete GitHub OAuth integration with selected repository",
+        tags=["Integrations"],
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "temp_token": {"type": "string"},
+                    "repository_url": {"type": "string"},
+                    "repository_name": {"type": "string"},
+                },
+                "required": ["temp_token", "repository_url", "repository_name"],
+            }
+        },
+        responses={
+            201: {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "message": {"type": "string"},
+                    "integration_id": {"type": "string"},
+                    "repository": {"type": "string"},
+                },
+            },
+            400: {
+                "type": "object",
+                "properties": {
+                    "error": {"type": "string"},
+                },
+            },
+        },
+    )
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="oauth/complete",
+        permission_classes=[IsAuthenticated],
+    )
+    def complete_integration(self, request):
+        """
+        Complete GitHub integration by creating GitHubIntegration with selected repository.
+        Called by frontend after user selects a repository.
+        """
+        temp_token = request.data.get("temp_token")
+        repository_url = request.data.get("repository_url")
+        repository_name = request.data.get("repository_name")
+        
+        if not temp_token or not repository_url or not repository_name:
+            logger.error("[Complete Integration] Missing required fields")
+            return Response(
+                {"error": "Missing required fields: temp_token, repository_url, repository_name"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Retrieve and delete temporary token from cache (one-time use)
+        temp_cache_key = f"github_temp_token_{temp_token}"
+        temp_token_data = cache.get(temp_cache_key)
+        
+        if not temp_token_data:
+            logger.error(f"[Complete Integration] Temp token not found: {temp_token[:10]}...")
+            return Response(
+                {"error": "Temporary token expired or invalid. Please restart OAuth flow."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Delete token immediately (one-time use)
+        cache.delete(temp_cache_key)
+        
+        access_token = temp_token_data.get("access_token")
+        project_id = temp_token_data.get("project_id")
+        user_id = temp_token_data.get("user_id")
+        
+        # Verify the requesting user is the same as the one who initiated OAuth
+        if str(request.user.id) != str(user_id):
+            logger.warning(
+                f"[Complete Integration] User mismatch. Expected: {user_id}, Got: {request.user.id}"
+            )
+            return Response(
+                {"error": "Unauthorized. Token belongs to different user."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        try:
+            # Create GitHubIntegration
+            from apps.projects.models import Project
+            
+            project = Project.objects.get(id=project_id)
+            
+            integration = GitHubIntegration.objects.create(
+                project=project,
+                repository_url=repository_url,
+                repository_name=repository_name,
+                is_active=True,
+            )
+            
             # Set encrypted access token
             integration.set_access_token(access_token)
             integration.save()
-
+            
             logger.info(
-                f"[OAuth Callback] Integration created successfully. "
-                f"ID: {integration.id}, Repo: {repo.full_name}, Project: {project_id}"
+                f"[Complete Integration] Integration created successfully. "
+                f"ID: {integration.id}, Repo: {repository_name}, Project: {project_id}"
             )
-
+            
             return Response(
                 {
                     "status": "success",
                     "message": "GitHub connected successfully",
                     "integration_id": str(integration.id),
-                    "repository": repo.full_name,
+                    "repository": repository_name,
                 },
-                status=status.HTTP_200_OK,
+                status=status.HTTP_201_CREATED,
             )
-
+        
         except Exception as e:
-            logger.exception(
-                f"[OAuth Callback] Unexpected error during GitHub integration creation: {str(e)}"
-            )
+            logger.exception(f"[Complete Integration] Error creating integration: {str(e)}")
             return Response(
-                {"status": "error", "error": str(e)},
+                {"error": f"Failed to create integration: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

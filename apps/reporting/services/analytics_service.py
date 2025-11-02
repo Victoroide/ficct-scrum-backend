@@ -169,6 +169,7 @@ class AnalyticsService:
         import io
 
         from apps.projects.models import Issue, Sprint
+        from apps.reporting.models import ActivityLog
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -176,12 +177,23 @@ class AnalyticsService:
         if data_type == "issues":
             issues = Issue.objects.filter(project=project, is_active=True)
 
+            # Apply filters
             if filters.get("sprint"):
                 issues = issues.filter(sprint_id=filters["sprint"])
             if filters.get("status"):
                 issues = issues.filter(status_id=filters["status"])
             if filters.get("assignee"):
                 issues = issues.filter(assignee_id=filters["assignee"])
+            if filters.get("issue_type"):
+                issues = issues.filter(issue_type_id=filters["issue_type"])
+            if filters.get("priority"):
+                issues = issues.filter(priority=filters["priority"])
+            
+            # Date range filters
+            if filters.get("start_date"):
+                issues = issues.filter(created_at__date__gte=filters["start_date"])
+            if filters.get("end_date"):
+                issues = issues.filter(created_at__date__lte=filters["end_date"])
 
             writer.writerow(
                 [
@@ -191,7 +203,9 @@ class AnalyticsService:
                     "Status",
                     "Priority",
                     "Assignee",
+                    "Reporter",
                     "Story Points",
+                    "Sprint",
                     "Created At",
                     "Resolved At",
                 ]
@@ -206,7 +220,9 @@ class AnalyticsService:
                         issue.status.name,
                         issue.get_priority_display(),
                         issue.assignee.email if issue.assignee else "",
+                        issue.reporter.email if issue.reporter else "",
                         issue.story_points or 0,
+                        issue.sprint.name if issue.sprint else "",
                         issue.created_at.date(),
                         issue.resolved_at.date() if issue.resolved_at else "",
                     ]
@@ -214,6 +230,12 @@ class AnalyticsService:
 
         elif data_type == "sprints":
             sprints = Sprint.objects.filter(project=project)
+            
+            # Date range filters
+            if filters.get("start_date"):
+                sprints = sprints.filter(start_date__gte=filters["start_date"])
+            if filters.get("end_date"):
+                sprints = sprints.filter(end_date__lte=filters["end_date"])
 
             writer.writerow(
                 [
@@ -222,16 +244,26 @@ class AnalyticsService:
                     "Start Date",
                     "End Date",
                     "Goal",
+                    "Planned Points",
                     "Completed Points",
+                    "Completion Rate",
                 ]
             )
 
             for sprint in sprints:
+                total_points = (
+                    sprint.issues.filter(is_active=True)
+                    .aggregate(total=Sum("story_points"))["total"]
+                    or 0
+                )
                 completed_points = (
                     sprint.issues.filter(
                         status__category="done", is_active=True
                     ).aggregate(total=Sum("story_points"))["total"]
                     or 0
+                )
+                completion_rate = (
+                    round((completed_points / total_points) * 100, 1) if total_points else 0
                 )
 
                 writer.writerow(
@@ -241,7 +273,53 @@ class AnalyticsService:
                         sprint.start_date or "",
                         sprint.end_date or "",
                         sprint.goal or "",
+                        total_points,
                         completed_points,
+                        f"{completion_rate}%",
+                    ]
+                )
+        
+        elif data_type == "activity":
+            # Export activity logs
+            activities = ActivityLog.objects.filter(project=project)
+            
+            # Apply filters
+            if filters.get("user"):
+                activities = activities.filter(user_id=filters["user"])
+            if filters.get("action_type"):
+                activities = activities.filter(action_type=filters["action_type"])
+            
+            # Date range filters
+            if filters.get("start_date"):
+                activities = activities.filter(created_at__date__gte=filters["start_date"])
+            if filters.get("end_date"):
+                activities = activities.filter(created_at__date__lte=filters["end_date"])
+            
+            # Order by most recent
+            activities = activities.order_by("-created_at")
+            
+            writer.writerow(
+                [
+                    "Date",
+                    "Time",
+                    "User",
+                    "Action",
+                    "Object Type",
+                    "Object",
+                    "IP Address",
+                ]
+            )
+            
+            for activity in activities:
+                writer.writerow(
+                    [
+                        activity.created_at.date(),
+                        activity.created_at.time().strftime("%H:%M:%S"),
+                        activity.user.email,
+                        activity.get_action_type_display(),
+                        activity.content_type.model if activity.content_type else "",
+                        activity.object_repr,
+                        activity.ip_address or "",
                     ]
                 )
 

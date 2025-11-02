@@ -359,8 +359,47 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Export data to CSV",
         tags=["Reporting"],
+        description="""
+        Export project data to CSV format.
+        
+        **Supported data types:**
+        - `issues`: Export project issues with filters
+        - `sprints`: Export sprint summary
+        - `commits`: Export GitHub commits (if integration exists)
+        - `activity`: Export activity log (user actions, changes)
+        
+        **Filters:**
+        - Date range: `start_date`, `end_date`
+        - Issues: `sprint_id`, `status_id`, `assignee_id`, `issue_type_id`, `priority`
+        - Activity: `user_id`, `action_type`
+        
+        **Example request:**
+        ```json
+        {
+          "data_type": "issues",
+          "project": "abc-123-def-456",
+          "start_date": "2024-01-01",
+          "end_date": "2024-12-31",
+          "status_id": "xyz-789",
+          "priority": "P1"
+        }
+        ```
+        """,
         request=ExportRequestSerializer,
-        responses={200: {"type": "object"}},
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "download_url": {"type": "string"},
+                    "snapshot_id": {"type": "string"},
+                    "rows_exported": {"type": "integer"},
+                }
+            },
+            400: OpenApiResponse(description="Invalid request parameters"),
+            403: OpenApiResponse(description="No permission to export data"),
+            404: OpenApiResponse(description="Project not found"),
+        },
     )
     @action(detail=False, methods=["post"], permission_classes=[CanExportData])
     def export(self, request):
@@ -371,7 +410,38 @@ class ReportViewSet(viewsets.ViewSet):
 
         data_type = serializer.validated_data["data_type"]
         project_id = serializer.validated_data["project"]
-        filters = serializer.validated_data.get("filters", {})
+        
+        # Build filters from specific fields (new way)
+        filters = {}
+        
+        # Date filters
+        if serializer.validated_data.get("start_date"):
+            filters["start_date"] = serializer.validated_data["start_date"]
+        if serializer.validated_data.get("end_date"):
+            filters["end_date"] = serializer.validated_data["end_date"]
+        
+        # Issue filters
+        if serializer.validated_data.get("sprint_id"):
+            filters["sprint"] = serializer.validated_data["sprint_id"]
+        if serializer.validated_data.get("status_id"):
+            filters["status"] = serializer.validated_data["status_id"]
+        if serializer.validated_data.get("assignee_id"):
+            filters["assignee"] = serializer.validated_data["assignee_id"]
+        if serializer.validated_data.get("issue_type_id"):
+            filters["issue_type"] = serializer.validated_data["issue_type_id"]
+        if serializer.validated_data.get("priority"):
+            filters["priority"] = serializer.validated_data["priority"]
+        
+        # Activity filters
+        if serializer.validated_data.get("user_id"):
+            filters["user"] = serializer.validated_data["user_id"]
+        if serializer.validated_data.get("action_type"):
+            filters["action_type"] = serializer.validated_data["action_type"]
+        
+        # Legacy filters support
+        legacy_filters = serializer.validated_data.get("filters", {})
+        if legacy_filters:
+            filters.update(legacy_filters)
 
         from apps.projects.models import Project
 
@@ -381,25 +451,39 @@ class ReportViewSet(viewsets.ViewSet):
             return Response(
                 {"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
+        
+        # Check user has access to project
+        if not self._user_has_project_access(project):
+            raise PermissionDenied("You do not have access to this project")
 
         service = AnalyticsService()
-        csv_content = service.export_to_csv(project, data_type, filters)
-
+        export_result = service.export_to_csv(project, data_type, filters)
+        
+        # Check if export has data
+        csv_lines = export_result.strip().split('\n')
+        rows_exported = max(0, len(csv_lines) - 1)  # Exclude header row
+        
         snapshot = ReportSnapshot.objects.create(
             project=project,
             report_type="custom",
-            report_data={"export_type": data_type, "filters": filters},
+            report_data={
+                "export_type": data_type, 
+                "filters": filters,
+                "rows_exported": rows_exported,
+            },
             generated_by=request.user,
         )
 
         filename = f"{data_type}_export_{snapshot.id}.csv"
-        snapshot.csv_file.save(filename, ContentFile(csv_content.encode("utf-8")))
+        snapshot.csv_file.save(filename, ContentFile(export_result.encode("utf-8")))
 
         return Response(
             {
-                "message": "Export completed successfully",
+                "message": f"Export completed successfully. {rows_exported} rows exported.",
                 "download_url": snapshot.download_url,
                 "snapshot_id": str(snapshot.id),
+                "rows_exported": rows_exported,
+                "data_type": data_type,
             },
             status=status.HTTP_200_OK,
         )
