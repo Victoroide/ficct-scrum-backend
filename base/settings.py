@@ -431,9 +431,6 @@ if CACHE_REDIS_URL:
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": CACHE_REDIS_URL,
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            },
             "TIMEOUT": 300,  # 5 minutes default
         }
     }
@@ -443,9 +440,6 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/2",
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            },
             "TIMEOUT": 300,  # 5 minutes default
         }
     }

@@ -1,6 +1,14 @@
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from django.core.exceptions import ValidationError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.reporting.permissions import CanGenerateReports
@@ -12,10 +20,77 @@ from apps.reporting.services.diagram_service import DiagramService
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List cached diagrams", tags=["Reporting"]),
+    list=extend_schema(
+        summary="List cached diagrams",
+        tags=["Reporting"],
+        description="Returns list of previously generated diagrams for a project with cache status and access count.",
+        parameters=[
+            OpenApiParameter(
+                name="project",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="Project UUID to list cached diagrams for",
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(description="List of cached diagrams"),
+            400: OpenApiResponse(description="Missing or invalid project parameter"),
+            403: OpenApiResponse(description="No permission to access this project"),
+        },
+    ),
 )
 class DiagramViewSet(viewsets.ViewSet):
     permission_classes = [CanGenerateReports]
+
+    def _validate_uuid(self, uuid_string, param_name="parameter"):
+        """Validate UUID format and return cleaned UUID string."""
+        if not uuid_string:
+            return None
+        try:
+            import uuid
+            uuid.UUID(uuid_string)
+            return uuid_string
+        except (ValueError, AttributeError):
+            raise ValidationError(f"Invalid {param_name} UUID format")
+
+    def _get_project_or_error(self, project_id):
+        """Get project by ID or raise appropriate error."""
+        from apps.projects.models import Project
+
+        try:
+            self._validate_uuid(project_id, "project")
+            project = Project.objects.get(id=project_id)
+            
+            # Check user has access to project
+            if not self._user_has_project_access(project):
+                raise PermissionDenied("You do not have access to this project")
+            
+            return project
+        except Project.DoesNotExist:
+            raise ValidationError("Project not found")
+
+    def _user_has_project_access(self, project):
+        """Check if request user has access to project."""
+        from apps.projects.models import ProjectTeamMember
+        from apps.workspaces.models import WorkspaceMember
+
+        user = self.request.user
+        
+        # Check project membership
+        is_project_member = ProjectTeamMember.objects.filter(
+            project=project, user=user, is_active=True
+        ).exists()
+        
+        if is_project_member:
+            return True
+        
+        # Check workspace membership
+        is_workspace_member = WorkspaceMember.objects.filter(
+            workspace=project.workspace, user=user, is_active=True
+        ).exists()
+        
+        return is_workspace_member
 
     @extend_schema(
         summary="Generate diagram",
@@ -72,22 +147,27 @@ class DiagramViewSet(viewsets.ViewSet):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @extend_schema(
-        summary="List cached diagrams",
-        tags=["Reporting"],
-        responses={200: {"type": "array"}},
-    )
     def list(self, request):
         from apps.reporting.models import DiagramCache
 
         project_id = request.query_params.get("project")
         if not project_id:
             return Response(
-                {"error": "project parameter is required"},
+                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        caches = DiagramCache.objects.filter(project_id=project_id).order_by(
+        try:
+            project = self._get_project_or_error(project_id)
+        except ValidationError as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+            )
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+
+        caches = DiagramCache.objects.filter(project=project).order_by(
             "-generated_at"
         )[:20]
 
