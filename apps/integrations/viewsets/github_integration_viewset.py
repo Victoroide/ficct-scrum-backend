@@ -1,13 +1,18 @@
+import logging
 import secrets
+from datetime import timedelta
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from apps.integrations.models import GitHubIntegration
 from apps.integrations.permissions import CanManageIntegrations, CanViewIntegrations
@@ -323,6 +328,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         )
 
         if not project_id:
+            logger.warning("[OAuth Init] Missing project field")
             return Response(
                 {"error": "project field is required"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -331,10 +337,24 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         # Generate secure random state for CSRF protection
         state = secrets.token_urlsafe(32)
 
-        # Store state in session for validation
-        request.session["github_oauth_state"] = state
-        request.session["github_oauth_project"] = project_id
-        request.session["github_oauth_user"] = str(request.user.id)
+        # Store state in Redis cache with 10-minute TTL for validation
+        cache_key = f"github_oauth_state_{state}"
+        cache_data = {
+            "project_id": project_id,
+            "user_id": str(request.user.id),
+            "created_at": timezone.now().isoformat(),
+            "redirect_uri": redirect_uri,
+        }
+        
+        # TTL: 600 seconds (10 minutes) - generous timeout for user authorization
+        cache.set(cache_key, cache_data, timeout=600)
+        
+        logger.info(
+            f"[OAuth Init] State generated: {state[:10]}... for project {project_id}, "
+            f"user {request.user.email}, TTL: 600s"
+        )
+        logger.debug(f"[OAuth Init] Cache key: {cache_key}")
+        logger.debug(f"[OAuth Init] Stored data: {cache_data}")
 
         # Build GitHub authorization URL
         authorization_url = (
@@ -406,29 +426,74 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         code = request.query_params.get("code")
         state = request.query_params.get("state")
 
+        logger.info(f"[OAuth Callback] Received callback with state: {state[:10] if state else 'None'}...")
+
         if not code or not state:
+            logger.error("[OAuth Callback] Missing code or state parameter")
             return Response(
                 {"status": "error", "error": "Missing code or state parameter"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate state (CSRF protection)
-        session_state = request.session.get("github_oauth_state")
-        if not session_state or session_state != state:
+        # Validate state from Redis cache (CSRF protection)
+        cache_key = f"github_oauth_state_{state}"
+        logger.debug(f"[OAuth Callback] Looking up cache key: {cache_key}")
+        
+        stored_data = cache.get(cache_key)
+        
+        if not stored_data:
+            logger.error(
+                f"[OAuth Callback] State not found in cache or expired. "
+                f"State: {state[:10]}..., Cache key: {cache_key}"
+            )
             return Response(
-                {"status": "error", "error": "Invalid state parameter"},
+                {
+                    "status": "error",
+                    "error": "Invalid or expired state parameter. Please restart the OAuth flow.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        logger.info(f"[OAuth Callback] State validated successfully from cache")
+        logger.debug(f"[OAuth Callback] Retrieved data: {stored_data}")
 
-        # Get stored project and user from session
-        project_id = request.session.get("github_oauth_project")
-        user_id = request.session.get("github_oauth_user")
+        # Validate state age (extra security - should not exceed 15 minutes)
+        try:
+            created_at = timezone.datetime.fromisoformat(stored_data["created_at"])
+            if timezone.now() - created_at > timedelta(minutes=15):
+                cache.delete(cache_key)
+                logger.warning(
+                    f"[OAuth Callback] State expired (older than 15 minutes). "
+                    f"Created: {created_at}"
+                )
+                return Response(
+                    {"status": "error", "error": "State expired. Please restart the OAuth flow."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except (KeyError, ValueError) as e:
+            logger.error(f"[OAuth Callback] Error parsing created_at: {e}")
+
+        # Extract data from cache
+        project_id = stored_data.get("project_id")
+        user_id = stored_data.get("user_id")
 
         if not project_id or not user_id:
+            logger.error(
+                f"[OAuth Callback] Missing project_id or user_id in cached data. "
+                f"Data: {stored_data}"
+            )
+            cache.delete(cache_key)
             return Response(
-                {"status": "error", "error": "Session expired or invalid"},
+                {"status": "error", "error": "Invalid OAuth state data"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # Delete state immediately to prevent reuse (security best practice)
+        cache.delete(cache_key)
+        logger.info(
+            f"[OAuth Callback] State consumed and deleted. "
+            f"Project: {project_id}, User: {user_id}"
+        )
 
         try:
             # Exchange code for access token
@@ -500,10 +565,10 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             integration.set_access_token(access_token)
             integration.save()
 
-            # Clean up session
-            del request.session["github_oauth_state"]
-            del request.session["github_oauth_project"]
-            del request.session["github_oauth_user"]
+            logger.info(
+                f"[OAuth Callback] Integration created successfully. "
+                f"ID: {integration.id}, Repo: {repo.full_name}, Project: {project_id}"
+            )
 
             return Response(
                 {
@@ -516,6 +581,9 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             )
 
         except Exception as e:
+            logger.exception(
+                f"[OAuth Callback] Unexpected error during GitHub integration creation: {str(e)}"
+            )
             return Response(
                 {"status": "error", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

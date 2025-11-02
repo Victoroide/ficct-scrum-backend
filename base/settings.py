@@ -421,12 +421,34 @@ SPECTACULAR_SETTINGS = {
 
 CORS_ALLOW_CREDENTIALS = True
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+# Cache Configuration - Using Redis for persistence
+# Database 2 used for general caching (OAuth states, temporary data)
+CACHE_REDIS_URL = os.getenv("CACHE_REDIS_URL")
+
+if CACHE_REDIS_URL:
+    # Docker/Production: Use Redis URL with password
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": CACHE_REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "TIMEOUT": 300,  # 5 minutes default
+        }
     }
-}
+else:
+    # Local development: Use host/port
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/2",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "TIMEOUT": 300,  # 5 minutes default
+        }
+    }
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
