@@ -241,7 +241,7 @@ class RAGService:
         issue_id: str,
         top_k: int = 5,
         same_project_only: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> Optional[List[Dict[str, Any]]]:
         """
         Find issues similar to a given issue.
 
@@ -251,7 +251,7 @@ class RAGService:
             same_project_only: Limit to same project
 
         Returns:
-            List of similar issues with similarity scores
+            List of similar issues with similarity scores, or None if issue not found
         """
         self._check_available()
         try:
@@ -298,9 +298,13 @@ class RAGService:
                         continue
             
             return similar_issues
+        
+        except Issue.DoesNotExist:
+            logger.warning(f"Issue {issue_id} not found for similarity search")
+            return None
             
         except Exception as e:
-            logger.exception(f"Error finding similar issues: {str(e)}")
+            logger.error(f"Error finding similar issues: {str(e)}")
             raise
 
     def delete_issue_embedding(self, issue_id: str) -> bool:

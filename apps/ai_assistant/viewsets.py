@@ -5,9 +5,16 @@ Provides REST API endpoints for semantic search, Q&A, and summarization.
 """
 
 import logging
+import uuid
 from functools import wraps
 
-from drf_spectacular.utils import extend_schema
+from django.core.exceptions import ValidationError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -143,18 +150,86 @@ class AIAssistantViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["AI Assistant"],
         summary="Find similar issues",
-        description="Find issues similar to a given issue for duplicate detection",
+        description="Find issues similar to a given issue for duplicate detection using semantic search.",
+        parameters=[
+            OpenApiParameter(
+                name="top_k",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Number of similar issues to return (default: 5, max: 20)",
+            ),
+            OpenApiParameter(
+                name="same_project_only",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Limit results to same project only (default: true)",
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(description="List of similar issues found"),
+            400: OpenApiResponse(description="Invalid UUID format or parameters"),
+            404: OpenApiResponse(description="Issue not found"),
+            503: OpenApiResponse(description="AI service unavailable"),
+        },
     )
     @action(detail=True, methods=["get"], url_path="similar-issues")
     @handle_ai_service_unavailable
     def similar_issues(self, request, pk=None):
-        """Find similar issues."""
-        top_k = int(request.query_params.get("top_k", 5))
-        same_project_only = request.query_params.get("same_project_only", "true").lower() == "true"
+        """
+        Find similar issues using semantic search.
+        
+        Returns issues with similar content for duplicate detection.
+        Requires Pinecone AI service to be available.
+        """
+        # Validate UUID format
+        try:
+            uuid.UUID(str(pk))
+        except (ValueError, AttributeError, TypeError):
+            return Response(
+                {
+                    "error": "Invalid issue ID format",
+                    "detail": "Issue ID must be a valid UUID",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Validate and parse parameters
+        try:
+            top_k = int(request.query_params.get("top_k", 5))
+            if top_k < 1 or top_k > 20:
+                return Response(
+                    {
+                        "error": "Invalid top_k parameter",
+                        "detail": "top_k must be between 1 and 20",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid top_k parameter", "detail": "top_k must be an integer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        same_project_only = (
+            request.query_params.get("same_project_only", "true").lower() == "true"
+        )
 
+        # Find similar issues
         similar = self.rag_service.find_similar_issues(
             issue_id=pk, top_k=top_k, same_project_only=same_project_only
         )
+        
+        # Check if issue exists
+        if similar is None:
+            return Response(
+                {
+                    "error": "Issue not found",
+                    "detail": f"Issue with ID {pk} does not exist",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         return Response({"similar_issues": similar}, status=status.HTTP_200_OK)
 
