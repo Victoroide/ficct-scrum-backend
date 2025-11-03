@@ -133,12 +133,12 @@ class AnomalyDetectionService:
         
         # Actual completion (completed story points / total)
         total_points = sprint.issues.aggregate(
-            total=models.Sum("story_points")
+            total=Sum("story_points")
         )["total"] or 0
         
         completed_points = sprint.issues.filter(
             status__is_final=True
-        ).aggregate(total=models.Sum("story_points"))["total"] or 0
+        ).aggregate(total=Sum("story_points"))["total"] or 0
         
         if total_points == 0:
             return None
@@ -281,7 +281,7 @@ class AnomalyDetectionService:
         for sprint in sprints:
             completed_points = sprint.issues.filter(
                 status__is_final=True
-            ).aggregate(total=models.Sum("story_points"))["total"] or 0
+            ).aggregate(total=Sum("story_points"))["total"] or 0
             velocities.append(completed_points)
         
         # Calculate statistics

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import joblib
 import numpy as np
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -134,7 +134,7 @@ class PredictionService:
                 duration = (ps.completed_at.date() - ps.start_date).days
                 completed_points = ps.issues.filter(
                     status__is_final=True
-                ).aggregate(total=models.Sum("story_points"))["total"] or 0
+                ).aggregate(total=Sum("story_points"))["total"] or 0
                 
                 if duration > 0:
                     velocity_data.append(completed_points / duration)
@@ -147,7 +147,7 @@ class PredictionService:
             # Calculate total story points in planned issues
             total_points = Issue.objects.filter(
                 id__in=planned_issues
-            ).aggregate(total=models.Sum("story_points"))["total"] or 0
+            ).aggregate(total=Sum("story_points"))["total"] or 0
             
             # Estimate duration based on velocity
             if avg_velocity > 0:

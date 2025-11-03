@@ -132,16 +132,20 @@ class MLViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="estimate-sprint-duration")
     def estimate_sprint_duration(self, request):
         """Estimate sprint duration based on velocity."""
+        sprint_id = None
         try:
             sprint_id = request.data.get("sprint_id")
             planned_issues = request.data.get("planned_issues", [])
             team_capacity_hours = request.data.get("team_capacity_hours", 0)
 
             if not sprint_id:
+                logger.warning("[ML] Missing sprint_id in estimate_sprint_duration request")
                 return Response(
                     {"error": "sprint_id is required"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            logger.info(f"[ML] Estimating duration for sprint {sprint_id}")
 
             estimation = self.prediction_service.predict_sprint_duration(
                 sprint_id=sprint_id,
@@ -149,12 +153,17 @@ class MLViewSet(viewsets.ViewSet):
                 team_capacity_hours=team_capacity_hours,
             )
 
+            logger.info(
+                f"[ML] Sprint duration estimated: {estimation.get('estimated_days')} days "
+                f"(confidence: {estimation.get('confidence')})"
+            )
+
             return Response(estimation, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.exception(f"Error estimating sprint duration: {str(e)}")
+            logger.exception(f"[ML] Error estimating sprint duration for {sprint_id}: {str(e)}")
             return Response(
-                {"error": "Failed to estimate sprint duration."},
+                {"error": "Failed to estimate sprint duration.", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -243,13 +252,18 @@ class MLViewSet(viewsets.ViewSet):
     def sprint_risk(self, request, pk=None):
         """Detect sprint risks."""
         try:
+            logger.info(f"[ML] Detecting risks for sprint {pk}")
+            
             risks = self.anomaly_service.detect_sprint_risks(sprint_id=pk)
+            
+            logger.info(f"[ML] Sprint risk detection complete: {len(risks)} risk(s) found")
+            
             return Response({"risks": risks}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.exception(f"Error detecting sprint risks: {str(e)}")
+            logger.exception(f"[ML] Error detecting sprint risks for {pk}: {str(e)}")
             return Response(
-                {"error": "Failed to detect sprint risks."},
+                {"error": "Failed to detect sprint risks.", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
