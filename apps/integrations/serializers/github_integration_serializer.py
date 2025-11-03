@@ -41,6 +41,9 @@ class GitHubIntegrationSerializer(serializers.ModelSerializer):
             "connected_at",
             "updated_at",
         ]
+        extra_kwargs = {
+            'project': {'required': False}  # Required only on CREATE, validated in validate()
+        }
 
     def validate_repository_url(self, value):
         if not value.startswith("https://github.com/"):
@@ -59,15 +62,18 @@ class GitHubIntegrationSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         """Validate required fields for GitHub integration"""
-        if 'project' not in attrs or attrs['project'] is None:
-            raise serializers.ValidationError({
-                "project": "Field 'project' is required to create GitHub integration"
-            })
-        
-        if 'access_token' not in attrs:
-            raise serializers.ValidationError({
-                "access_token": "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."
-            })
+        # Only validate required fields for CREATE (when instance doesn't exist)
+        # For UPDATE (PATCH), fields are optional - use existing values
+        if not self.instance:  # CREATE operation
+            if 'project' not in attrs or attrs['project'] is None:
+                raise serializers.ValidationError({
+                    "project": "Field 'project' is required to create GitHub integration"
+                })
+            
+            if 'access_token' not in attrs:
+                raise serializers.ValidationError({
+                    "access_token": "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."
+                })
         
         return attrs
 
