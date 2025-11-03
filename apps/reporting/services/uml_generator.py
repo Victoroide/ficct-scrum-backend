@@ -27,29 +27,40 @@ class UMLGenerator:
             integration: GitHubIntegration instance
             
         Returns:
-            UML diagram in JSON format
+            UML diagram in JSON format with ONLY Django ORM models
         """
         logger.info("Generating UML diagram from code analysis")
         
         classes = []
         relationships = []
+        filtered_classes = {}
         
-        # Transform analyzed classes to UML format
+        # Filter to include ONLY Django ORM models
         for class_key, class_info in analysis['classes'].items():
+            if self._is_django_model(class_info):
+                filtered_classes[class_key] = class_info
+        
+        logger.info(
+            f"Filtered {len(analysis['classes'])} classes down to "
+            f"{len(filtered_classes)} Django models"
+        )
+        
+        # Transform filtered classes to UML format
+        for class_key, class_info in filtered_classes.items():
             uml_class = self._transform_class_to_uml(class_info)
             classes.append(uml_class)
             
             # Extract relationships from this class
             class_relationships = self._extract_class_relationships(
                 class_info,
-                analysis['classes']
+                filtered_classes  # Only consider filtered classes for relationships
             )
             relationships.extend(class_relationships)
         
         # Add import-based relationships from dependency graph
         import_relationships = self._extract_import_relationships(
             analysis['dependencies'],
-            analysis['classes']
+            filtered_classes  # Only consider filtered classes
         )
         relationships.extend(import_relationships)
         
@@ -69,7 +80,11 @@ class UMLGenerator:
                 'generated_at': timezone.now().isoformat(),
                 'total_classes': len(classes),
                 'total_relationships': len(relationships),
-                'total_files_analyzed': analysis['stats']['total_files']
+                'total_files_analyzed': analysis['stats']['total_files'],
+                'filter_applied': 'django_orm_models_only',
+                'classes_before_filter': len(analysis['classes']),
+                'classes_after_filter': len(filtered_classes),
+                'filter_description': 'Only Django ORM models (excludes middlewares, tests, serializers, viewsets, etc.)'
             }
         }
         
@@ -79,6 +94,90 @@ class UMLGenerator:
         )
         
         return result
+    
+    def _is_django_model(self, class_info: Dict) -> bool:
+        """
+        Determine if a class is a Django ORM model.
+        
+        Filters out:
+        - Middlewares, configs, tests, fixtures
+        - Serializers, viewsets, services
+        - Abstract classes
+        - Any class not in models.py or models/ folder
+        
+        Args:
+            class_info: Class information from analyzer
+            
+        Returns:
+            True if class is a Django model, False otherwise
+        """
+        class_name = class_info['name']
+        file_path = class_info.get('file_path', '')
+        file_path_lower = file_path.lower()
+        class_name_lower = class_name.lower()
+        
+        # FILTER 1: Must be in models.py or models/ folder
+        if 'models' not in file_path_lower:
+            return False
+        
+        # Exclude specific non-model folders even if they contain "models"
+        excluded_folders = ['migrations', 'tests', 'test', 'fixtures']
+        if any(folder in file_path_lower for folder in excluded_folders):
+            return False
+        
+        # FILTER 2: Class name patterns to exclude
+        excluded_patterns = [
+            'test',           # Test classes
+            'factory',        # Test factories
+            'fixture',        # Test fixtures
+            'mock',           # Mock objects
+            'middleware',     # Middleware classes
+            'config',         # Config classes
+            'serializer',     # DRF serializers
+            'viewset',        # DRF viewsets
+            'view',           # Views
+            'service',        # Service classes
+            'manager',        # Custom managers (unless it's a model)
+            'admin',          # Django admin classes
+            'form',           # Django forms
+            'mixin',          # Mixin classes
+        ]
+        
+        for pattern in excluded_patterns:
+            if pattern in class_name_lower:
+                return False
+        
+        # FILTER 3: Exclude abstract base classes from Django/external libraries
+        if class_name.startswith('Abstract'):
+            # Check if it's in our codebase vs Django's
+            if 'django' in file_path_lower or 'site-packages' in file_path_lower:
+                return False
+        
+        # FILTER 4: Check inheritance - must inherit from models.Model
+        parent_classes = class_info.get('parent_classes', [])
+        if parent_classes:
+            # Look for Model inheritance
+            model_inheritance = any(
+                'Model' in parent or 'model' in parent.lower()
+                for parent in parent_classes
+            )
+            
+            # If no Model inheritance detected, likely not a Django model
+            if not model_inheritance:
+                # Exception: Could be inheriting from another model in the same app
+                # We'll allow classes without explicit Model parent if they're in models.py
+                pass
+        
+        # FILTER 5: Common Django model naming patterns
+        # Most Django models are capitalized nouns (User, Project, Issue)
+        # Exclude utility classes
+        utility_suffixes = ['Utils', 'Helper', 'Base', 'Meta']
+        for suffix in utility_suffixes:
+            if class_name.endswith(suffix):
+                return False
+        
+        logger.debug(f"Including Django model: {class_name} from {file_path}")
+        return True
     
     def _transform_class_to_uml(self, class_info: Dict) -> Dict:
         """
