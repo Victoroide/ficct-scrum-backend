@@ -19,9 +19,19 @@ class CanManageIntegrations(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Only POST (CREATE) requires project_id in request body
-        # DELETE, PATCH, PUT use has_object_permission() which gets project from object
+        # Only POST to CREATE endpoint requires project_id in request body
+        # POST to detail endpoints (custom actions like sync_commits) use has_object_permission()
+        # DELETE, PATCH, PUT also use has_object_permission() which gets project from object
         if request.method == 'POST':
+            # Check if this is a detail action (has pk in URL) vs list action (create)
+            # Detail actions: /integrations/github/{pk}/sync_commits/ → Delegate to has_object_permission
+            # List actions: /integrations/github/ → Require project in body
+            if view.kwargs.get('pk'):
+                # This is a POST to a detail endpoint (custom action)
+                # Delegate to has_object_permission() - don't require project in body
+                return True
+            
+            # This is a POST to list endpoint (CREATE) - require project in body
             project_id = request.data.get("project") or view.kwargs.get("project_id")
             if not project_id:
                 self.message = "Missing required field 'project'. Please provide project ID in request body."
