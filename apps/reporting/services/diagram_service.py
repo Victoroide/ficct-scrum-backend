@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from datetime import timedelta
 from typing import Dict, Optional
 
@@ -12,6 +13,13 @@ from .diagram_generators import (
     generate_roadmap_timeline_svg,
     check_github_integration,
 )
+from .github_code_fetcher import GitHubCodeFetcher
+from .python_code_analyzer import PythonCodeAnalyzer
+from .uml_generator import UMLGenerator
+from .architecture_generator import ArchitectureGenerator
+
+
+logger = logging.getLogger(__name__)
 
 
 class DiagramService:
@@ -66,49 +74,87 @@ class DiagramService:
 
         return {"diagram_type": "roadmap", "data": svg_data, "format": "svg", "cached": False}
 
-    def generate_uml_from_code(self, integration) -> Dict:
+    def generate_uml_diagram(self, project, diagram_format: str = "json", parameters: Dict = None) -> Dict:
         """
-        Generate UML diagram from code (requires GitHub integration).
+        Generate UML diagram by analyzing code from GitHub repository.
         
-        Note: This is a placeholder - full implementation requires code parsing.
+        Requires active GitHub integration. Analyzes Python code only.
+        
+        Args:
+            project: Project instance
+            diagram_format: Output format (json or svg)
+            parameters: Additional parameters
+            
+        Returns:
+            UML diagram data
+            
+        Raises:
+            ValueError: If no GitHub integration or repository has no Python files
         """
-        # Check GitHub integration exists
-        error = check_github_integration(integration.project)
-        if error:
-            # Return error dict instead of raising exception
-            return error
+        logger.info(f"Generating UML diagram for project {project.name}")
         
-        from .svg_builder import create_empty_state
+        # Get GitHub integration
+        integration = self._get_github_integration(project)
         
-        svg_data = create_empty_state(
-            800, 600,
-            "UML Diagram - Coming Soon",
-            "UML diagram generation from code analysis is under development"
-        )
+        # Analyze code from GitHub
+        analysis = self._analyze_github_repository(integration)
         
-        return {"diagram_type": "uml", "data": svg_data, "format": "svg", "cached": False}
+        # Generate UML
+        generator = UMLGenerator()
+        uml_data = generator.generate_uml_json(analysis, integration)
+        
+        import json
+        data_str = json.dumps(uml_data, indent=2)
+        
+        logger.info("UML diagram generated successfully")
+        
+        return {
+            "diagram_type": "uml",
+            "data": data_str,
+            "format": "json",
+            "cached": False
+        }
 
-    def generate_architecture_diagram(self, integration) -> Dict:
+    def generate_architecture_diagram(self, project, diagram_format: str = "json", parameters: Dict = None) -> Dict:
         """
-        Generate architecture diagram (requires GitHub integration).
+        Generate architecture diagram by analyzing code from GitHub repository.
         
-        Note: This is a placeholder - full implementation requires code analysis.
+        Requires active GitHub integration. Analyzes Python code only.
+        
+        Args:
+            project: Project instance
+            diagram_format: Output format (json or svg)
+            parameters: Additional parameters
+            
+        Returns:
+            Architecture diagram data
+            
+        Raises:
+            ValueError: If no GitHub integration or repository has no Python files
         """
-        # Check GitHub integration exists
-        error = check_github_integration(integration.project)
-        if error:
-            # Return error dict instead of raising exception
-            return error
+        logger.info(f"Generating architecture diagram for project {project.name}")
         
-        from .svg_builder import create_empty_state
+        # Get GitHub integration
+        integration = self._get_github_integration(project)
         
-        svg_data = create_empty_state(
-            800, 600,
-            "Architecture Diagram - Coming Soon",
-            "Architecture diagram generation from code analysis is under development"
-        )
+        # Analyze code from GitHub
+        analysis = self._analyze_github_repository(integration)
         
-        return {"diagram_type": "architecture", "data": svg_data, "format": "svg", "cached": False}
+        # Generate architecture
+        generator = ArchitectureGenerator()
+        arch_data = generator.generate_architecture_json(analysis, integration)
+        
+        import json
+        data_str = json.dumps(arch_data, indent=2)
+        
+        logger.info("Architecture diagram generated successfully")
+        
+        return {
+            "diagram_type": "architecture",
+            "data": data_str,
+            "format": "json",
+            "cached": False
+        }
 
     def _generate_cache_key(self, diagram_type: str, project_id) -> str:
         data = f"{diagram_type}_{project_id}_{timezone.now().date()}"
@@ -149,5 +195,82 @@ class DiagramService:
             },
         )
 
-    # All SVG generation logic has been moved to diagram_generators.py
-    # for better modularity and maintainability
+    def _get_github_integration(self, project):
+        """
+        Get GitHub integration for project.
+        
+        Args:
+            project: Project instance
+            
+        Returns:
+            GitHubIntegration instance
+            
+        Raises:
+            ValueError: If no active GitHub integration
+        """
+        from apps.integrations.models import GitHubIntegration
+        
+        try:
+            integration = GitHubIntegration.objects.get(
+                project=project,
+                is_connected=True
+            )
+            return integration
+        except GitHubIntegration.DoesNotExist:
+            logger.error(f"No GitHub integration found for project {project.id}")
+            raise ValueError(
+                "No GitHub repository connected. "
+                "To generate diagrams, connect a GitHub repository first. "
+                "Go to Project Settings → GitHub Integration and connect a repository."
+            )
+    
+    def _analyze_github_repository(self, integration):
+        """
+        Analyze code from GitHub repository.
+        
+        Args:
+            integration: GitHubIntegration instance
+            
+        Returns:
+            Analysis result with classes, dependencies, etc.
+            
+        Raises:
+            ValueError: On analysis errors
+        """
+        logger.info(
+            f"Analyzing repository: {integration.repository_owner}/{integration.repository_name}"
+        )
+        
+        try:
+            # Fetch code from GitHub
+            fetcher = GitHubCodeFetcher(integration)
+            python_files = fetcher.list_python_files()
+            
+            # Limit to 100 files for performance
+            files_content = fetcher.fetch_multiple_files(python_files, max_files=100)
+            
+            if not files_content:
+                raise ValueError(
+                    "No Python files could be fetched from repository. "
+                    "Please check repository access and try again."
+                )
+            
+            # Analyze Python code
+            analyzer = PythonCodeAnalyzer()
+            analysis = analyzer.analyze_repository(files_content)
+            
+            logger.info(
+                f"Analysis complete: {analysis['stats']['total_classes']} classes found"
+            )
+            
+            return analysis
+            
+        except ValueError as e:
+            # Re-raise ValueError as-is (these are user-facing errors)
+            raise
+        except Exception as e:
+            logger.error(f"Error analyzing repository: {str(e)}", exc_info=True)
+            raise ValueError(
+                f"Failed to analyze repository: {str(e)}. "
+                "Please check GitHub integration and try again."
+            )

@@ -21,6 +21,7 @@ class DiagramRequestSerializer(serializers.Serializer):
     diagram_type = serializers.ChoiceField(choices=DIAGRAM_TYPE_CHOICES, required=True)
     format = serializers.ChoiceField(choices=FORMAT_CHOICES, default="svg")
     parameters = serializers.JSONField(required=False, default=dict)
+    options = serializers.JSONField(required=False, help_text="Diagram options (alias for parameters)")
     
     def validate(self, data):
         # Accept either 'project' or 'project_id'
@@ -34,6 +35,12 @@ class DiagramRequestSerializer(serializers.Serializer):
         data['project'] = project
         if 'project_id' in data:
             data.pop('project_id')
+        
+        # Accept either 'options' or 'parameters' (options takes precedence)
+        options = data.get('options') or data.get('parameters', {})
+        data['parameters'] = options
+        if 'options' in data:
+            data.pop('options')
         
         return data
 

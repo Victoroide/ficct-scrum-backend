@@ -107,6 +107,8 @@ class DiagramViewSet(viewsets.ViewSet):
 
         diagram_type = serializer.validated_data["diagram_type"]
         project_id = serializer.validated_data["project"]
+        diagram_format = serializer.validated_data.get("format", "svg")
+        parameters = serializer.validated_data.get("parameters", {})
 
         from apps.projects.models import Project
 
@@ -127,11 +129,9 @@ class DiagramViewSet(viewsets.ViewSet):
             elif diagram_type == "roadmap":
                 result = service.generate_roadmap(project)
             elif diagram_type == "uml":
-                integration = project.github_integration
-                result = service.generate_uml_from_code(integration)
+                result = service.generate_uml_diagram(project, diagram_format, parameters)
             elif diagram_type == "architecture":
-                integration = project.github_integration
-                result = service.generate_architecture_diagram(integration)
+                result = service.generate_architecture_diagram(project, diagram_format, parameters)
             else:
                 return Response(
                     {"error": "Invalid diagram type"},
@@ -142,9 +142,30 @@ class DiagramViewSet(viewsets.ViewSet):
             response_serializer.is_valid(raise_exception=True)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        except Exception as e:
+        except ValueError as e:
+            # ValueError = user-facing errors (missing GitHub integration, no Python files, etc.)
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {
+                    "status": "error",
+                    "error": str(e),
+                    "code": "CONFIGURATION_ERROR"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # Unexpected server errors
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Unexpected error generating diagram: {str(e)}", exc_info=True)
+            
+            return Response(
+                {
+                    "status": "error",
+                    "error": "An unexpected error occurred while generating the diagram",
+                    "detail": str(e),
+                    "code": "INTERNAL_ERROR"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def list(self, request):
