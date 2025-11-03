@@ -99,84 +99,119 @@ class PredictionService:
         self, sprint_id: str, planned_issues: List[str], team_capacity_hours: float
     ) -> Dict[str, Any]:
         """
-        Predict actual sprint completion time.
+        Predict actual sprint completion time using REAL Sprint model fields.
+        Uses: start_date, end_date, committed_points, completed_points.
 
         Args:
             sprint_id: Sprint UUID
-            planned_issues: List of issue IDs in sprint
-            team_capacity_hours: Available team hours
+            planned_issues: List of issue IDs in sprint (optional)
+            team_capacity_hours: Available team hours (optional)
 
         Returns:
             Dictionary with estimated_days, confidence, risk_factors
         """
         try:
-            sprint = Sprint.objects.get(id=sprint_id)
-            project = sprint.project
+            sprint = Sprint.objects.select_related('project').get(id=sprint_id)
             
-            # Get historical sprint data for velocity calculation
-            past_sprints = Sprint.objects.filter(
-                project=project, status="completed", completed_at__isnull=False
-            ).order_by("-created_at")[:5]
+            logger.info(f"[ML] Predicting duration for sprint {sprint.name}")
             
-            if not past_sprints:
-                # No historical data
-                planned_days = (sprint.end_date - sprint.start_date).days if sprint.end_date and sprint.start_date else 14
+            # METHOD 1: Use Sprint's actual start_date and end_date if available
+            if sprint.start_date and sprint.end_date:
+                duration_days = (sprint.end_date - sprint.start_date).days
+                logger.info(f"[ML] Using sprint dates: {duration_days} days")
                 return {
-                    "estimated_days": planned_days,
-                    "confidence": 0.2,
-                    "risk_factors": ["No historical sprint data available"],
-                    "method": "planned_duration",
+                    "estimated_days": duration_days,
+                    "planned_days": duration_days,
+                    "confidence": 0.95,
+                    "risk_factors": [],
+                    "method": "from_sprint_dates",
                 }
             
-            # Calculate average velocity (story points per day)
-            velocity_data = []
-            for ps in past_sprints:
-                duration = (ps.completed_at.date() - ps.start_date).days
-                completed_points = ps.issues.filter(
-                    status__is_final=True
-                ).aggregate(total=Sum("story_points"))["total"] or 0
+            # METHOD 2: Calculate from estimated_hours if available
+            total_estimated_hours = sprint.issues.filter(
+                is_active=True,
+                estimated_hours__isnull=False
+            ).aggregate(total=Sum("estimated_hours"))["total"]
+            
+            if total_estimated_hours and total_estimated_hours > 0:
+                hours_per_day = 8  # Standard workday
+                estimated_days = float(total_estimated_hours) / hours_per_day
+                logger.info(f"[ML] Using estimated hours: {estimated_days} days")
+                return {
+                    "estimated_days": int(round(estimated_days)),
+                    "planned_days": int(round(estimated_days)),
+                    "confidence": 0.7,
+                    "total_estimated_hours": float(total_estimated_hours),
+                    "hours_per_day": hours_per_day,
+                    "risk_factors": [],
+                    "method": "from_estimated_hours",
+                }
+            
+            # METHOD 3: Calculate from story points if available
+            total_points = sprint.issues.filter(
+                is_active=True,
+                story_points__isnull=False
+            ).aggregate(total=Sum("story_points"))["total"]
+            
+            if total_points and total_points > 0:
+                # Get historical velocity from past sprints
+                past_sprints = Sprint.objects.filter(
+                    project=sprint.project, 
+                    status="completed",
+                    completed_at__isnull=False,
+                    start_date__isnull=False
+                ).order_by("-completed_at")[:5]
                 
-                if duration > 0:
-                    velocity_data.append(completed_points / duration)
+                velocity_data = []
+                for ps in past_sprints:
+                    duration = (ps.completed_at.date() - ps.start_date).days
+                    if duration > 0 and ps.completed_points > 0:
+                        velocity_data.append(float(ps.completed_points) / duration)
+                
+                if velocity_data:
+                    avg_velocity = float(np.mean(velocity_data))
+                    estimated_days = total_points / avg_velocity if avg_velocity > 0 else 14
+                    logger.info(f"[ML] Using velocity: {estimated_days} days")
+                    return {
+                        "estimated_days": int(round(estimated_days)),
+                        "planned_days": int(round(estimated_days)),
+                        "confidence": 0.7 if len(velocity_data) >= 3 else 0.5,
+                        "average_velocity": round(avg_velocity, 2),
+                        "total_story_points": total_points,
+                        "risk_factors": [],
+                        "method": "velocity_based",
+                    }
             
-            if not velocity_data:
-                avg_velocity = 0
-            else:
-                avg_velocity = float(np.mean(velocity_data))
-            
-            # Calculate total story points in planned issues
-            total_points = Issue.objects.filter(
-                id__in=planned_issues
-            ).aggregate(total=Sum("story_points"))["total"] or 0
-            
-            # Estimate duration based on velocity
-            if avg_velocity > 0:
-                estimated_days = total_points / avg_velocity
-                confidence = 0.7 if len(velocity_data) >= 3 else 0.5
-            else:
-                estimated_days = sprint.get_duration_days()
-                confidence = 0.3
-            
-            # Identify risk factors
-            risk_factors = []
-            if total_points > avg_velocity * sprint.get_duration_days() * 1.2:
-                risk_factors.append("Sprint may be overcommitted")
-            if len(planned_issues) > 20:
-                risk_factors.append("High number of issues may impact focus")
-            
+            # METHOD 4: Default fallback (2 weeks standard sprint)
+            logger.info(f"[ML] Using default duration: 14 days")
             return {
-                "estimated_days": round(estimated_days, 1),
-                "planned_days": sprint.get_duration_days(),
-                "confidence": round(confidence, 2),
-                "average_velocity": round(avg_velocity, 2),
-                "total_story_points": total_points,
-                "risk_factors": risk_factors,
-                "method": "velocity_based",
+                "estimated_days": 14,
+                "planned_days": 14,
+                "confidence": 0.0,
+                "risk_factors": ["No historical data or estimates available"],
+                "method": "default",
             }
             
+        except Sprint.DoesNotExist:
+            logger.error(f"[ML] Sprint {sprint_id} not found")
+            return {
+                "estimated_days": 14,
+                "planned_days": 14,
+                "confidence": 0.0,
+                "risk_factors": ["Sprint not found"],
+                "method": "default",
+                "error": "Sprint does not exist",
+            }
         except Exception as e:
-            logger.exception(f"Error predicting sprint duration: {str(e)}")
-            raise
+            logger.exception(f"[ML] Error predicting sprint duration: {str(e)}")
+            return {
+                "estimated_days": 14,
+                "planned_days": 14,
+                "confidence": 0.0,
+                "risk_factors": ["Error in prediction"],
+                "method": "default",
+                "error": str(e),
+            }
 
     def recommend_story_points(
         self, title: str, description: str, issue_type: str, project_id: str

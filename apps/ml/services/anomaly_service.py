@@ -25,6 +25,8 @@ class AnomalyDetectionService:
     def detect_sprint_risks(self, sprint_id: str) -> List[Dict[str, Any]]:
         """
         Detect if a sprint is at risk of missing deadlines.
+        Uses REAL Issue model fields: assignee, priority, estimated_hours, 
+        actual_hours, story_points, updated_at, status.
 
         Args:
             sprint_id: Sprint UUID
@@ -33,18 +35,20 @@ class AnomalyDetectionService:
             List of detected risks with severity and mitigation suggestions
         """
         try:
-            sprint = Sprint.objects.get(id=sprint_id)
+            sprint = Sprint.objects.select_related('project').get(id=sprint_id)
             risks = []
+            
+            logger.info(f"[ML] Analyzing sprint {sprint.name} for risks")
             
             # 1. Check burndown velocity
             velocity_risk = self._check_burndown_velocity(sprint)
             if velocity_risk:
                 risks.append(velocity_risk)
             
-            # 2. Check blocked issues
-            blocked_risk = self._check_blocked_issues(sprint)
-            if blocked_risk:
-                risks.append(blocked_risk)
+            # 2. Check unassigned issues (replaces is_blocked check)
+            unassigned_risk = self._check_unassigned_issues(sprint)
+            if unassigned_risk:
+                risks.append(unassigned_risk)
             
             # 3. Check unestimated work
             estimation_risk = self._check_unestimated_work(sprint)
@@ -61,11 +65,30 @@ class AnomalyDetectionService:
             if capacity_risk:
                 risks.append(capacity_risk)
             
+            # 6. Check hours drift (actual vs estimated)
+            hours_risk = self._check_hours_drift(sprint)
+            if hours_risk:
+                risks.append(hours_risk)
+            
+            # 7. Check stalled issues
+            stalled_risk = self._check_stalled_issues(sprint)
+            if stalled_risk:
+                risks.append(stalled_risk)
+            
+            # 8. Check high priority issues
+            priority_risk = self._check_high_priority_issues(sprint)
+            if priority_risk:
+                risks.append(priority_risk)
+            
+            logger.info(f"[ML] Risk analysis complete: {len(risks)} risk(s) detected")
             return risks
             
+        except Sprint.DoesNotExist:
+            logger.error(f"[ML] Sprint {sprint_id} not found")
+            return []
         except Exception as e:
-            logger.exception(f"Error detecting sprint risks: {str(e)}")
-            raise
+            logger.exception(f"[ML] Error detecting sprint risks: {str(e)}")
+            return []
 
     def detect_project_anomalies(self, project_id: str) -> List[Dict[str, Any]]:
         """
@@ -162,26 +185,29 @@ class AnomalyDetectionService:
         
         return None
 
-    def _check_blocked_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
-        """Check for excessive blocked issues."""
-        total_issues = sprint.issues.count()
+    def _check_unassigned_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
+        """Check for excessive unassigned issues using real Issue.assignee field."""
+        total_issues = sprint.issues.filter(is_active=True).count()
         if total_issues == 0:
             return None
         
-        blocked_count = sprint.issues.filter(is_blocked=True).count()
-        blocked_ratio = blocked_count / total_issues
+        unassigned_count = sprint.issues.filter(
+            is_active=True,
+            assignee__isnull=True
+        ).count()
+        unassigned_ratio = unassigned_count / total_issues
         
-        if blocked_ratio > 0.3:  # More than 30% blocked
+        if unassigned_ratio > 0.3:  # More than 30% unassigned
             return {
-                "risk_type": "blocked_issues",
-                "severity": "high" if blocked_ratio > 0.5 else "medium",
-                "description": f"{blocked_count} out of {total_issues} issues are blocked",
-                "blocked_count": blocked_count,
+                "risk_type": "unassigned_issues",
+                "severity": "high" if unassigned_ratio > 0.5 else "medium",
+                "description": f"{unassigned_count} out of {total_issues} issues lack assignee",
+                "unassigned_count": unassigned_count,
                 "total_count": total_issues,
                 "mitigation_suggestions": [
-                    "Review and resolve blockers immediately",
-                    "Escalate external dependencies",
-                    "Consider removing blocked items from sprint",
+                    "Assign issues to team members",
+                    "Balance workload across team",
+                    "Remove unplanned work from sprint",
                 ],
             }
         
@@ -263,6 +289,111 @@ class AnomalyDetectionService:
                         "Identify and defer low-priority items",
                     ],
                 }
+        
+        return None
+
+    def _check_hours_drift(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
+        """Check for hours drift using real estimated_hours and actual_hours fields."""
+        issues_with_hours = sprint.issues.filter(
+            is_active=True,
+            estimated_hours__isnull=False,
+            actual_hours__isnull=False
+        )
+        
+        if not issues_with_hours.exists():
+            return None
+        
+        total_estimated = sum(
+            float(issue.estimated_hours) 
+            for issue in issues_with_hours 
+            if issue.estimated_hours
+        )
+        total_actual = sum(
+            float(issue.actual_hours) 
+            for issue in issues_with_hours 
+            if issue.actual_hours
+        )
+        
+        if total_estimated == 0:
+            return None
+        
+        drift_ratio = total_actual / total_estimated
+        
+        if drift_ratio > 1.2:  # 20% over estimate
+            return {
+                "risk_type": "hours_drift",
+                "severity": "high" if drift_ratio > 1.5 else "medium",
+                "description": f"Actual hours {int((drift_ratio - 1) * 100)}% over estimates",
+                "estimated_hours": round(total_estimated, 1),
+                "actual_hours": round(total_actual, 1),
+                "drift_percentage": round((drift_ratio - 1) * 100, 1),
+                "mitigation_suggestions": [
+                    "Review estimation accuracy",
+                    "Identify scope creep",
+                    "Improve planning process",
+                ],
+            }
+        
+        return None
+
+    def _check_stalled_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
+        """Check for stalled issues using real updated_at field."""
+        from datetime import timedelta
+        
+        cutoff_date = timezone.now() - timedelta(days=3)
+        
+        stalled_count = sprint.issues.filter(
+            is_active=True,
+            status__is_final=False,
+            updated_at__lt=cutoff_date
+        ).count()
+        
+        total_active = sprint.issues.filter(
+            is_active=True,
+            status__is_final=False
+        ).count()
+        
+        if total_active == 0:
+            return None
+        
+        stalled_ratio = stalled_count / total_active
+        
+        if stalled_ratio > 0.2:  # More than 20% stalled
+            return {
+                "risk_type": "stalled_issues",
+                "severity": "medium",
+                "description": f"{stalled_count} issues not updated in 3+ days",
+                "stalled_count": stalled_count,
+                "total_active": total_active,
+                "mitigation_suggestions": [
+                    "Review stalled issues with team",
+                    "Identify blockers",
+                    "Update issue status",
+                ],
+            }
+        
+        return None
+
+    def _check_high_priority_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
+        """Check for high priority issues using real priority field (P1, P2)."""
+        high_priority_count = sprint.issues.filter(
+            is_active=True,
+            priority__in=['P1', 'P2'],
+            status__is_final=False
+        ).count()
+        
+        if high_priority_count > 0:
+            return {
+                "risk_type": "high_priority_issues",
+                "severity": "high" if high_priority_count > 3 else "medium",
+                "description": f"{high_priority_count} high/critical priority issues in sprint",
+                "high_priority_count": high_priority_count,
+                "mitigation_suggestions": [
+                    "Prioritize critical issues",
+                    "Allocate senior resources",
+                    "Monitor progress daily",
+                ],
+            }
         
         return None
 

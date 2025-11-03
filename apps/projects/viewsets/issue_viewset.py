@@ -271,7 +271,13 @@ class IssueViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     @transaction.atomic
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new issue and return full details including story_points.
+        Uses IssueCreateSerializer for input validation and IssueDetailSerializer for response.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         issue = serializer.save()
 
         LoggerService.log_info(
@@ -285,6 +291,11 @@ class IssueViewSet(viewsets.ModelViewSet):
                 "project_id": str(issue.project.id),
             },
         )
+
+        # Return full issue details with all fields including story_points
+        detail_serializer = IssueDetailSerializer(issue, context={'request': request})
+        headers = self.get_success_headers(detail_serializer.data)
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @transaction.atomic
     def perform_update(self, serializer):
