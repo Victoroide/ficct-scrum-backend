@@ -110,6 +110,22 @@ class DiagramViewSet(viewsets.ViewSet):
         diagram_format = serializer.validated_data.get("format", "svg")
         parameters = serializer.validated_data.get("parameters", {})
 
+        # Validate options for specific diagram types
+        if diagram_type == "uml":
+            uml_type = parameters.get("diagram_type", "class")
+            VALID_UML_TYPES = ["class"]  # Currently only 'class' is supported
+            
+            if uml_type not in VALID_UML_TYPES:
+                return Response(
+                    {
+                        "status": "error",
+                        "error": f"Invalid UML diagram type: '{uml_type}'. Valid options: {VALID_UML_TYPES}",
+                        "code": "INVALID_OPTIONS",
+                        "valid_options": VALID_UML_TYPES
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         from apps.projects.models import Project
 
         try:
@@ -153,6 +169,24 @@ class DiagramViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            from django.core.exceptions import FieldError
+            
+            # Check if it's an ORM field error (like using non-existent field in query)
+            if isinstance(e, FieldError):
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Database query error (likely configuration issue): {str(e)}", exc_info=True)
+                
+                return Response(
+                    {
+                        "status": "error",
+                        "error": "Database query configuration error. Please check system configuration.",
+                        "detail": str(e),
+                        "code": "QUERY_ERROR"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             # Unexpected server errors
             import logging
             logger = logging.getLogger(__name__)

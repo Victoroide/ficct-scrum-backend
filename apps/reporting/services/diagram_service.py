@@ -213,11 +213,21 @@ class DiagramService:
         try:
             integration = GitHubIntegration.objects.get(
                 project=project,
-                is_connected=True
+                is_active=True
             )
+            
+            # Validate that access token exists (is_connected is a property)
+            if not integration.access_token:
+                logger.error(f"GitHub integration exists but has no access token for project {project.id}")
+                raise ValueError(
+                    "GitHub integration is not properly configured. "
+                    "Access token is missing. Please reconnect the repository."
+                )
+            
             return integration
+            
         except GitHubIntegration.DoesNotExist:
-            logger.error(f"No GitHub integration found for project {project.id}")
+            logger.error(f"No active GitHub integration found for project {project.id}")
             raise ValueError(
                 "No GitHub repository connected. "
                 "To generate diagrams, connect a GitHub repository first. "
