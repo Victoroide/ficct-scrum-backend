@@ -1,12 +1,17 @@
 """
 Architecture Generator
 
-Generates Architecture Diagrams from analyzed Python code.
-Detects layers and components based on directory structure and naming patterns.
+Analyzes LOCAL Django application architecture by component RESPONSIBILITY.
+Uses Django introspection to classify ViewSets, Services, Models, etc.
 """
 import logging
-from typing import Dict, List, Set
+import inspect
+from typing import Dict, List
 from django.utils import timezone
+from django.apps import apps
+from rest_framework import viewsets
+from rest_framework import serializers as drf_serializers
+from django.db import models as django_models
 
 
 logger = logging.getLogger(__name__)
@@ -14,60 +19,41 @@ logger = logging.getLogger(__name__)
 
 class ArchitectureGenerator:
     """
-    Generates Architecture Diagrams from code analysis.
+    Generates Architecture Diagrams from LOCAL Django application.
     
-    Detects architectural layers and components, maps dependencies.
+    Classifies components by RESPONSIBILITY (what they do), not file location.
     """
     
-    # Layer detection patterns
-    LAYER_PATTERNS = {
-        'Presentation Layer': [
-            'views', 'viewsets', 'controllers', 'handlers', 'api', 'routes', 'endpoints'
-        ],
-        'Business Logic Layer': [
-            'services', 'business', 'logic', 'managers', 'use_cases', 'domain'
-        ],
-        'Data Access Layer': [
-            'models', 'repositories', 'entities', 'database', 'dao', 'orm'
-        ],
-        'Utilities': [
-            'utils', 'helpers', 'common', 'shared', 'lib'
-        ],
-        'Integration Layer': [
-            'integrations', 'clients', 'adapters', 'external'
-        ]
-    }
+    # Apps to analyze (exclude Django/DRF internal apps)
+    EXCLUDED_APPS = [
+        'django', 'rest_framework', 'drf_spectacular', 'corsheaders',
+        'admin', 'auth', 'contenttypes', 'sessions', 'messages',
+        'staticfiles', 'channels', 'celery'
+    ]
     
-    def generate_architecture_json(self, analysis: Dict, integration) -> Dict:
+    def generate_architecture_json(self, project) -> Dict:
         """
-        Generate architecture diagram JSON from code analysis.
+        Generate architecture diagram JSON from LOCAL Django app analysis.
         
         Args:
-            analysis: Output from PythonCodeAnalyzer
-            integration: GitHubIntegration instance
+            project: Project instance for context
             
         Returns:
-            Architecture diagram in JSON format
+            Architecture diagram in JSON format with 4 layers
         """
-        logger.info("Generating architecture diagram from code analysis")
+        logger.info("Generating architecture diagram from local Django application")
         
-        # Classify components into layers
-        layers = self._classify_components_into_layers(
-            analysis['files'],
-            analysis['classes']
-        )
+        # Analyze LOCAL Django application by architectural layers
+        layers = self._analyze_django_architecture()
         
         # Build connections between components
-        connections = self._build_connections(
-            analysis['dependencies'],
-            layers
-        )
+        connections = self._build_layer_connections(layers)
         
         result = {
-            'repository': {
-                'owner': integration.repository_owner,
-                'name': integration.repository_name,
-                'url': integration.repository_url
+            'project': {
+                'id': str(project.id),
+                'name': project.name,
+                'key': project.key
             },
             'architecture_pattern': self._detect_architecture_pattern(layers),
             'layers': layers,
@@ -77,294 +63,305 @@ class ArchitectureGenerator:
                 'total_layers': len(layers),
                 'total_components': sum(len(layer['components']) for layer in layers),
                 'total_connections': len(connections),
-                'total_files_analyzed': analysis['stats']['total_files']
+                'analysis_type': 'django_local_architecture'
             }
         }
         
         logger.info(
-            f"Generated architecture: {len(layers)} layers, "
+            f"Architecture diagram generated: {len(layers)} layers, "
             f"{result['metadata']['total_components']} components, "
             f"{len(connections)} connections"
         )
         
         return result
     
-    def _classify_components_into_layers(
-        self,
-        files: Dict,
-        classes: Dict
-    ) -> List[Dict]:
+    def _analyze_django_architecture(self) -> List[Dict]:
         """
-        Classify components into architectural layers.
+        Analyze Django application and classify components by architectural layers.
         
-        Args:
-            files: Analyzed files
-            classes: All classes
-            
+        Uses Django introspection to identify:
+        - Presentation Layer: ViewSets, Serializers
+        - Business Logic Layer: Services, Managers, Validators
+        - Data Access Layer: Models
+        - Infrastructure Layer: Middleware, Authentication, Integrations
+        
         Returns:
             List of layers with components
         """
-        layers_dict = {layer: [] for layer in self.LAYER_PATTERNS.keys()}
-        unclassified = []
+        logger.info("Analyzing Django architecture by component responsibility")
         
-        for file_path, file_analysis in files.items():
-            # Determine layer for this file
-            layer = self._determine_file_layer(file_path)
-            
-            # Extract components from file
-            components = self._extract_components_from_file(
-                file_path,
-                file_analysis,
-                classes
-            )
-            
-            if layer:
-                layers_dict[layer].extend(components)
-            else:
-                unclassified.extend(components)
+        presentation_components = []
+        business_components = []
+        data_components = []
+        infrastructure_components = []
         
-        # Build layer list
+        # Iterate through all Django apps
+        for app_config in apps.get_app_configs():
+            app_label = app_config.label
+            
+            # Skip excluded apps
+            if any(excluded in app_label for excluded in self.EXCLUDED_APPS):
+                continue
+            
+            logger.debug(f"Analyzing app: {app_label}")
+            
+            # Get all classes from this app's modules
+            try:
+                # Analyze viewsets module
+                if hasattr(app_config.module, 'viewsets'):
+                    viewsets_module = app_config.module.viewsets
+                    presentation_components.extend(
+                        self._extract_viewsets(viewsets_module, app_label)
+                    )
+                
+                # Analyze serializers module
+                if hasattr(app_config.module, 'serializers'):
+                    serializers_module = app_config.module.serializers
+                    presentation_components.extend(
+                        self._extract_serializers(serializers_module, app_label)
+                    )
+                
+                # Analyze services module
+                if hasattr(app_config.module, 'services'):
+                    services_module = app_config.module.services
+                    business_components.extend(
+                        self._extract_services(services_module, app_label)
+                    )
+                
+                # Analyze models
+                models = app_config.get_models()
+                data_components.extend(
+                    self._extract_models(models, app_label)
+                )
+                
+                # Analyze middleware (if exists)
+                if hasattr(app_config.module, 'middleware'):
+                    middleware_module = app_config.module.middleware
+                    infrastructure_components.extend(
+                        self._extract_middleware(middleware_module, app_label)
+                    )
+                
+            except Exception as e:
+                logger.warning(f"Error analyzing app {app_label}: {str(e)}")
+                continue
+        
+        # Build layers list
         layers = []
-        for layer_name, components in layers_dict.items():
-            if components:  # Only include non-empty layers
-                layers.append({
-                    'name': layer_name,
-                    'description': self._get_layer_description(layer_name),
-                    'components': components
-                })
         
-        # Add unclassified if any
-        if unclassified:
+        if presentation_components:
             layers.append({
-                'name': 'Other Components',
-                'description': 'Components that don\'t fit standard layer patterns',
-                'components': unclassified
+                'name': 'Presentation Layer',
+                'description': 'Handles HTTP requests, API endpoints, data serialization',
+                'components': presentation_components
             })
+        
+        if business_components:
+            layers.append({
+                'name': 'Business Logic Layer',
+                'description': 'Contains business rules, services, and domain logic',
+                'components': business_components
+            })
+        
+        if data_components:
+            layers.append({
+                'name': 'Data Access Layer',
+                'description': 'Manages data persistence and database models',
+                'components': data_components
+            })
+        
+        if infrastructure_components:
+            layers.append({
+                'name': 'Infrastructure Layer',
+                'description': 'Cross-cutting concerns: auth, middleware, integrations',
+                'components': infrastructure_components
+            })
+        
+        logger.info(
+            f"Architecture analysis complete: {len(layers)} layers, "
+            f"{sum(len(l['components']) for l in layers)} total components"
+        )
         
         return layers
     
-    def _determine_file_layer(self, file_path: str) -> str:
-        """
-        Determine which layer a file belongs to based on path.
-        
-        Args:
-            file_path: Path to file
-            
-        Returns:
-            Layer name or None
-        """
-        path_lower = file_path.lower()
-        
-        for layer_name, patterns in self.LAYER_PATTERNS.items():
-            for pattern in patterns:
-                if f'/{pattern}/' in path_lower or path_lower.startswith(f'{pattern}/'):
-                    return layer_name
-                # Check filename
-                if pattern in path_lower.split('/')[-1]:
-                    return layer_name
-        
-        return None
-    
-    def _extract_components_from_file(
-        self,
-        file_path: str,
-        file_analysis: Dict,
-        all_classes: Dict
-    ) -> List[Dict]:
-        """
-        Extract components from a file.
-        
-        Args:
-            file_path: File path
-            file_analysis: File analysis result
-            all_classes: All analyzed classes
-            
-        Returns:
-            List of components
-        """
+    def _extract_viewsets(self, module, app_label: str) -> List[Dict]:
+        """Extract ViewSet components from module."""
         components = []
         
-        # Each class is a component
-        for cls in file_analysis['classes']:
-            component_type = self._determine_component_type(cls, file_path)
+        for name in dir(module):
+            try:
+                obj = getattr(module, name)
+                if inspect.isclass(obj) and issubclass(obj, viewsets.ViewSet) and obj != viewsets.ViewSet:
+                    # Skip if from another module
+                    if obj.__module__ != module.__name__:
+                        continue
+                    
+                    components.append({
+                        'name': name,
+                        'type': 'viewset',
+                        'app': app_label,
+                        'description': f'API ViewSet in {app_label}',
+                        'methods_count': len([m for m in dir(obj) if not m.startswith('_')]),
+                    })
+            except Exception:
+                continue
+        
+        return components
+    
+    def _extract_serializers(self, module, app_label: str) -> List[Dict]:
+        """Extract Serializer components from module."""
+        components = []
+        
+        for name in dir(module):
+            try:
+                obj = getattr(module, name)
+                if inspect.isclass(obj) and issubclass(obj, drf_serializers.Serializer) and obj != drf_serializers.Serializer:
+                    if obj.__module__ != module.__name__:
+                        continue
+                    
+                    components.append({
+                        'name': name,
+                        'type': 'serializer',
+                        'app': app_label,
+                        'description': f'Data Serializer in {app_label}',
+                        'methods_count': len([m for m in dir(obj) if not m.startswith('_')]),
+                    })
+            except Exception:
+                continue
+        
+        return components
+    
+    def _extract_services(self, module, app_label: str) -> List[Dict]:
+        """Extract Service components from module."""
+        components = []
+        
+        for name in dir(module):
+            try:
+                obj = getattr(module, name)
+                if inspect.isclass(obj):
+                    if obj.__module__ != module.__name__:
+                        continue
+                    
+                    # Service classes typically have 'Service' in name
+                    if 'Service' in name or 'Manager' in name or 'Handler' in name:
+                        components.append({
+                            'name': name,
+                            'type': 'service',
+                            'app': app_label,
+                            'description': f'Business Logic Service in {app_label}',
+                            'methods_count': len([m for m in dir(obj) if not m.startswith('_')]),
+                        })
+            except Exception:
+                continue
+        
+        return components
+    
+    def _extract_models(self, models, app_label: str) -> List[Dict]:
+        """Extract Model components."""
+        components = []
+        
+        for model in models:
+            # Skip abstract models
+            if hasattr(model._meta, 'abstract') and model._meta.abstract:
+                continue
             
             components.append({
-                'name': cls['name'],
-                'type': component_type,
-                'file_path': file_path,
-                'module': file_analysis.get('module_name', ''),
-                'description': f"{component_type.title()} component in {file_path}",
-                'methods_count': len(cls.get('methods', [])),
-                'attributes_count': len(cls.get('attributes', []))
-            })
-        
-        # If no classes, create component for the module itself
-        if not components and file_analysis['imports']:
-            components.append({
-                'name': self._extract_module_display_name(file_path),
-                'type': 'module',
-                'file_path': file_path,
-                'module': file_analysis.get('module_name', ''),
-                'description': f"Module file {file_path}",
-                'methods_count': 0,
-                'attributes_count': 0
+                'name': model.__name__,
+                'type': 'model',
+                'app': app_label,
+                'description': f'Database Model in {app_label}',
+                'methods_count': len([m for m in dir(model) if not m.startswith('_')]),
             })
         
         return components
     
-    def _determine_component_type(self, cls: Dict, file_path: str) -> str:
-        """
-        Determine component type based on class and file characteristics.
+    def _extract_middleware(self, module, app_label: str) -> List[Dict]:
+        """Extract Middleware components from module."""
+        components = []
         
-        Args:
-            cls: Class information
-            file_path: File path
-            
-        Returns:
-            Component type string
-        """
-        class_name = cls['name'].lower()
-        path_lower = file_path.lower()
+        for name in dir(module):
+            try:
+                obj = getattr(module, name)
+                if inspect.isclass(obj) and 'Middleware' in name:
+                    if obj.__module__ != module.__name__:
+                        continue
+                    
+                    components.append({
+                        'name': name,
+                        'type': 'middleware',
+                        'app': app_label,
+                        'description': f'Middleware component in {app_label}',
+                        'methods_count': len([m for m in dir(obj) if not m.startswith('_')]),
+                    })
+            except Exception:
+                continue
         
-        # Check by class name patterns
-        if 'viewset' in class_name or 'view' in class_name:
-            return 'viewset'
-        if 'serializer' in class_name:
-            return 'serializer'
-        if 'service' in class_name:
-            return 'service'
-        if 'model' in class_name or 'entity' in class_name:
-            return 'model'
-        if 'repository' in class_name:
-            return 'repository'
-        if 'controller' in class_name or 'handler' in class_name:
-            return 'controller'
-        if 'manager' in class_name:
-            return 'manager'
-        if 'util' in class_name or 'helper' in class_name:
-            return 'utility'
-        
-        # Check by file path
-        if '/models/' in path_lower or 'model.py' in path_lower:
-            return 'model'
-        if '/views/' in path_lower or '/viewsets/' in path_lower:
-            return 'viewset'
-        if '/services/' in path_lower:
-            return 'service'
-        if '/serializers/' in path_lower:
-            return 'serializer'
-        
-        return 'component'
+        return components
     
-    def _build_connections(
-        self,
-        dependency_graph: Dict,
-        layers: List[Dict]
-    ) -> List[Dict]:
+    def _build_layer_connections(self, layers: List[Dict]) -> List[Dict]:
         """
-        Build connections between components.
+        Build architectural connections between layers.
         
-        Args:
-            dependency_graph: Dependency graph from analyzer
-            layers: Classified layers with components
-            
+        Standard flow in Django:
+        - Presentation Layer (ViewSets) → uses → Business Layer (Services)
+        - Presentation Layer (ViewSets) → accesses → Data Layer (Models)
+        - Business Layer (Services) → accesses → Data Layer (Models)
+        - Infrastructure Layer (Middleware) → intercepts → Presentation Layer
+        
         Returns:
-            List of connections
+            List of connections between layers
         """
         connections = []
         
-        # Create component lookup
-        component_lookup = {}
-        for layer in layers:
-            for comp in layer['components']:
-                key = f"{comp['file_path']}::{comp['name']}"
-                component_lookup[key] = {
-                    **comp,
-                    'layer': layer['name']
-                }
+        # Find layer indices
+        layer_map = {layer['name']: layer for layer in layers}
         
-        # Build connections from dependency graph
-        for file_path, dependencies in dependency_graph.items():
-            for dep in dependencies:
-                conn = self._create_connection(
-                    dep,
-                    file_path,
-                    component_lookup
-                )
-                if conn:
-                    connections.append(conn)
+        # Presentation → Business Logic
+        if 'Presentation Layer' in layer_map and 'Business Logic Layer' in layer_map:
+            pres_comps = layer_map['Presentation Layer']['components']
+            bus_comps = layer_map['Business Logic Layer']['components']
+            
+            # ViewSets use Services
+            for pres in pres_comps:
+                if pres['type'] == 'viewset' and bus_comps:
+                    # Create generic connection
+                    connections.append({
+                        'from': pres['name'],
+                        'to': f"{pres['app'].title()} Services",
+                        'type': 'uses',
+                        'from_layer': 'Presentation Layer',
+                        'to_layer': 'Business Logic Layer'
+                    })
+                    break  # One example per layer
         
-        # Deduplicate
-        connections = self._deduplicate_connections(connections)
+        # Presentation → Data Access
+        if 'Presentation Layer' in layer_map and 'Data Access Layer' in layer_map:
+            pres_comps = layer_map['Presentation Layer']['components']
+            data_comps = layer_map['Data Access Layer']['components']
+            
+            if pres_comps and data_comps:
+                connections.append({
+                    'from': pres_comps[0]['name'],
+                    'to': data_comps[0]['name'],
+                    'type': 'accesses',
+                    'from_layer': 'Presentation Layer',
+                    'to_layer': 'Data Access Layer'
+                })
+        
+        # Business Logic → Data Access
+        if 'Business Logic Layer' in layer_map and 'Data Access Layer' in layer_map:
+            bus_comps = layer_map['Business Logic Layer']['components']
+            data_comps = layer_map['Data Access Layer']['components']
+            
+            if bus_comps and data_comps:
+                connections.append({
+                    'from': bus_comps[0]['name'],
+                    'to': data_comps[0]['name'],
+                    'type': 'queries',
+                    'from_layer': 'Business Logic Layer',
+                    'to_layer': 'Data Access Layer'
+                })
         
         return connections
-    
-    def _create_connection(
-        self,
-        dependency: Dict,
-        source_file: str,
-        component_lookup: Dict
-    ) -> Dict:
-        """Create a connection from dependency information."""
-        dep_type = dependency['type']
-        
-        # Find source component
-        source_components = [
-            comp for key, comp in component_lookup.items()
-            if comp['file_path'] == source_file
-        ]
-        
-        if not source_components:
-            return None
-        
-        source_comp = source_components[0]
-        
-        # Find target component
-        if dep_type == 'inherits':
-            target_name = dependency.get('target')
-            target_comps = [
-                comp for comp in component_lookup.values()
-                if comp['name'] == target_name
-            ]
-            
-            if target_comps:
-                return {
-                    'from': source_comp['name'],
-                    'to': target_comps[0]['name'],
-                    'type': 'inherits',
-                    'from_layer': source_comp['layer'],
-                    'to_layer': target_comps[0]['layer']
-                }
-        
-        elif dep_type == 'imports':
-            # General import connection
-            target = dependency.get('target', '')
-            
-            # Try to find matching component
-            for comp in component_lookup.values():
-                if target in comp['module'] or target in comp['file_path']:
-                    return {
-                        'from': source_comp['name'],
-                        'to': comp['name'],
-                        'type': 'uses',
-                        'from_layer': source_comp['layer'],
-                        'to_layer': comp['layer']
-                    }
-        
-        return None
-    
-    def _deduplicate_connections(self, connections: List[Dict]) -> List[Dict]:
-        """Remove duplicate connections."""
-        seen = set()
-        unique = []
-        
-        for conn in connections:
-            key = (conn['from'], conn['to'], conn['type'])
-            if key not in seen:
-                seen.add(key)
-                unique.append(conn)
-        
-        return unique
     
     def _detect_architecture_pattern(self, layers: List[Dict]) -> str:
         """

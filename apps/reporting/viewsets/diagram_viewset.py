@@ -156,7 +156,21 @@ class DiagramViewSet(viewsets.ViewSet):
 
             response_serializer = DiagramResponseSerializer(data=result)
             response_serializer.is_valid(raise_exception=True)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            
+            # Prepare response with cache headers
+            response = Response(response_serializer.data, status=status.HTTP_200_OK)
+            
+            # Add cache status headers
+            if result.get('cached', False):
+                response['X-Cache-Status'] = 'HIT'
+            else:
+                response['X-Cache-Status'] = 'MISS'
+            
+            # Add diagram metadata headers
+            response['X-Diagram-Type'] = diagram_type
+            response['X-Diagram-Format'] = diagram_format
+            
+            return response
 
         except ValueError as e:
             # ValueError = user-facing errors (missing GitHub integration, no Python files, etc.)

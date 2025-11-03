@@ -97,6 +97,13 @@ class DiagramService:
         """
         logger.info(f"Generating UML diagram - analyzing local Django models")
         
+        # Check cache first
+        cache_key = self._generate_cache_key("uml", project.id)
+        cached = self._get_cached_diagram(cache_key)
+        if cached:
+            logger.info("Returning cached UML diagram")
+            return cached
+        
         # Analyze LOCAL Django models using Django internals
         analysis = self._analyze_local_django_models()
         
@@ -105,6 +112,9 @@ class DiagramService:
         
         import json
         data_str = json.dumps(uml_data, indent=2)
+        
+        # Cache the result
+        self._cache_diagram(cache_key, data_str, "uml", project, "json")
         
         logger.info(
             f"UML diagram generated: {analysis['total_models']} models, "
@@ -120,9 +130,13 @@ class DiagramService:
 
     def generate_architecture_diagram(self, project, diagram_format: str = "json", parameters: Dict = None) -> Dict:
         """
-        Generate architecture diagram by analyzing code from GitHub repository.
+        Generate architecture diagram by analyzing LOCAL Django application.
         
-        Requires active GitHub integration. Analyzes Python code only.
+        Classifies components by architectural responsibility:
+        - Presentation Layer: ViewSets, Serializers
+        - Business Logic Layer: Services, Managers
+        - Data Access Layer: Models
+        - Infrastructure Layer: Middleware, Auth
         
         Args:
             project: Project instance
@@ -131,24 +145,25 @@ class DiagramService:
             
         Returns:
             Architecture diagram data
-            
-        Raises:
-            ValueError: If no GitHub integration or repository has no Python files
         """
         logger.info(f"Generating architecture diagram for project {project.name}")
         
-        # Get GitHub integration
-        integration = self._get_github_integration(project)
+        # Check cache first
+        cache_key = self._generate_cache_key("architecture", project.id)
+        cached = self._get_cached_diagram(cache_key)
+        if cached:
+            logger.info("Returning cached architecture diagram")
+            return cached
         
-        # Analyze code from GitHub
-        analysis = self._analyze_github_repository(integration)
-        
-        # Generate architecture
+        # Generate architecture from LOCAL Django app
         generator = ArchitectureGenerator()
-        arch_data = generator.generate_architecture_json(analysis, integration)
+        arch_data = generator.generate_architecture_json(project)
         
         import json
         data_str = json.dumps(arch_data, indent=2)
+        
+        # Cache the result
+        self._cache_diagram(cache_key, data_str, "architecture", project, "json")
         
         logger.info("Architecture diagram generated successfully")
         
@@ -585,7 +600,7 @@ class DiagramService:
                     f"Validation failed: Model '{model['name']}' missing app_label"
                 )
         
-        logger.info("Pre-output validation passed ✓")
+        logger.info("Pre-output validation passed")
         
         return {
             'diagram_type': 'class',
