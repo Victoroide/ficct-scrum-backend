@@ -196,7 +196,28 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         summary="Sync commits from GitHub",
         tags=["Integrations"],
         request=None,
-        responses={200: {"type": "object"}},
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "synced_count": {"type": "integer"},
+                    "last_sync_at": {"type": "string", "format": "date-time"},
+                    "commits": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Latest 50 commits from the repository"
+                    },
+                    "total_commits": {"type": "integer"},
+                },
+            },
+            400: {
+                "type": "object",
+                "properties": {
+                    "error": {"type": "string"},
+                },
+            },
+        },
     )
     @action(detail=True, methods=["post"])
     def sync_commits(self, request, pk=None):
@@ -205,11 +226,25 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
         try:
             count = service.sync_commits(integration)
+            
+            # Query the synced commits to return them in response
+            from apps.integrations.models import GitHubCommit
+            from apps.integrations.serializers import GitHubCommitSerializer
+            
+            # Get latest 50 commits for display
+            commits = GitHubCommit.objects.filter(
+                repository=integration
+            ).order_by('-commit_date')[:50]
+            
+            serializer = GitHubCommitSerializer(commits, many=True)
+            
             return Response(
                 {
                     "message": f"Successfully synced {count} commits",
                     "synced_count": count,
                     "last_sync_at": timezone.now(),
+                    "commits": serializer.data,
+                    "total_commits": integration.commits.count(),
                 },
                 status=status.HTTP_200_OK,
             )
