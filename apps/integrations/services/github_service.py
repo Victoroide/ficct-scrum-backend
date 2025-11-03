@@ -78,12 +78,34 @@ class GitHubService:
     ) -> int:
         from apps.integrations.models import GitHubCommit
 
+        # Validate repository configuration before attempting sync
+        if not repository.repository_url:
+            raise ValueError("Repository URL not configured. Please reconnect the integration.")
+        
+        if not repository.repository_owner or not repository.repository_name:
+            raise ValueError(
+                f"Repository owner/name not properly configured. "
+                f"Owner: {repository.repository_owner}, Name: {repository.repository_name}. "
+                f"Please reconnect the integration."
+            )
+        
+        access_token = repository.get_access_token()
+        if not access_token:
+            raise ValueError("GitHub access token not found. Please reconnect the integration.")
+
         try:
             repository.sync_status = "syncing"
             repository.save()
 
-            g = Github(repository.get_access_token())
-            repo = g.get_repo(repository.repository_full_name)
+            g = Github(access_token)
+            repo_full_name = repository.repository_full_name
+            
+            # Log what we're trying to sync
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[Sync Commits] Attempting to sync: {repo_full_name}")
+            
+            repo = g.get_repo(repo_full_name)
 
             since_date = since or (timezone.now() - timedelta(days=30))
             commits = repo.get_commits(since=since_date)
@@ -120,7 +142,25 @@ class GitHubService:
         except GithubException as e:
             repository.sync_status = "error"
             repository.save()
-            raise Exception(f"GitHub API error: {str(e)}")
+            
+            # Provide specific error messages based on GitHub API status
+            if e.status == 404:
+                raise ValueError(
+                    f"Repository '{repo_full_name}' not found on GitHub. "
+                    f"Please verify the repository exists and is accessible."
+                )
+            elif e.status == 401:
+                raise ValueError(
+                    "GitHub access token is invalid or expired. "
+                    "Please reconnect the integration to refresh the token."
+                )
+            elif e.status == 403:
+                raise ValueError(
+                    "GitHub access forbidden. Your token may lack required permissions (repo scope). "
+                    "Please reconnect with proper permissions."
+                )
+            else:
+                raise Exception(f"GitHub API error ({e.status}): {str(e)}")
 
     def sync_pull_requests(self, repository: "GitHubIntegration") -> int:
         from apps.integrations.models import GitHubPullRequest

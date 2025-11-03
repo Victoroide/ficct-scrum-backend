@@ -213,9 +213,19 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_200_OK,
             )
-        except Exception as e:
+        except ValueError as e:
+            # Configuration/validation errors - user needs to fix something
+            logger.warning(f"[Sync Commits] Configuration error: {str(e)}")
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # Unexpected server errors
+            logger.exception(f"[Sync Commits] Unexpected error: {str(e)}")
+            return Response(
+                {"error": f"Failed to sync commits: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @extend_schema(
@@ -238,9 +248,19 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_200_OK,
             )
-        except Exception as e:
+        except ValueError as e:
+            # Configuration/validation errors - user needs to fix something
+            logger.warning(f"[Sync PRs] Configuration error: {str(e)}")
             return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # Unexpected server errors
+            logger.exception(f"[Sync PRs] Unexpected error: {str(e)}")
+            return Response(
+                {"error": f"Failed to sync pull requests: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     @extend_schema(
@@ -782,10 +802,28 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             
             project = Project.objects.get(id=project_id)
             
+            # Parse repository_name to extract owner and repo
+            # Frontend sends: "owner/repo" or repository_url has that info
+            if "/" in repository_name:
+                # Format: "owner/repo"
+                parts = repository_name.split("/")
+                repository_owner = parts[0]
+                repo_name_only = parts[1]
+            else:
+                # Fallback: parse from repository_url
+                from apps.integrations.services.github_service import GitHubService
+                service = GitHubService()
+                repository_owner, repo_name_only = service.parse_repository_url(repository_url)
+            
+            logger.info(
+                f"[Complete Integration] Parsed repository: owner={repository_owner}, name={repo_name_only}"
+            )
+            
             integration = GitHubIntegration.objects.create(
                 project=project,
                 repository_url=repository_url,
-                repository_name=repository_name,
+                repository_owner=repository_owner,
+                repository_name=repo_name_only,
                 is_active=True,
             )
             
