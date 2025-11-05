@@ -92,6 +92,7 @@ class RAGService:
             # Prepare metadata
             metadata = self._prepare_metadata(issue)
             logger.debug(f"[INDEX] Metadata prepared: {len(metadata)} fields")
+            logger.debug(f"[INDEX] Metadata sample: assignee_id={metadata.get('assignee_id')}, reporter_id={metadata.get('reporter_id')}")
             
             # Upsert to Pinecone
             vector_id = f"issue_{issue_id}"
@@ -209,6 +210,114 @@ class RAGService:
             
         except Exception as e:
             logger.exception(f"[BATCH INDEX] Critical error: {str(e)}")
+            raise
+    
+    def sync_all_issues(self, clear_existing: bool = True) -> Dict[str, Any]:
+        """
+        Full synchronization: Clear Pinecone and reindex ALL active issues from DB.
+        
+        This is a DESTRUCTIVE operation that:
+        1. Clears all vectors in the 'issues' namespace (if clear_existing=True)
+        2. Reindexes ALL active issues from ALL projects
+        3. Updates IssueEmbedding records in DB
+        
+        Args:
+            clear_existing: Whether to clear existing vectors before sync (default: True)
+            
+        Returns:
+            Dictionary with sync statistics:
+            - projects_processed: Number of projects
+            - total_issues: Total issues found
+            - indexed: Successfully indexed
+            - failed: Failed to index
+            - errors: List of error details
+            - duration_seconds: Time taken
+        """
+        self._check_available()
+        import time
+        from apps.projects.models import Project
+        
+        start_time = time.time()
+        
+        try:
+            logger.warning("="*80)
+            logger.warning("[FULL SYNC] Starting FULL Pinecone synchronization")
+            logger.warning("="*80)
+            
+            # Step 1: Clear existing vectors if requested
+            if clear_existing:
+                logger.warning("[FULL SYNC] Step 1/3: Clearing existing vectors in 'issues' namespace")
+                self.pinecone.clear_namespace(namespace="issues")
+                logger.info("[FULL SYNC] ✅ Namespace cleared")
+            else:
+                logger.info("[FULL SYNC] Skipping namespace clear (clear_existing=False)")
+            
+            # Step 2: Get all active projects
+            logger.info("[FULL SYNC] Step 2/3: Loading all active projects")
+            projects = Project.objects.filter(is_active=True).values_list('id', flat=True)
+            project_count = len(projects)
+            logger.info(f"[FULL SYNC] Found {project_count} active projects")
+            
+            # Step 3: Index all issues from all projects
+            logger.info("[FULL SYNC] Step 3/3: Indexing all issues from all projects")
+            
+            total_issues = 0
+            total_indexed = 0
+            total_failed = 0
+            all_errors = []
+            
+            for i, project_id in enumerate(projects, 1):
+                logger.info(f"[FULL SYNC] Processing project {i}/{project_count}: {project_id}")
+                
+                try:
+                    result = self.index_project_issues(project_id=str(project_id), batch_size=50)
+                    
+                    total_issues += result['total']
+                    total_indexed += result['indexed']
+                    total_failed += result['failed']
+                    
+                    if result.get('errors'):
+                        all_errors.extend(result['errors'])
+                    
+                    logger.info(
+                        f"[FULL SYNC] Project {i}/{project_count} complete: "
+                        f"{result['indexed']}/{result['total']} indexed"
+                    )
+                    
+                except Exception as e:
+                    logger.error(f"[FULL SYNC] Failed to process project {project_id}: {str(e)}")
+                    all_errors.append({
+                        "project_id": str(project_id),
+                        "error": f"Project indexing failed: {str(e)}"
+                    })
+            
+            # Calculate stats
+            duration = round(time.time() - start_time, 2)
+            success_rate = round((total_indexed / total_issues * 100), 1) if total_issues > 0 else 0
+            
+            logger.warning("="*80)
+            logger.warning(
+                f"[FULL SYNC] COMPLETE: {total_indexed}/{total_issues} issues indexed "
+                f"({success_rate}%) in {duration}s"
+            )
+            logger.warning(f"[FULL SYNC] Projects: {project_count}, Failed issues: {total_failed}")
+            logger.warning("="*80)
+            
+            return {
+                "status": "success",
+                "projects_processed": project_count,
+                "total_issues": total_issues,
+                "indexed": total_indexed,
+                "failed": total_failed,
+                "success_rate": success_rate,
+                "duration_seconds": duration,
+                "errors": all_errors[:50],  # Limit to first 50 errors
+                "total_errors": len(all_errors),
+            }
+            
+        except Exception as e:
+            duration = round(time.time() - start_time, 2)
+            logger.exception(f"[FULL SYNC] CRITICAL ERROR after {duration}s: {str(e)}")
             raise
 
     def semantic_search(
@@ -396,9 +505,48 @@ class RAGService:
         
         return "\n".join(parts)
 
+    def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize metadata for Pinecone compatibility.
+        
+        Pinecone REJECTS null values in metadata fields.
+        This method converts null → appropriate default values.
+        
+        Args:
+            metadata: Raw metadata dictionary
+            
+        Returns:
+            Sanitized metadata with no null values
+        """
+        defaults = {
+            "assignee_id": "unassigned",
+            "assignee_name": "Unassigned",
+            "reporter_id": "unknown",
+            "reporter_name": "Unknown",
+        }
+        
+        sanitized = {}
+        for key, value in metadata.items():
+            if value is None:
+                # Use intelligent default or empty string
+                sanitized[key] = defaults.get(key, "")
+                logger.debug(f"[SANITIZE] Converted null to default: {key} = '{sanitized[key]}'")
+            elif isinstance(value, (list, dict)):
+                # Convert complex types to string if not empty
+                sanitized[key] = str(value) if value else ""
+            else:
+                sanitized[key] = value
+        
+        return sanitized
+    
     def _prepare_metadata(self, issue: Issue) -> Dict[str, Any]:
-        """Prepare metadata for Pinecone storage."""
-        return {
+        """
+        Prepare metadata for Pinecone storage.
+        
+        NOTE: All null values will be sanitized before upsert to prevent
+        Pinecone rejection errors.
+        """
+        metadata = {
             "issue_id": str(issue.id),
             "project_id": str(issue.project_id),
             "title": issue.title,
@@ -406,9 +554,15 @@ class RAGService:
             "status": issue.status.name,
             "priority": issue.priority,
             "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
+            "assignee_name": issue.assignee.get_full_name() if issue.assignee else None,
+            "reporter_id": str(issue.reporter_id) if issue.reporter_id else None,
+            "reporter_name": issue.reporter.get_full_name() if issue.reporter else None,
             "created_at": issue.created_at.isoformat(),
             "updated_at": issue.updated_at.isoformat(),
         }
+        
+        # Sanitize to remove null values (Pinecone requirement)
+        return self._sanitize_metadata(metadata)
 
     def _calculate_hash(self, text: str) -> str:
         """Calculate SHA-256 hash of text content."""

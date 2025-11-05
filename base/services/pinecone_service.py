@@ -266,6 +266,28 @@ class PineconeService:
             logger.error(f"Failed to delete by filter: {str(e)}")
             raise
 
+    def clear_namespace(self, namespace: str = "issues") -> bool:
+        """
+        Clear all vectors in a namespace.
+        
+        Args:
+            namespace: Namespace to clear (default: "issues")
+            
+        Returns:
+            True if successful
+            
+        Raises:
+            Exception: If clear fails
+        """
+        try:
+            logger.warning(f"[PINECONE] Clearing namespace '{namespace}' - ALL VECTORS WILL BE DELETED")
+            self.index.delete(delete_all=True, namespace=namespace)
+            logger.info(f"[PINECONE] Namespace '{namespace}' cleared successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to clear namespace '{namespace}': {str(e)}")
+            raise
+    
     def get_index_stats(self, namespace: str = "") -> Dict[str, Any]:
         """
         Get statistics about the index.

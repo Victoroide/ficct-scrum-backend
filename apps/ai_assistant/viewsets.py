@@ -375,6 +375,48 @@ class AIAssistantViewSet(viewsets.ViewSet):
 
     @extend_schema(
         tags=["AI Assistant"],
+        summary="Full Pinecone Synchronization",
+        description=(
+            "⚠️ DESTRUCTIVE: Clears Pinecone 'issues' namespace and reindexes ALL active issues from DB. "
+            "Use for initial setup or full resync after schema changes."
+        ),
+        request={
+            "type": "object",
+            "properties": {
+                "clear_existing": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Clear existing vectors before sync (default: true)"
+                }
+            }
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="sync-all")
+    @handle_ai_service_unavailable
+    def sync_all_issues(self, request):
+        """
+        Full synchronization: Clear Pinecone and reindex ALL issues.
+        
+        This operation:
+        1. Clears all vectors in 'issues' namespace
+        2. Reindexes all active issues from all projects
+        3. Updates IssueEmbedding records
+        
+        ⚠️ WARNING: This is a DESTRUCTIVE operation that clears existing data.
+        """
+        clear_existing = request.data.get("clear_existing", True)
+        
+        logger.warning(
+            f"[SYNC-ALL] User {request.user.email} initiated full Pinecone sync "
+            f"(clear_existing={clear_existing})"
+        )
+        
+        result = self.rag_service.sync_all_issues(clear_existing=clear_existing)
+        
+        return Response(result, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        tags=["AI Assistant"],
         summary="Suggest solutions",
         description="Recommend solutions based on similar past issues",
     )
