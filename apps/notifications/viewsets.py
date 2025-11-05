@@ -213,11 +213,27 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
 
     @extend_schema(
         tags=["Notifications"],
-        summary="Get notification preferences",
-        description="Get current user's notification preferences (auto-creates if doesn't exist)",
+        summary="Get or Update notification preferences",
+        description="GET: Retrieve current user's preferences. PATCH: Partially update preferences.",
+        request=NotificationPreferenceSerializer,
+        responses={
+            200: NotificationPreferenceSerializer,
+            400: {"type": "object", "properties": {"errors": {"type": "object"}}},
+        },
     )
     def list(self, request):
-        """Get user preferences."""
+        """
+        Get user preferences (GET) or update them (PATCH).
+        
+        Handles both GET and PATCH on /preferences/ endpoint.
+        This is needed because NotificationPreference is OneToOne with User,
+        so there's no pk in the URL - we always work with current user's preferences.
+        """
+        # Handle PATCH request to /preferences/ (partial update)
+        if request.method == 'PATCH':
+            return self._update_preferences(request, partial=True)
+        
+        # Handle GET request
         try:
             preferences, created = NotificationPreference.objects.get_or_create(
                 user=request.user,
@@ -240,8 +256,8 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
     
     @extend_schema(
         tags=["Notifications"],
-        summary="Update notification preferences (PATCH)",
-        description="Partially update current user's notification preferences via PATCH /preferences/",
+        summary="Create/Update notification preferences (POST)",
+        description="Create or update current user's notification preferences via POST /preferences/",
         request=NotificationPreferenceSerializer,
         responses={
             200: NotificationPreferenceSerializer,
@@ -250,9 +266,9 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
     )
     def create(self, request):
         """
-        Handle POST/PATCH to /preferences/ endpoint.
+        Handle POST to /preferences/ endpoint.
         
-        Since this is OneToOne with user, treat POST/PATCH as update operation.
+        Since this is OneToOne with user, treat POST as update operation.
         """
         return self._update_preferences(request, partial=True)
     

@@ -145,8 +145,29 @@ class AzureOpenAIService:
                 "temperature": temperature,
             }
             
+            # Handle max_tokens parameter based on model type
+            # O-series models (o1, o1-mini, o1-preview, o4-mini) use max_completion_tokens
+            # Traditional models (gpt-4, gpt-3.5-turbo, gpt-4-turbo) use max_tokens
+            # Note: gpt-4o is NOT o-series; it's GPT-4 optimized and uses max_tokens
             if max_tokens:
-                params["max_tokens"] = max_tokens
+                model_name = self.chat_deployment.lower()
+                
+                # Check if it's an o-series model (starts with 'o' followed by digit)
+                # Examples: o1, o1-mini, o1-preview, o4-mini
+                # NOT: gpt-4o (this is GPT-4 optimized, not o-series)
+                is_o_series = (
+                    model_name.startswith('o') and 
+                    len(model_name) > 1 and 
+                    model_name[1].isdigit() and
+                    not model_name.startswith('gpt')
+                )
+                
+                if is_o_series:
+                    params["max_completion_tokens"] = max_tokens
+                    logger.debug(f"[OPENAI] Using max_completion_tokens={max_tokens} for o-series model: {self.chat_deployment}")
+                else:
+                    params["max_tokens"] = max_tokens
+                    logger.debug(f"[OPENAI] Using max_tokens={max_tokens} for model: {self.chat_deployment}")
             
             if functions:
                 params["functions"] = functions
