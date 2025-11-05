@@ -92,16 +92,16 @@ class AIAssistantViewSet(viewsets.ViewSet):
     def index_issue(self, request, pk=None):
         """Index single issue in Pinecone."""
         force_reindex = request.data.get("force_reindex", False)
-        success = self.rag_service.index_issue(issue_id=pk, force_reindex=force_reindex)
+        success, error_msg = self.rag_service.index_issue(issue_id=pk, force_reindex=force_reindex)
 
         if success:
             return Response(
-                {"message": "Issue indexed successfully", "issue_id": pk},
+                {"status": "success", "message": "Issue indexed successfully", "issue_id": pk},
                 status=status.HTTP_200_OK,
             )
         else:
             return Response(
-                {"error": "Failed to index issue"},
+                {"status": "error", "error": error_msg or "Failed to index issue", "issue_id": pk},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -232,6 +232,119 @@ class AIAssistantViewSet(viewsets.ViewSet):
             )
 
         return Response({"similar_issues": similar}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["AI Assistant"],
+        summary="Pinecone diagnostics",
+        description="Get Pinecone index statistics and connection status for debugging",
+        responses={
+            200: OpenApiResponse(description="Pinecone diagnostics information"),
+            503: OpenApiResponse(description="AI service unavailable"),
+        },
+    )
+    @action(detail=False, methods=["get"], url_path="pinecone-diagnostics")
+    @handle_ai_service_unavailable
+    def pinecone_diagnostics(self, request):
+        """
+        Get Pinecone diagnostics information.
+        
+        Returns connection status, index stats, and embedding model info.
+        Useful for debugging indexing issues.
+        """
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            diagnostics = {
+                "status": "checking",
+                "pinecone": {},
+                "azure_openai": {},
+                "errors": [],
+            }
+            
+            # Test Pinecone connection
+            try:
+                logger.info("[DIAGNOSTICS] Testing Pinecone connection...")
+                stats = self.rag_service.pinecone.get_index_stats()
+                
+                diagnostics["pinecone"] = {
+                    "status": "connected",
+                    "index_name": self.rag_service.pinecone.index_name,
+                    "dimension": stats.get("dimension"),
+                    "total_vectors": stats.get("total_vector_count"),
+                    "index_fullness": stats.get("index_fullness"),
+                    "namespaces": stats.get("namespaces", {}),
+                    "environment": self.rag_service.pinecone.environment,
+                    "metric": self.rag_service.pinecone.metric,
+                }
+                logger.info(f"[DIAGNOSTICS] Pinecone connected: {stats.get('total_vector_count')} vectors")
+            except Exception as e:
+                error_msg = f"Pinecone connection failed: {type(e).__name__}: {str(e)}"
+                diagnostics["pinecone"]["status"] = "error"
+                diagnostics["pinecone"]["error"] = str(e)
+                diagnostics["errors"].append(error_msg)
+                logger.error(f"[DIAGNOSTICS] {error_msg}")
+            
+            # Test Azure OpenAI
+            try:
+                logger.info("[DIAGNOSTICS] Testing Azure OpenAI embedding generation...")
+                test_text = "This is a test sentence for embedding generation."
+                embedding = self.rag_service.openai.generate_embedding(test_text)
+                
+                diagnostics["azure_openai"] = {
+                    "status": "connected",
+                    "embedding_deployment": self.rag_service.openai.embedding_deployment,
+                    "embedding_dimension": len(embedding),
+                    "endpoint": self.rag_service.openai.endpoint,
+                    "api_version": self.rag_service.openai.api_version,
+                }
+                logger.info(f"[DIAGNOSTICS] Azure OpenAI connected: embedding dimension {len(embedding)}")
+                
+                # Verify dimension matches Pinecone
+                if diagnostics["pinecone"].get("dimension"):
+                    if len(embedding) != diagnostics["pinecone"]["dimension"]:
+                        error_msg = (
+                            f"DIMENSION MISMATCH: Azure OpenAI returns {len(embedding)} dimensions "
+                            f"but Pinecone expects {diagnostics['pinecone']['dimension']}"
+                        )
+                        diagnostics["errors"].append(error_msg)
+                        logger.error(f"[DIAGNOSTICS] {error_msg}")
+                    
+            except Exception as e:
+                error_msg = f"Azure OpenAI test failed: {type(e).__name__}: {str(e)}"
+                diagnostics["azure_openai"]["status"] = "error"
+                diagnostics["azure_openai"]["error"] = str(e)
+                diagnostics["errors"].append(error_msg)
+                logger.error(f"[DIAGNOSTICS] {error_msg}")
+            
+            # Overall status
+            if not diagnostics["errors"]:
+                diagnostics["status"] = "healthy"
+            else:
+                diagnostics["status"] = "error"
+            
+            # Add recommendation if errors exist
+            if diagnostics["errors"]:
+                diagnostics["recommendations"] = [
+                    "Check .env file for correct PINECONE_API_KEY and AZURE_OPENAI_API_KEY",
+                    "Verify Pinecone index exists and dimension matches Azure OpenAI model",
+                    "Check server logs for detailed error messages",
+                    "Ensure Pinecone index dimension is 1536 for text-embedding-3-small model",
+                ]
+            
+            logger.info(f"[DIAGNOSTICS] Complete: status={diagnostics['status']}, errors={len(diagnostics['errors'])}")
+            
+            return Response(diagnostics, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.exception(f"[DIAGNOSTICS] Critical error: {str(e)}")
+            return Response(
+                {
+                    "status": "error",
+                    "error": f"Diagnostics failed: {type(e).__name__}: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @extend_schema(
         tags=["AI Assistant"],

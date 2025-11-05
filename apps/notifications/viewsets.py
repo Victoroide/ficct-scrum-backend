@@ -192,28 +192,24 @@ class NotificationViewSet(viewsets.ModelViewSet):
         )
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Notifications"],
-        summary="Get notification preferences",
-        description="Get current user's notification preferences",
-    ),
-    update=extend_schema(
-        tags=["Notifications"],
-        summary="Update notification preferences",
-        description="Update user's notification preferences",
-    ),
-    partial_update=extend_schema(
-        tags=["Notifications"],
-        summary="Partially update notification preferences",
-        description="Partially update user's notification preferences",
-    ),
-)
 class NotificationPreferenceViewSet(viewsets.ViewSet):
-    """User notification preferences management."""
+    """
+    User notification preferences management.
+    
+    NotificationPreference has OneToOne relationship with User,
+    so all operations use authenticated user's preferences (no pk needed).
+    
+    Endpoints:
+    - GET /preferences/ - Get current user's preferences
+    - PUT /preferences/update/ - Full update
+    - PATCH /preferences/update/ - Partial update
+    """
 
     permission_classes = [IsAuthenticated]
     serializer_class = NotificationPreferenceSerializer
+    
+    # Enable PATCH on list endpoint
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
     @extend_schema(
         tags=["Notifications"],
@@ -241,24 +237,36 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
                 {"error": "Failed to get preferences"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
+    
     @extend_schema(
         tags=["Notifications"],
-        summary="Update notification preferences",
-        description="Update user's notification preferences (supports partial updates)",
+        summary="Update notification preferences (PATCH)",
+        description="Partially update current user's notification preferences via PATCH /preferences/",
+        request=NotificationPreferenceSerializer,
+        responses={
+            200: NotificationPreferenceSerializer,
+            400: {"type": "object", "properties": {"errors": {"type": "object"}}},
+        },
     )
-    def update(self, request, pk=None):
-        """Update user preferences."""
+    def create(self, request):
+        """
+        Handle POST/PATCH to /preferences/ endpoint.
+        
+        Since this is OneToOne with user, treat POST/PATCH as update operation.
+        """
+        return self._update_preferences(request, partial=True)
+    
+    def _update_preferences(self, request, partial=True):
+        """Internal method to update preferences."""
         try:
             preferences, created = NotificationPreference.objects.get_or_create(
                 user=request.user
             )
             
-            # Use serializer for validation and update
             serializer = NotificationPreferenceSerializer(
                 preferences, 
                 data=request.data, 
-                partial=True  # Allow partial updates
+                partial=partial
             )
             
             if serializer.is_valid():
@@ -282,10 +290,60 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
                 {"error": "Failed to update preferences"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-    
-    def partial_update(self, request, pk=None):
-        """Alias for update (both support partial updates)."""
-        return self.update(request, pk)
+
+    @extend_schema(
+        tags=["Notifications"],
+        summary="Update notification preferences",
+        description="Update current user's notification preferences (supports partial updates via PATCH)",
+        request=NotificationPreferenceSerializer,
+        responses={
+            200: NotificationPreferenceSerializer,
+            400: {"type": "object", "properties": {"errors": {"type": "object"}}},
+        },
+    )
+    @action(detail=False, methods=["put", "patch"], url_path="update")
+    def update_preferences(self, request):
+        """
+        Update user preferences.
+        
+        Supports both PUT (full update) and PATCH (partial update).
+        Works on /api/v1/notifications/preferences/update/ endpoint.
+        """
+        try:
+            preferences, created = NotificationPreference.objects.get_or_create(
+                user=request.user
+            )
+            
+            # Use serializer for validation and update
+            # partial=True allows PATCH to update only provided fields
+            is_partial = request.method == "PATCH"
+            serializer = NotificationPreferenceSerializer(
+                preferences, 
+                data=request.data, 
+                partial=is_partial
+            )
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        "message": "Preferences updated successfully",
+                        "preferences": serializer.data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            
+            return Response(
+                {"errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        except Exception as e:
+            logger.exception(f"Error updating preferences: {str(e)}")
+            return Response(
+                {"error": "Failed to update preferences"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class SlackIntegrationViewSet(viewsets.ViewSet):

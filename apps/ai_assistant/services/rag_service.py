@@ -51,7 +51,7 @@ class RAGService:
                 detail=self.error_message or "RAG service is not available"
             )
 
-    def index_issue(self, issue_id: str, force_reindex: bool = False) -> bool:
+    def index_issue(self, issue_id: str, force_reindex: bool = False) -> tuple[bool, str]:
         """
         Index a single issue in Pinecone.
 
@@ -60,41 +60,49 @@ class RAGService:
             force_reindex: Force reindexing even if already indexed
 
         Returns:
-            True if successful
+            Tuple of (success: bool, error_message: str)
         """
         self._check_available()
         try:
+            logger.info(f"[INDEX] Starting index for issue {issue_id}")
             issue = Issue.objects.select_related(
                 "project", "issue_type", "status", "assignee", "reporter"
             ).get(id=issue_id)
             
+            logger.debug(f"[INDEX] Issue loaded: {issue.title}")
+            
             # Prepare text for embedding
             text_content = self._prepare_issue_text(issue)
             content_hash = self._calculate_hash(text_content)
+            logger.debug(f"[INDEX] Text prepared, length: {len(text_content)} chars")
             
             # Check if already indexed with same content
             existing_embedding = IssueEmbedding.objects.filter(issue_id=issue_id).first()
             
             if existing_embedding and not force_reindex:
                 if existing_embedding.content_hash == content_hash:
-                    logger.debug(f"Issue {issue_id} already indexed with same content")
-                    return True
+                    logger.debug(f"[INDEX] Issue {issue_id} already indexed with same content, skipping")
+                    return True, "Already indexed"
             
             # Generate embedding
-            logger.info(f"Generating embedding for issue {issue_id}")
+            logger.info(f"[OPENAI] Generating embedding for issue {issue_id}...")
             embedding_vector = self.openai.generate_embedding(text_content)
+            logger.info(f"[OPENAI] Embedding generated successfully, dimension: {len(embedding_vector)}")
             
             # Prepare metadata
             metadata = self._prepare_metadata(issue)
+            logger.debug(f"[INDEX] Metadata prepared: {len(metadata)} fields")
             
             # Upsert to Pinecone
             vector_id = f"issue_{issue_id}"
+            logger.info(f"[PINECONE] Upserting vector {vector_id}...")
             self.pinecone.upsert_vector(
                 vector_id=vector_id,
                 vector=embedding_vector,
                 metadata=metadata,
                 namespace="issues",
             )
+            logger.info(f"[PINECONE] Upsert successful for {vector_id}")
             
             # Update or create embedding record
             IssueEmbedding.objects.update_or_create(
@@ -109,12 +117,19 @@ class RAGService:
                 },
             )
             
-            logger.info(f"Successfully indexed issue {issue_id}")
-            return True
-            
+            logger.info(f"[INDEX] ✅ Successfully indexed issue {issue_id}")
+            return True, ""
+        
+        except Issue.DoesNotExist:
+            error_msg = f"Issue {issue_id} not found in database"
+            logger.error(f"[INDEX] ❌ {error_msg}")
+            return False, error_msg
+        
         except Exception as e:
-            logger.exception(f"Error indexing issue {issue_id}: {str(e)}")
-            return False
+            error_type = type(e).__name__
+            error_msg = f"{error_type}: {str(e)}"
+            logger.exception(f"[INDEX] ❌ Error indexing issue {issue_id}: {error_msg}")
+            return False, error_msg
 
     def index_project_issues(
         self, project_id: str, batch_size: int = 50
@@ -127,10 +142,12 @@ class RAGService:
             batch_size: Number of issues to process per batch
 
         Returns:
-            Dictionary with indexing statistics
+            Dictionary with indexing statistics including error details
         """
         self._check_available()
         try:
+            logger.info(f"[BATCH INDEX] Starting for project {project_id}")
+            
             issues = Issue.objects.filter(
                 project_id=project_id, is_active=True
             ).select_related("project", "issue_type", "status")
@@ -138,31 +155,60 @@ class RAGService:
             total = issues.count()
             indexed = 0
             failed = 0
+            errors = []  # Track individual errors
             
-            logger.info(f"Starting batch indexing for project {project_id}: {total} issues")
+            logger.info(f"[BATCH INDEX] Found {total} active issues to index")
             
             for i, issue in enumerate(issues, 1):
+                logger.debug(f"[BATCH INDEX] Processing issue {i}/{total}: {issue.id}")
+                
                 try:
-                    if self.index_issue(str(issue.id)):
+                    success, error_msg = self.index_issue(str(issue.id))
+                    
+                    if success:
                         indexed += 1
+                        logger.debug(f"[BATCH INDEX] ✅ Issue {i}/{total} indexed successfully")
                     else:
                         failed += 1
+                        error_detail = {
+                            "issue_id": str(issue.id),
+                            "issue_title": issue.title,
+                            "error": error_msg or "Unknown error",
+                        }
+                        errors.append(error_detail)
+                        logger.warning(f"[BATCH INDEX] ❌ Issue {i}/{total} failed: {error_msg}")
+                        
                 except Exception as e:
-                    logger.error(f"Failed to index issue {issue.id}: {str(e)}")
                     failed += 1
+                    error_type = type(e).__name__
+                    error_detail = {
+                        "issue_id": str(issue.id),
+                        "issue_title": issue.title,
+                        "error": f"{error_type}: {str(e)}",
+                    }
+                    errors.append(error_detail)
+                    logger.error(f"[BATCH INDEX] ❌ Exception for issue {i}/{total}: {error_type}: {str(e)}")
                 
                 if i % batch_size == 0:
-                    logger.info(f"Progress: {i}/{total} issues processed")
+                    logger.info(f"[BATCH INDEX] Progress: {i}/{total} processed, {indexed} indexed, {failed} failed")
+            
+            success_rate = round((indexed / total * 100), 1) if total > 0 else 0
+            
+            logger.info(
+                f"[BATCH INDEX] Complete: {indexed}/{total} indexed ({success_rate}%), "
+                f"{failed} failed"
+            )
             
             return {
                 "total": total,
                 "indexed": indexed,
                 "failed": failed,
-                "success_rate": (indexed / total * 100) if total > 0 else 0,
+                "success_rate": success_rate,
+                "errors": errors,  # Now includes detailed error information
             }
             
         except Exception as e:
-            logger.exception(f"Error in batch indexing: {str(e)}")
+            logger.exception(f"[BATCH INDEX] Critical error: {str(e)}")
             raise
 
     def semantic_search(

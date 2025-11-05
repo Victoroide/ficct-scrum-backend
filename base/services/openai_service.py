@@ -32,25 +32,42 @@ class AzureOpenAIService:
             azure_endpoint=self.endpoint,
         )
 
-    def generate_embedding(self, text: str) -> List[float]:
+    def generate_embedding(self, text: str, dimensions: int = 1536) -> List[float]:
         """
         Generate embedding vector for given text.
 
         Args:
             text: Input text to embed
+            dimensions: Embedding dimensions (default 1536)
+                       - text-embedding-3-small supports 512 or 1536
+                       - text-embedding-3-large supports 256, 1024, or 3072
+                       - text-embedding-ada-002 is always 1536 (parameter ignored)
 
         Returns:
-            List of floats representing the embedding vector (1536 dimensions)
+            List of floats representing the embedding vector
 
         Raises:
             OpenAIError: If the API call fails
         """
         try:
-            response = self.client.embeddings.create(
-                input=text,
-                model=self.embedding_deployment,
-            )
-            return response.data[0].embedding
+            # Build parameters
+            params = {
+                "input": text,
+                "model": self.embedding_deployment,
+            }
+            
+            # Add dimensions parameter for newer models (v3 models support it)
+            # Ada-002 doesn't support this parameter but always returns 1536
+            if "text-embedding-3" in self.embedding_deployment:
+                params["dimensions"] = dimensions
+                logger.debug(f"Requesting embedding with {dimensions} dimensions")
+            
+            response = self.client.embeddings.create(**params)
+            embedding = response.data[0].embedding
+            
+            logger.debug(f"Generated embedding: {len(embedding)} dimensions")
+            return embedding
+            
         except OpenAIError as e:
             logger.error(f"Azure OpenAI embedding error: {str(e)}")
             raise
@@ -58,12 +75,13 @@ class AzureOpenAIService:
             logger.exception("Unexpected error generating embedding")
             raise OpenAIError(f"Failed to generate embedding: {str(e)}")
 
-    def generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def generate_batch_embeddings(self, texts: List[str], dimensions: int = 1536) -> List[List[float]]:
         """
         Generate embeddings for multiple texts in a single API call.
 
         Args:
             texts: List of input texts
+            dimensions: Embedding dimensions (default 1536)
 
         Returns:
             List of embedding vectors
@@ -72,11 +90,23 @@ class AzureOpenAIService:
             OpenAIError: If the API call fails
         """
         try:
-            response = self.client.embeddings.create(
-                input=texts,
-                model=self.embedding_deployment,
-            )
-            return [item.embedding for item in response.data]
+            # Build parameters
+            params = {
+                "input": texts,
+                "model": self.embedding_deployment,
+            }
+            
+            # Add dimensions parameter for newer models
+            if "text-embedding-3" in self.embedding_deployment:
+                params["dimensions"] = dimensions
+                logger.debug(f"Requesting batch embeddings with {dimensions} dimensions")
+            
+            response = self.client.embeddings.create(**params)
+            embeddings = [item.embedding for item in response.data]
+            
+            logger.debug(f"Generated {len(embeddings)} embeddings, each with {len(embeddings[0]) if embeddings else 0} dimensions")
+            return embeddings
+            
         except OpenAIError as e:
             logger.error(f"Azure OpenAI batch embedding error: {str(e)}")
             raise
