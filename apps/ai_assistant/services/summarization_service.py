@@ -51,7 +51,7 @@ class SummarizationService:
                     return {"summary": cached.summary_text, "cached": True}
             
             # Get all comments
-            comments = issue.comments.select_related("user").order_by("created_at")
+            comments = issue.comments.select_related("author").order_by("created_at")
             
             if not comments.exists():
                 return {
@@ -62,7 +62,7 @@ class SummarizationService:
             # Build discussion text
             discussion_text = f"Issue: {issue.title}\n\n"
             for comment in comments:
-                user_name = comment.user.get_full_name() or comment.user.username
+                user_name = comment.author.get_full_name() or comment.author.username
                 discussion_text += f"{user_name}: {comment.content}\n\n"
             
             # Generate summary
