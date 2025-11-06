@@ -202,8 +202,12 @@ class SummarizationService:
             {"role": "user", "content": content},
         ]
         
+        # For o4-mini: Use higher token budget to prevent empty summaries
         response = self.openai.chat_completion(
-            messages, temperature=0.3, max_tokens=500
+            messages,
+            temperature=0.3,  # Excluded automatically for o-series models
+            max_tokens=8000,  # Increased from 500 to ensure sufficient output space
+            reasoning_effort="low",  # Optimize for output over reasoning
         )
         
         return response["content"]

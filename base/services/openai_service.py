@@ -181,14 +181,16 @@ class AzureOpenAIService:
                 logger.info(f"[OPENAI] Detected o-series model: {self.chat_deployment}, using restricted parameters")
                 
                 # REQUIRED: max_completion_tokens (not max_tokens)
-                # Default: 4096 if not specified, recommended range: 2048-100000
-                token_limit = max_tokens if max_tokens else 4096
+                # Default: 16000 for o-series (increased from 4096 to prevent token exhaustion)
+                # Reasoning models need high budgets: reasoning + output tokens
+                token_limit = max_tokens if max_tokens else 16000
                 params["max_completion_tokens"] = token_limit
                 logger.debug(f"[OPENAI] max_completion_tokens={token_limit}")
                 
                 # OPTIONAL: reasoning_effort controls reasoning depth and token usage
-                # Values: "low" (faster), "medium" (balanced), "high" (thorough)
-                effort = reasoning_effort if reasoning_effort else "medium"
+                # Values: "low" (faster, less reasoning), "medium" (balanced), "high" (thorough)
+                # Default: "low" for RAG queries to maximize output space
+                effort = reasoning_effort if reasoning_effort else "low"
                 params["reasoning_effort"] = effort
                 logger.debug(f"[OPENAI] reasoning_effort={effort}")
                 
@@ -225,15 +227,37 @@ class AzureOpenAIService:
             
             response = self.client.chat.completions.create(**params)
             
+            # Log completion details (especially important for o-series debugging)
+            finish_reason = response.choices[0].finish_reason
+            usage = response.usage
+            logger.info(f"[OPENAI] Completion finished: reason={finish_reason}, tokens={usage.total_tokens}")
+            
+            # For o-series models, log reasoning/output token breakdown
+            if is_o_series and hasattr(usage, 'completion_tokens_details'):
+                details = usage.completion_tokens_details
+                if hasattr(details, 'reasoning_tokens'):
+                    logger.debug(
+                        f"[OPENAI] Token breakdown: "
+                        f"reasoning={details.reasoning_tokens}, "
+                        f"output={getattr(details, 'accepted_prediction_tokens', 0) or usage.completion_tokens - details.reasoning_tokens}"
+                    )
+            
+            # Warning if budget exhausted (empty response likely)
+            if finish_reason == "length":
+                logger.warning(
+                    f"[OPENAI] Token budget exhausted (finish_reason='length'). "
+                    f"Response may be truncated or empty. Consider increasing max_completion_tokens."
+                )
+            
             return {
                 "content": response.choices[0].message.content,
                 "role": response.choices[0].message.role,
                 "function_call": getattr(response.choices[0].message, "function_call", None),
-                "finish_reason": response.choices[0].finish_reason,
+                "finish_reason": finish_reason,
                 "usage": {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                    "total_tokens": usage.total_tokens,
                 },
             }
         except OpenAIError as e:

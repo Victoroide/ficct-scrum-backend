@@ -72,10 +72,13 @@ class AssistantService:
             messages = self._build_messages(question, context, conversation_history)
             
             # Step 4: Get response from Azure OpenAI
+            # For o4-mini: High max_tokens (16000) ensures space for both reasoning + output
+            # reasoning_effort='low' reduces reasoning overhead, maximizes output tokens
             response = self.openai.chat_completion(
                 messages=messages,
-                temperature=0.7,
-                max_tokens=500,
+                temperature=0.7,  # Excluded automatically for o-series models
+                max_tokens=16000,  # High budget to prevent empty responses
+                reasoning_effort="low",  # Optimize for output over exhaustive reasoning
             )
             
             # Step 5: Prepare response with sources
@@ -148,7 +151,13 @@ class AssistantService:
                 },
             ]
             
-            response = self.openai.chat_completion(messages, temperature=0.5)
+            # For o4-mini: Use high token budget and low reasoning effort
+            response = self.openai.chat_completion(
+                messages=messages,
+                temperature=0.5,  # Excluded automatically for o-series models
+                max_tokens=16000,  # Ensure sufficient space for suggestions
+                reasoning_effort="low",  # Optimize for output
+            )
             
             return {
                 "suggestions": response["content"],
