@@ -18,6 +18,7 @@ from apps.ml.services import (
     RecommendationService,
 )
 from apps.projects.permissions import CanAccessProject
+from apps.reporting.services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +265,155 @@ class MLViewSet(viewsets.ViewSet):
             logger.exception(f"[ML] Error detecting sprint risks for {pk}: {str(e)}")
             return Response(
                 {"error": "Failed to detect sprint risks.", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @extend_schema(
+        tags=["Machine Learning"],
+        summary="Generate AI Project Summary Report",
+        description="Generate comprehensive AI-powered project report with completion %, velocity, and risk score",
+        parameters=[
+            OpenApiParameter(
+                name="project_id",
+                type=str,
+                location=OpenApiParameter.PATH,
+                description="Project UUID",
+            )
+        ],
+        responses={
+            200: {
+                "description": "Project summary generated successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "completion": 37.5,
+                            "velocity": 15.3,
+                            "risk_score": 23.5,
+                            "project_id": "77cc72d2-1911-4d6c-a6cc-bfb899ba96cd",
+                            "generated_at": "2025-11-16T01:00:00Z"
+                        }
+                    }
+                },
+            },
+            404: OpenApiResponse(description="Project not found"),
+        },
+    )
+    @action(
+        detail=True,
+        methods=["post", "get"],
+        url_path="project-summary",
+        url_name="project-summary"
+    )
+    def project_summary(self, request, pk=None):
+        """
+        Generate AI Project Summary Report with key metrics.
+        
+        Consolidates:
+        - Completion % (from issues)
+        - Velocity (from sprints)
+        - Risk Score (from ML anomalies + project health)
+        """
+        try:
+            from apps.projects.models import Project, Issue, Sprint
+            from django.db.models import Sum, Count, Q
+            from django.db.models.functions import Coalesce
+            from django.utils import timezone
+            
+            logger.info(f"[ML] Generating project summary for {pk}")
+            
+            # Verify project exists
+            try:
+                project = Project.objects.get(id=pk)
+                self.check_object_permissions(request, project)
+            except Project.DoesNotExist:
+                return Response(
+                    {"error": "Project not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            
+            # Calculate Completion %
+            total_issues = Issue.objects.filter(project=project, is_active=True).count()
+            completed_issues = Issue.objects.filter(
+                project=project, is_active=True, status__category="done"
+            ).count()
+            
+            completion = round((completed_issues / total_issues) * 100, 2) if total_issues > 0 else 0.0
+            
+            # Calculate Velocity (average from active + completed sprints)
+            sprints = Sprint.objects.filter(
+                project=project, status__in=["active", "completed"]
+            ).order_by("-end_date")[:5]
+            
+            velocities = []
+            for sprint in sprints:
+                completed_points = sprint.issues.filter(
+                    status__category="done", is_active=True
+                ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
+                
+                if completed_points > 0:
+                    velocities.append(completed_points)
+            
+            velocity = round(sum(velocities) / len(velocities), 2) if velocities else 0.0
+            
+            # Calculate Risk Score
+            risk_score = 0.0
+            
+            # Factor 1: Unassigned issues (max 30 points)
+            unassigned_count = Issue.objects.filter(
+                project=project, is_active=True, assignee__isnull=True
+            ).count()
+            if total_issues > 0:
+                risk_score += min((unassigned_count / total_issues) * 100, 30)
+            
+            # Factor 2: Overdue issues (max 40 points)
+            overdue_issues = Issue.objects.filter(
+                project=project,
+                is_active=True,
+                sprint__end_date__lt=timezone.now().date(),
+                status__category__in=["todo", "in_progress"]
+            ).count()
+            if total_issues > 0:
+                risk_score += min((overdue_issues / total_issues) * 100, 40)
+            
+            # Factor 3: Velocity decline (max 30 points)
+            if len(velocities) >= 2:
+                recent_velocity = sum(velocities[:2]) / 2
+                older_velocity = sum(velocities[2:]) / len(velocities[2:]) if len(velocities) > 2 else recent_velocity
+                
+                if older_velocity > 0:
+                    velocity_change = ((recent_velocity - older_velocity) / older_velocity) * 100
+                    if velocity_change < -20:  # Velocity dropped > 20%
+                        risk_score += min(abs(velocity_change), 30)
+            
+            risk_score = min(round(risk_score, 2), 100.0)
+            
+            logger.info(
+                f"[ML] Project summary generated: completion={completion}%, "
+                f"velocity={velocity}, risk_score={risk_score}"
+            )
+            
+            return Response(
+                {
+                    "completion": completion,
+                    "velocity": velocity,
+                    "risk_score": risk_score,
+                    "project_id": str(pk),
+                    "generated_at": timezone.now().isoformat(),
+                    "metrics_breakdown": {
+                        "total_issues": total_issues,
+                        "completed_issues": completed_issues,
+                        "sprints_analyzed": len(velocities),
+                        "unassigned_issues": unassigned_count,
+                        "overdue_issues": overdue_issues,
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger.exception(f"[ML] Error generating project summary for {pk}: {str(e)}")
+            return Response(
+                {"error": "Failed to generate project summary.", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
