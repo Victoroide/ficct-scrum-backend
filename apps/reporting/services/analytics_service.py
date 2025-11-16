@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import Dict, List
 
 from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 
@@ -13,27 +14,21 @@ class AnalyticsService:
     def generate_velocity_chart(self, project, num_sprints: int = 5) -> Dict:
         from apps.projects.models import Sprint
 
-        sprints = Sprint.objects.filter(project=project, status="completed").order_by(
-            "-end_date"
-        )[:num_sprints]
+        sprints = Sprint.objects.filter(
+            project=project, status__in=["active", "completed"]
+        ).order_by("-end_date")[:num_sprints]
 
         chart_data = {"labels": [], "velocities": [], "planned_points": []}
 
         total_velocity = 0
         for sprint in reversed(list(sprints)):
-            completed_points = (
-                sprint.issues.filter(status__category="done", is_active=True).aggregate(
-                    total=Sum("story_points")
-                )["total"]
-                or 0
-            )
+            completed_points = sprint.issues.filter(
+                status__category="done", is_active=True
+            ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
 
-            planned_points = (
-                sprint.issues.filter(is_active=True).aggregate(
-                    total=Sum("story_points")
-                )["total"]
-                or 0
-            )
+            planned_points = sprint.issues.filter(is_active=True).aggregate(
+                total=Coalesce(Sum("story_points"), 0)
+            )["total"]
 
             chart_data["labels"].append(sprint.name)
             chart_data["velocities"].append(completed_points)
@@ -54,10 +49,12 @@ class AnalyticsService:
         completed_issues = issues.filter(status__category="done")
         incomplete_issues = issues.exclude(status__category="done")
 
-        completed_points = (
-            completed_issues.aggregate(total=Sum("story_points"))["total"] or 0
-        )
-        planned_points = issues.aggregate(total=Sum("story_points"))["total"] or 0
+        completed_points = completed_issues.aggregate(
+            total=Coalesce(Sum("story_points"), 0)
+        )["total"]
+        planned_points = issues.aggregate(
+            total=Coalesce(Sum("story_points"), 0)
+        )["total"]
 
         completion_rate = (
             round((completed_points / planned_points) * 100, 2) if planned_points else 0
@@ -118,9 +115,8 @@ class AnalyticsService:
                     "issues_completed": completed_issues.count(),
                     "avg_resolution_time_hours": avg_resolution_time,
                     "story_points_completed": completed_issues.aggregate(
-                        total=Sum("story_points")
-                    )["total"]
-                    or 0,
+                        total=Coalesce(Sum("story_points"), 0)
+                    )["total"],
                 }
             )
 
@@ -251,17 +247,12 @@ class AnalyticsService:
             )
 
             for sprint in sprints:
-                total_points = (
-                    sprint.issues.filter(is_active=True)
-                    .aggregate(total=Sum("story_points"))["total"]
-                    or 0
-                )
-                completed_points = (
-                    sprint.issues.filter(
-                        status__category="done", is_active=True
-                    ).aggregate(total=Sum("story_points"))["total"]
-                    or 0
-                )
+                total_points = sprint.issues.filter(is_active=True).aggregate(
+                    total=Coalesce(Sum("story_points"), 0)
+                )["total"]
+                completed_points = sprint.issues.filter(
+                    status__category="done", is_active=True
+                ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
                 completion_rate = (
                     round((completed_points / total_points) * 100, 1) if total_points else 0
                 )
@@ -436,9 +427,12 @@ class AnalyticsService:
             "name": sprint.name,
             "total_issues": issues.count(),
             "completed_issues": completed.count(),
-            "story_points": issues.aggregate(total=Sum("story_points"))["total"] or 0,
-            "completed_points": completed.aggregate(total=Sum("story_points"))["total"]
-            or 0,
+            "story_points": issues.aggregate(
+                total=Coalesce(Sum("story_points"), 0)
+            )["total"],
+            "completed_points": completed.aggregate(
+                total=Coalesce(Sum("story_points"), 0)
+            )["total"],
         }
 
     def _get_issue_breakdown(self, project) -> Dict:
