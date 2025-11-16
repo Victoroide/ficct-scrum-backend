@@ -118,18 +118,18 @@ class RAGService:
                 },
             )
             
-            logger.info(f"[INDEX] ✅ Successfully indexed issue {issue_id}")
+            logger.info(f"[INDEX] Successfully indexed issue {issue_id}")
             return True, ""
         
         except Issue.DoesNotExist:
             error_msg = f"Issue {issue_id} not found in database"
-            logger.error(f"[INDEX] ❌ {error_msg}")
+            logger.error(f"[INDEX] ERROR: {error_msg}")
             return False, error_msg
         
         except Exception as e:
             error_type = type(e).__name__
             error_msg = f"{error_type}: {str(e)}"
-            logger.exception(f"[INDEX] ❌ Error indexing issue {issue_id}: {error_msg}")
+            logger.exception(f"[INDEX] ERROR: Error indexing issue {issue_id}: {error_msg}")
             return False, error_msg
 
     def index_project_issues(
@@ -168,7 +168,7 @@ class RAGService:
                     
                     if success:
                         indexed += 1
-                        logger.debug(f"[BATCH INDEX] ✅ Issue {i}/{total} indexed successfully")
+                        logger.debug(f"[BATCH INDEX] Issue {i}/{total} indexed successfully")
                     else:
                         failed += 1
                         error_detail = {
@@ -177,7 +177,7 @@ class RAGService:
                             "error": error_msg or "Unknown error",
                         }
                         errors.append(error_detail)
-                        logger.warning(f"[BATCH INDEX] ❌ Issue {i}/{total} failed: {error_msg}")
+                        logger.warning(f"[BATCH INDEX] FAILED: Issue {i}/{total} failed: {error_msg}")
                         
                 except Exception as e:
                     failed += 1
@@ -188,7 +188,7 @@ class RAGService:
                         "error": f"{error_type}: {str(e)}",
                     }
                     errors.append(error_detail)
-                    logger.error(f"[BATCH INDEX] ❌ Exception for issue {i}/{total}: {error_type}: {str(e)}")
+                    logger.error(f"[BATCH INDEX] EXCEPTION: Issue {i}/{total}: {error_type}: {str(e)}")
                 
                 if i % batch_size == 0:
                     logger.info(f"[BATCH INDEX] Progress: {i}/{total} processed, {indexed} indexed, {failed} failed")
@@ -248,7 +248,7 @@ class RAGService:
             if clear_existing:
                 logger.warning("[FULL SYNC] Step 1/3: Clearing existing vectors in 'issues' namespace")
                 self.pinecone.clear_namespace(namespace="issues")
-                logger.info("[FULL SYNC] ✅ Namespace cleared")
+                logger.info("[FULL SYNC] Namespace cleared")
             else:
                 logger.info("[FULL SYNC] Skipping namespace clear (clear_existing=False)")
             
@@ -329,6 +329,11 @@ class RAGService:
     ) -> List[Dict[str, Any]]:
         """
         Search for issues using natural language query.
+        
+        ENHANCED: More robust search strategy:
+        1. Query Pinecone with generous top_k (2x requested)
+        2. Filter by project_id in Python (not Pinecone filter)
+        3. Return top results after project filtering
 
         Args:
             query: Natural language search query
@@ -342,26 +347,51 @@ class RAGService:
         self._check_available()
         try:
             # Generate query embedding
-            logger.info(f"Semantic search: '{query}'")
+            logger.info(f"[RAG] Semantic search: '{query}' (project={project_id})")
             query_vector = self.openai.generate_embedding(query)
+            logger.debug(f"[RAG] Query embedding generated: {len(query_vector)} dimensions")
             
-            # Prepare filters
-            search_filters = filters or {}
-            if project_id:
-                search_filters["project_id"] = project_id
+            # Query Pinecone with generous top_k (filter in Python later)
+            # This prevents empty results due to overly restrictive filters
+            pinecone_top_k = top_k * 3  # Get 3x, filter later
             
-            # Query Pinecone
+            logger.info(f"[RAG] Querying Pinecone: namespace='issues', top_k={pinecone_top_k}")
+            
+            # Query WITHOUT Pinecone filter (more robust)
             results = self.pinecone.query(
                 vector=query_vector,
-                top_k=top_k,
-                filter_dict=search_filters if search_filters else None,
+                top_k=pinecone_top_k,
+                filter_dict=None,  # Don't filter at Pinecone level
                 namespace="issues",
                 include_metadata=True,
             )
             
+            logger.info(f"[RAG] Pinecone returned {len(results)} raw results")
+            
+            # Filter by project_id in Python
+            filtered_results = []
+            for result in results:
+                metadata = result.get("metadata", {})
+                result_project_id = metadata.get("project_id")
+                
+                # Apply project filter
+                if project_id and result_project_id != project_id:
+                    logger.debug(f"[RAG] Skipping result: project mismatch ({result_project_id} != {project_id})")
+                    continue
+                
+                # Apply custom filters
+                if filters:
+                    match = all(metadata.get(k) == v for k, v in filters.items())
+                    if not match:
+                        continue
+                
+                filtered_results.append(result)
+            
+            logger.info(f"[RAG] After project filter: {len(filtered_results)} results")
+            
             # Enrich results with full issue data
             enriched_results = []
-            for result in results:
+            for result in filtered_results[:top_k]:  # Limit to requested top_k
                 issue_id = result["metadata"].get("issue_id")
                 if issue_id:
                     try:
@@ -382,13 +412,13 @@ class RAGService:
                             "metadata": result["metadata"],
                         })
                     except Issue.DoesNotExist:
-                        logger.warning(f"Issue {issue_id} not found in database")
+                        logger.warning(f"[RAG] Issue {issue_id} not found in database")
             
-            logger.info(f"Found {len(enriched_results)} results for query")
+            logger.info(f"[RAG] SUCCESS: Returning {len(enriched_results)} enriched results")
             return enriched_results
             
         except Exception as e:
-            logger.exception(f"Error in semantic search: {str(e)}")
+            logger.exception(f"[RAG] ERROR: Error in semantic search: {str(e)}")
             raise
 
     def find_similar_issues(
@@ -487,23 +517,55 @@ class RAGService:
             return False
 
     def _prepare_issue_text(self, issue: Issue) -> str:
-        """Prepare issue text for embedding generation."""
-        # Combine title, description, and key metadata
+        """
+        Prepare issue text for embedding generation.
+        
+        ENHANCED: Rich context for better semantic matching:
+        - Title + Type + Status + Priority
+        - Full description
+        - Assignee and reporter names
+        - Sprint context
+        - Labels/tags
+        
+        More context = better semantic search results.
+        """
         parts = [
-            f"Title: {issue.title}",
+            f"Issue: {issue.title}",
             f"Type: {issue.issue_type.name}",
-            f"Priority: {issue.priority}",
+            f"Status: {issue.status.name}",
+            f"Priority: {issue.priority or 'Medium'}",
         ]
         
+        # Add full description (critical for semantic matching)
         if issue.description:
             parts.append(f"Description: {issue.description}")
         
-        # Add comments if needed (can be expensive)
-        # comments = issue.comments.values_list("content", flat=True)[:5]
-        # if comments:
-        #     parts.append(f"Comments: {' '.join(comments)}")
+        # Add assignee context
+        if issue.assignee:
+            parts.append(f"Assigned to: {issue.assignee.get_full_name()}")
         
-        return "\n".join(parts)
+        # Add reporter context
+        if issue.reporter:
+            parts.append(f"Reported by: {issue.reporter.get_full_name()}")
+        
+        # Add sprint context
+        if hasattr(issue, 'sprint') and issue.sprint:
+            parts.append(f"Sprint: {issue.sprint.name}")
+        
+        # Add labels (if model has labels field)
+        if hasattr(issue, 'labels'):
+            try:
+                labels = issue.labels.all()
+                if labels.exists():
+                    label_names = ", ".join([label.name for label in labels])
+                    parts.append(f"Labels: {label_names}")
+            except Exception:
+                pass  # Skip if labels not available
+        
+        text = "\n".join(parts)
+        logger.debug(f"[RAG] Prepared text for {issue.key}: {len(text)} chars")
+        
+        return text
 
     def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """

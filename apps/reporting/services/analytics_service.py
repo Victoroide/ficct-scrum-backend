@@ -1,10 +1,13 @@
 import csv
+import logging
 from datetime import timedelta
 from typing import Dict, List
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyticsService:
@@ -14,21 +17,48 @@ class AnalyticsService:
     def generate_velocity_chart(self, project, num_sprints: int = 5) -> Dict:
         from apps.projects.models import Sprint
 
+        logger.info(f"[VELOCITY] Generating velocity chart for project {project.id} ({project.key})")
+        
+        # Include active, completed, and closed sprints for better coverage
         sprints = Sprint.objects.filter(
-            project=project, status__in=["active", "completed"]
+            project=project, status__in=["active", "completed", "closed"]
         ).order_by("-end_date")[:num_sprints]
+        
+        logger.info(f"[VELOCITY] Found {sprints.count()} sprints with status active/completed/closed")
 
         chart_data = {"labels": [], "velocities": [], "planned_points": []}
+        
+        # Handle empty sprint list early
+        if not sprints.exists():
+            logger.warning(f"[VELOCITY] No sprints found - returning empty chart")
+            chart_data["average_velocity"] = 0.0
+            return chart_data
 
         total_velocity = 0
         for sprint in reversed(list(sprints)):
-            completed_points = sprint.issues.filter(
-                status__category="done", is_active=True
-            ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
-
-            planned_points = sprint.issues.filter(is_active=True).aggregate(
+            logger.debug(f"[VELOCITY] Processing sprint: {sprint.name} (status={sprint.status})")
+            
+            # Count all issues in sprint
+            all_sprint_issues = sprint.issues.filter(is_active=True)
+            logger.debug(f"[VELOCITY]   Total active issues in sprint: {all_sprint_issues.count()}")
+            
+            # Count done issues (support both 'done' and potential variants)
+            done_issues = sprint.issues.filter(
+                Q(status__category="done") | Q(status__category__iexact="done"),
+                is_active=True
+            ).distinct()
+            logger.debug(f"[VELOCITY]   Done issues: {done_issues.count()}")
+            
+            # Calculate points
+            completed_points = done_issues.aggregate(
                 total=Coalesce(Sum("story_points"), 0)
             )["total"]
+            logger.debug(f"[VELOCITY]   Completed points: {completed_points}")
+
+            planned_points = all_sprint_issues.aggregate(
+                total=Coalesce(Sum("story_points"), 0)
+            )["total"]
+            logger.debug(f"[VELOCITY]   Planned points: {planned_points}")
 
             chart_data["labels"].append(sprint.name)
             chart_data["velocities"].append(completed_points)
@@ -37,6 +67,13 @@ class AnalyticsService:
 
         chart_data["average_velocity"] = (
             round(total_velocity / len(sprints), 2) if sprints else 0
+        )
+        
+        logger.info(
+            f"[VELOCITY] Chart generated: labels={chart_data['labels']}, "
+            f"velocities={chart_data['velocities']}, "
+            f"planned={chart_data['planned_points']}, "
+            f"avg={chart_data['average_velocity']}"
         )
 
         return chart_data

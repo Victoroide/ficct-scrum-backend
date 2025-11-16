@@ -370,7 +370,7 @@ class MLViewSet(viewsets.ViewSet):
                 project=project,
                 is_active=True,
                 sprint__end_date__lt=timezone.now().date(),
-                status__category__in=["todo", "in_progress"]
+                status__category__in=["to_do", "in_progress"]  # Fixed: to_do not todo
             ).count()
             if total_issues > 0:
                 risk_score += min((overdue_issues / total_issues) * 100, 40)
@@ -389,7 +389,9 @@ class MLViewSet(viewsets.ViewSet):
             
             logger.info(
                 f"[ML] Project summary generated: completion={completion}%, "
-                f"velocity={velocity}, risk_score={risk_score}"
+                f"velocity={velocity}, risk_score={risk_score}, "
+                f"total_issues={total_issues}, completed={completed_issues}, "
+                f"sprints_analyzed={len(velocities)}, velocities={velocities}"
             )
             
             return Response(

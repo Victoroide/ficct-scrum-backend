@@ -7,7 +7,7 @@ Combines semantic search with Azure OpenAI chat completion.
 import logging
 from typing import Any, Dict, List, Optional
 
-from base.services import get_azure_openai_service
+from base.services.llm_proxy import get_llm_proxy
 from .rag_service import RAGService
 
 logger = logging.getLogger(__name__)
@@ -17,13 +17,13 @@ class AssistantService:
     """Service for AI assistant question answering."""
 
     def __init__(self):
-        """Initialize assistant with RAG and OpenAI."""
+        """Initialize assistant with RAG and LLM proxy."""
         self.available = False
         self.error_message = None
         
         try:
-            self.openai = get_azure_openai_service()
-            self.rag = RAGService()
+            self.llm_proxy = get_llm_proxy()  # LLM proxy for chat
+            self.rag = RAGService()  # RAG keeps Azure for embeddings
             self.available = self.rag.available  # Inherit RAG availability
             self.error_message = self.rag.error_message
         except Exception as e:
@@ -71,19 +71,24 @@ class AssistantService:
             # Step 3: Construct prompt with context
             messages = self._build_messages(question, context, conversation_history)
             
-            # Step 4: Get response from Azure OpenAI
-            # For o4-mini: High max_tokens (16000) ensures space for both reasoning + output
-            # reasoning_effort='low' reduces reasoning overhead, maximizes output tokens
-            response = self.openai.chat_completion(
+            # Step 4: Get response from LLM proxy (Llama 4 → Azure fallback)
+            response = self.llm_proxy.generate(
                 messages=messages,
-                temperature=0.7,  # Excluded automatically for o-series models
+                task_type="answer_question",
+                temperature=0.7,
                 max_tokens=16000,  # High budget to prevent empty responses
-                reasoning_effort="low",  # Optimize for output over exhaustive reasoning
+                reasoning_effort="low",  # For Azure o-series fallback
+                fallback_enabled=True,
+            )
+            
+            logger.info(
+                f"[ASSISTANT] Answer generated with {response.provider}/{response.model}, "
+                f"cost=${response.cost_usd:.4f}"
             )
             
             # Step 5: Prepare response with sources
             return {
-                "answer": response["content"],
+                "answer": response.content,
                 "sources": [
                     {
                         "issue_id": issue["issue_id"],
@@ -94,7 +99,10 @@ class AssistantService:
                     for issue in relevant_issues[:3]
                 ],
                 "confidence": self._calculate_confidence(relevant_issues),
-                "tokens_used": response["usage"]["total_tokens"],
+                "tokens_used": response.total_tokens,
+                "provider": response.provider,
+                "model": response.model,
+                "cost_usd": response.cost_usd,
             }
             
         except Exception as e:
@@ -151,18 +159,28 @@ class AssistantService:
                 },
             ]
             
-            # For o4-mini: Use high token budget and low reasoning effort
-            response = self.openai.chat_completion(
+            # Use LLM proxy for solution suggestions
+            response = self.llm_proxy.generate(
                 messages=messages,
-                temperature=0.5,  # Excluded automatically for o-series models
-                max_tokens=16000,  # Ensure sufficient space for suggestions
-                reasoning_effort="low",  # Optimize for output
+                task_type="suggest_solutions",
+                temperature=0.5,
+                max_tokens=16000,
+                reasoning_effort="low",  # For Azure fallback
+                fallback_enabled=True,
+            )
+            
+            logger.info(
+                f"[ASSISTANT] Solutions suggested with {response.provider}/{response.model}, "
+                f"cost=${response.cost_usd:.4f}"
             )
             
             return {
-                "suggestions": response["content"],
+                "suggestions": response.content,
                 "similar_issues": similar_issues[:5],
                 "confidence": self._calculate_confidence(similar_issues),
+                "provider": response.provider,
+                "model": response.model,
+                "cost_usd": response.cost_usd,
             }
             
         except Exception as e:

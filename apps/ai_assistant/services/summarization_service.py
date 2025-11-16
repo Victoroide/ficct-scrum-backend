@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from apps.ai_assistant.models import SummaryCache
 from apps.projects.models import Issue, Sprint
-from base.services import get_azure_openai_service
+from base.services.llm_proxy import get_llm_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ class SummarizationService:
     """Service for AI-powered summarization."""
 
     def __init__(self):
-        """Initialize with Azure OpenAI."""
-        self.openai = get_azure_openai_service()
+        """Initialize with LLM proxy (Llama 4 → Azure OpenAI fallback)."""
+        self.llm_proxy = get_llm_proxy()
 
     def summarize_issue_discussion(
         self, issue_id: str, length: str = "medium", use_cache: bool = True
@@ -196,21 +196,30 @@ class SummarizationService:
             raise
 
     def _generate_summary(self, content: str, system_prompt: str) -> str:
-        """Generate summary using Azure OpenAI."""
+        """Generate summary using LLM proxy (Llama 4 with fallback)."""
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": content},
         ]
         
-        # For o4-mini: Use higher token budget to prevent empty summaries
-        response = self.openai.chat_completion(
-            messages,
-            temperature=0.3,  # Excluded automatically for o-series models
-            max_tokens=8000,  # Increased from 500 to ensure sufficient output space
-            reasoning_effort="low",  # Optimize for output over reasoning
+        # Use LLM proxy with automatic fallback
+        # Primary: Llama 4 Maverick (cheap, fast)
+        # Fallback: Azure OpenAI o4-mini (expensive, reliable)
+        response = self.llm_proxy.generate(
+            messages=messages,
+            task_type="summarization",
+            temperature=0.3,
+            max_tokens=8000,
+            reasoning_effort="low",  # For Azure o-series fallback
+            fallback_enabled=True,
         )
         
-        return response["content"]
+        logger.debug(
+            f"[SUMMARIZATION] Generated with {response.provider}/{response.model}, "
+            f"cost=${response.cost_usd:.4f}, tokens={response.total_tokens}"
+        )
+        
+        return response.content
 
     def _get_cached_summary(
         self, obj, summary_type: str, length: str
