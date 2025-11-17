@@ -235,8 +235,8 @@ class Command(BaseCommand):
             result = rag_service.index_project_sprints(project_id=str(project.id))
 
             self.stdout.write(
-                f"    {self.style.SUCCESS('✓')} {result['indexed']}/{result['total']} indexed "
-                f"({result['success_rate']}%)"
+                f"    {self.style.SUCCESS('✓')} {result['indexed']}/"
+                f"{result['total']} indexed ({result['success_rate']}%)"
             )
 
             return result
@@ -270,7 +270,8 @@ class Command(BaseCommand):
             success_rate = round((indexed / total * 100), 1) if total > 0 else 0
 
             self.stdout.write(
-                f"    {self.style.SUCCESS('✓')} {indexed}/{total} indexed ({success_rate}%)"
+                f"    {self.style.SUCCESS('✓')} {indexed}/{total} indexed "
+                f"({success_rate}%)"
             )
 
             return {"total": total, "indexed": indexed, "failed": failed}
@@ -305,5 +306,6 @@ class Command(BaseCommand):
         success_rate = round((indexed / total * 100), 1) if total > 0 else 0
 
         self.stdout.write(
-            f"{entity_type}: {indexed}/{total} indexed ({success_rate}%), {failed} failed"
+            f"{entity_type}: {indexed}/{total} indexed ({success_rate}%), "
+            f"{failed} failed"
         )
