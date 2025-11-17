@@ -22,15 +22,15 @@ from .project_serializer import (
     ProjectSerializer,
     ProjectTeamMemberSerializer,
 )
-from .workflow_status_serializer import (
-    WorkflowStatusListSerializer,
-    WorkflowStatusSerializer,
-)
 from .sprint_serializer import (
     SprintCreateSerializer,
     SprintDetailSerializer,
     SprintListSerializer,
     SprintUpdateSerializer,
+)
+from .workflow_status_serializer import (
+    WorkflowStatusListSerializer,
+    WorkflowStatusSerializer,
 )
 
 __all__ = [

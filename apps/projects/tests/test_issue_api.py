@@ -1,5 +1,6 @@
-import pytest
 from django.urls import reverse
+
+import pytest
 from rest_framework import status
 
 from apps.authentication.tests.factories import UserFactory
@@ -113,12 +114,13 @@ class TestIssueAPI:
         issue = IssueFactory(project=project, reporter=user, status=initial_status)
 
         from apps.projects.models import WorkflowTransition
+
         WorkflowTransition.objects.create(
             project=project,
             name="Move to In Progress",
             from_status=initial_status,
             to_status=new_status,
-            is_active=True
+            is_active=True,
         )
 
         api_client.force_authenticate(user=user)

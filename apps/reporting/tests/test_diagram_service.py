@@ -2,8 +2,9 @@
 Comprehensive tests for DiagramService.
 """
 
-import pytest
 from django.utils import timezone
+
+import pytest
 
 from apps.projects.tests.factories import ProjectFactory
 from apps.reporting.services.diagram_service import DiagramService

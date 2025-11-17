@@ -46,7 +46,7 @@ class Board(models.Model):
 
     @property
     def issue_count(self):
-        if hasattr(self, 'project'):
+        if hasattr(self, "project"):
             return self.project.issues.filter(is_active=True).count()
         return 0
 
@@ -57,7 +57,9 @@ class BoardColumn(models.Model):
         "projects.Board", on_delete=models.CASCADE, related_name="columns"
     )
     workflow_status = models.ForeignKey(
-        "projects.WorkflowStatus", on_delete=models.CASCADE, related_name="board_columns"
+        "projects.WorkflowStatus",
+        on_delete=models.CASCADE,
+        related_name="board_columns",
     )
     name = models.CharField(max_length=100)
     order = models.PositiveIntegerField(default=0)
@@ -87,6 +89,7 @@ class BoardColumn(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+
         if self.workflow_status.project != self.board.project:
             raise ValidationError(
                 "Workflow status must belong to the same project as the board"

@@ -53,9 +53,7 @@ class Command(BaseCommand):
             # Get first user
             user = User.objects.first()
             if not user:
-                self.stdout.write(
-                    self.style.ERROR("No users found in database")
-                )
+                self.stdout.write(self.style.ERROR("No users found in database"))
                 return
 
         self.stdout.write(
@@ -83,14 +81,21 @@ class Command(BaseCommand):
                 "title": "Sprint Started",
                 "message": "Sprint 'Q4 Development Sprint' has been started",
                 "link": "/projects/PROJ/sprints/sprint-uuid",
-                "data": {"sprint_id": "test-sprint-1", "sprint_name": "Q4 Development Sprint"},
+                "data": {
+                    "sprint_id": "test-sprint-1",
+                    "sprint_name": "Q4 Development Sprint",
+                },
             },
             {
                 "notification_type": "status_changed",
                 "title": "Issue Status Changed",
                 "message": "Issue PROJ-789 moved from 'To Do' to 'In Progress'",
                 "link": "/projects/PROJ/issues/PROJ-789",
-                "data": {"issue_id": "test-uuid-3", "old_status": "To Do", "new_status": "In Progress"},
+                "data": {
+                    "issue_id": "test-uuid-3",
+                    "old_status": "To Do",
+                    "new_status": "In Progress",
+                },
             },
             {
                 "notification_type": "deadline_approaching",
@@ -102,9 +107,14 @@ class Command(BaseCommand):
             {
                 "notification_type": "mention",
                 "title": "You Were Mentioned",
-                "message": "@{} mentioned you in a comment on PROJ-555".format(user.email.split('@')[0]),
+                "message": "@{} mentioned you in a comment on PROJ-555".format(
+                    user.email.split("@")[0]
+                ),
                 "link": "/projects/PROJ/issues/PROJ-555",
-                "data": {"issue_id": "test-uuid-5", "mentioned_by": "john.doe@example.com"},
+                "data": {
+                    "issue_id": "test-uuid-5",
+                    "mentioned_by": "john.doe@example.com",
+                },
             },
             {
                 "notification_type": "ai_insight",
@@ -132,7 +142,10 @@ class Command(BaseCommand):
                 "title": "Issue Updated",
                 "message": "Issue PROJ-999 has been updated by Jane Smith",
                 "link": "/projects/PROJ/issues/PROJ-999",
-                "data": {"issue_id": "test-uuid-6", "updated_by": "jane.smith@example.com"},
+                "data": {
+                    "issue_id": "test-uuid-6",
+                    "updated_by": "jane.smith@example.com",
+                },
             },
         ]
 
@@ -140,7 +153,7 @@ class Command(BaseCommand):
         created_count = 0
         for i in range(count):
             notification_data = test_notifications[i % len(test_notifications)]
-            
+
             notification = Notification.objects.create(
                 recipient=user,
                 notification_type=notification_data["notification_type"],
@@ -150,22 +163,20 @@ class Command(BaseCommand):
                 data=notification_data["data"],
                 is_read=(i % 3 == 0),  # Every 3rd notification is read
             )
-            
+
             created_count += 1
-            self.stdout.write(
-                self.style.SUCCESS(f"✓ Created: {notification.title}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"✓ Created: {notification.title}"))
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n✅ Successfully created {created_count} test notifications for {user.email}"
             )
         )
-        
+
         # Show stats
         total = Notification.objects.filter(recipient=user).count()
         unread = Notification.objects.filter(recipient=user, is_read=False).count()
-        
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n📊 User notification stats:"
@@ -174,7 +185,7 @@ class Command(BaseCommand):
                 f"\n   - Read: {total - unread}"
             )
         )
-        
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"\n🔗 Test the API:"

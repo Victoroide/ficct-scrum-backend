@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 
 from django.db import transaction
+
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -93,11 +94,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filter projects based on user membership and query parameters.
-        
+
         Query Parameters:
             - workspace: UUID of workspace to filter by
             - organization: UUID of organization to filter by
-        
+
         Returns only projects where user is a workspace member.
         """
         # Base queryset: user must be a member of the workspace
@@ -105,55 +106,57 @@ class ProjectViewSet(viewsets.ModelViewSet):
             workspace__members__user=self.request.user,
             workspace__members__is_active=True,
         ).distinct()
-        
+
         # Filter by workspace if provided
-        workspace_id = self.request.query_params.get('workspace')
+        workspace_id = self.request.query_params.get("workspace")
         if workspace_id:
             try:
                 # Validate UUID format
                 UUID(workspace_id)
-                
+
                 # Apply workspace filter
                 queryset = queryset.filter(workspace_id=workspace_id)
-                
+
                 logger.info(
                     f"[PROJECT FILTER] User {self.request.user.email} filtering by workspace: {workspace_id}, "
                     f"Result count: {queryset.count()}"
                 )
-                
+
             except ValueError:
                 logger.warning(
                     f"[PROJECT FILTER] Invalid workspace UUID format: {workspace_id} "
                     f"from user {self.request.user.email}"
                 )
-                raise ValidationError({
-                    'workspace': 'Invalid workspace ID format. Must be a valid UUID.'
-                })
-        
+                raise ValidationError(
+                    {"workspace": "Invalid workspace ID format. Must be a valid UUID."}
+                )
+
         # Filter by organization if provided
-        organization_id = self.request.query_params.get('organization')
+        organization_id = self.request.query_params.get("organization")
         if organization_id:
             try:
                 # Validate UUID format
                 UUID(organization_id)
-                
+
                 # Apply organization filter
                 queryset = queryset.filter(workspace__organization_id=organization_id)
-                
+
                 logger.info(
                     f"[PROJECT FILTER] User {self.request.user.email} filtering by organization: {organization_id}, "
                     f"Result count: {queryset.count()}"
                 )
-                
+
             except ValueError:
                 logger.warning(
                     f"[PROJECT FILTER] Invalid organization UUID format: {organization_id} "
                     f"from user {self.request.user.email}"
                 )
-                raise ValidationError({
-                    'organization': 'Invalid organization ID format. Must be a valid UUID.'
-                })
-        
+                raise ValidationError(
+                    {
+                        "organization": "Invalid organization ID format. Must be a valid UUID."
+                    }
+                )
+
         return queryset
 
     @transaction.atomic

@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
 from django.utils import timezone
+
 from github import Github, GithubException
 
 
@@ -80,18 +81,22 @@ class GitHubService:
 
         # Validate repository configuration before attempting sync
         if not repository.repository_url:
-            raise ValueError("Repository URL not configured. Please reconnect the integration.")
-        
+            raise ValueError(
+                "Repository URL not configured. Please reconnect the integration."
+            )
+
         if not repository.repository_owner or not repository.repository_name:
             raise ValueError(
                 f"Repository owner/name not properly configured. "
                 f"Owner: {repository.repository_owner}, Name: {repository.repository_name}. "
                 f"Please reconnect the integration."
             )
-        
+
         access_token = repository.get_access_token()
         if not access_token:
-            raise ValueError("GitHub access token not found. Please reconnect the integration.")
+            raise ValueError(
+                "GitHub access token not found. Please reconnect the integration."
+            )
 
         try:
             repository.sync_status = "syncing"
@@ -99,12 +104,13 @@ class GitHubService:
 
             g = Github(access_token)
             repo_full_name = repository.repository_full_name
-            
+
             # Log what we're trying to sync
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(f"[Sync Commits] Attempting to sync: {repo_full_name}")
-            
+
             repo = g.get_repo(repo_full_name)
 
             since_date = since or (timezone.now() - timedelta(days=30))
@@ -142,7 +148,7 @@ class GitHubService:
         except GithubException as e:
             repository.sync_status = "error"
             repository.save()
-            
+
             # Provide specific error messages based on GitHub API status
             if e.status == 404:
                 raise ValueError(

@@ -1,6 +1,8 @@
-import pytest
 from datetime import date, timedelta
+
 from django.urls import reverse
+
+import pytest
 from rest_framework import status
 
 from apps.authentication.tests.factories import UserFactory
@@ -62,7 +64,7 @@ class TestSprintAPI:
             project=project,
             status="planning",
             start_date=date.today(),
-            end_date=date.today() + timedelta(days=14)
+            end_date=date.today() + timedelta(days=14),
         )
         IssueFactory(project=project, sprint=sprint, story_points=5)
         IssueFactory(project=project, sprint=sprint, story_points=8)
@@ -110,8 +112,12 @@ class TestSprintAPI:
         final_status = WorkflowStatusFactory(project=project, is_final=True)
         in_progress_status = WorkflowStatusFactory(project=project, is_final=False)
 
-        IssueFactory(project=project, sprint=sprint, status=final_status, story_points=5)
-        IssueFactory(project=project, sprint=sprint, status=in_progress_status, story_points=8)
+        IssueFactory(
+            project=project, sprint=sprint, status=final_status, story_points=5
+        )
+        IssueFactory(
+            project=project, sprint=sprint, status=in_progress_status, story_points=8
+        )
 
         api_client.force_authenticate(user=user)
 
@@ -138,8 +144,12 @@ class TestSprintAPI:
         final_status = WorkflowStatusFactory(project=project, is_final=True)
         in_progress_status = WorkflowStatusFactory(project=project, is_final=False)
 
-        IssueFactory(project=project, sprint=sprint, status=final_status, story_points=5)
-        IssueFactory(project=project, sprint=sprint, status=in_progress_status, story_points=8)
+        IssueFactory(
+            project=project, sprint=sprint, status=final_status, story_points=5
+        )
+        IssueFactory(
+            project=project, sprint=sprint, status=in_progress_status, story_points=8
+        )
 
         api_client.force_authenticate(user=user)
 
@@ -189,7 +199,9 @@ class TestSprintAPI:
 
         api_client.force_authenticate(user=user)
 
-        url = reverse("sprint-remove-issue", kwargs={"pk": sprint.id, "issue_id": issue.id})
+        url = reverse(
+            "sprint-remove-issue", kwargs={"pk": sprint.id, "issue_id": issue.id}
+        )
         response = api_client.delete(url)
 
         assert response.status_code == status.HTTP_200_OK

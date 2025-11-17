@@ -1,5 +1,6 @@
-import pytest
 from django.utils import timezone
+
+import pytest
 
 from apps.reporting.models import ActivityLog, DiagramCache, ReportSnapshot, SavedFilter
 from apps.reporting.tests.factories import (

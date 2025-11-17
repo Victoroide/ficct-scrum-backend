@@ -4,15 +4,17 @@ API endpoint tests for ML features.
 Tests authentication, permissions, and response formats.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 from django.urls import reverse
+
+import pytest
 from rest_framework import status
-from unittest.mock import patch, MagicMock
 
 from apps.authentication.tests.factories import UserFactory
-from apps.projects.tests.factories import ProjectFactory, IssueFactory, SprintFactory
-from apps.workspaces.tests.factories import WorkspaceFactory, WorkspaceMemberFactory
 from apps.ml.tests.factories import AnomalyDetectionFactory
+from apps.projects.tests.factories import IssueFactory, ProjectFactory, SprintFactory
+from apps.workspaces.tests.factories import WorkspaceFactory, WorkspaceMemberFactory
 
 
 @pytest.mark.django_db

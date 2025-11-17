@@ -107,7 +107,7 @@ class CanAccessProject(permissions.BasePermission):
     """
     Permission for accessing project resources.
     Checks if user has access through project, workspace, or organization membership.
-    
+
     ARCHITECTURE:
     - Workspace members have access to ALL projects in their workspace (read + write)
     - Project members have access to their specific project (read + write)
@@ -240,21 +240,21 @@ class CanModifyIssue(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return CanAccessProject().has_object_permission(request, view, obj)
 
-        issue = obj if hasattr(obj, 'assignee') else obj
+        issue = obj if hasattr(obj, "assignee") else obj
 
         if issue.assignee == request.user or issue.reporter == request.user:
             return True
 
         project_member = ProjectTeamMember.objects.filter(
-            project=issue.project,
-            user=request.user,
-            is_active=True
+            project=issue.project, user=request.user, is_active=True
         ).first()
 
         if project_member and project_member.can_manage_project:
             return True
 
-        return IsProjectLeadOrAdmin().has_object_permission(request, view, issue.project)
+        return IsProjectLeadOrAdmin().has_object_permission(
+            request, view, issue.project
+        )
 
 
 class CanDeleteIssue(permissions.BasePermission):
@@ -264,8 +264,10 @@ class CanDeleteIssue(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        issue = obj if hasattr(obj, 'project') else obj.issue
-        return IsProjectLeadOrAdmin().has_object_permission(request, view, issue.project)
+        issue = obj if hasattr(obj, "project") else obj.issue
+        return IsProjectLeadOrAdmin().has_object_permission(
+            request, view, issue.project
+        )
 
 
 class CanManageSprint(permissions.BasePermission):
@@ -278,8 +280,10 @@ class CanManageSprint(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return CanAccessProject().has_object_permission(request, view, obj)
 
-        sprint = obj if hasattr(obj, 'project') else obj
-        return IsProjectLeadOrAdmin().has_object_permission(request, view, sprint.project)
+        sprint = obj if hasattr(obj, "project") else obj
+        return IsProjectLeadOrAdmin().has_object_permission(
+            request, view, sprint.project
+        )
 
 
 class CanModifyBoard(permissions.BasePermission):
@@ -292,12 +296,14 @@ class CanModifyBoard(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return CanAccessProject().has_object_permission(request, view, obj)
 
-        board = obj if hasattr(obj, 'created_by') else obj
+        board = obj if hasattr(obj, "created_by") else obj
 
         if board.created_by == request.user:
             return True
 
-        return IsProjectLeadOrAdmin().has_object_permission(request, view, board.project)
+        return IsProjectLeadOrAdmin().has_object_permission(
+            request, view, board.project
+        )
 
 
 class IsProjectTeamMember(permissions.BasePermission):

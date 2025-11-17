@@ -39,7 +39,7 @@ class IssueComment(models.Model):
     def can_delete(self, user):
         if self.author == user:
             return True
-        if hasattr(self.issue.project, 'team_members'):
+        if hasattr(self.issue.project, "team_members"):
             team_member = self.issue.project.team_members.filter(
                 user=user, is_active=True
             ).first()

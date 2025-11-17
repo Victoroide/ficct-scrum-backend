@@ -116,9 +116,7 @@ class SprintCreateSerializer(serializers.ModelSerializer):
         project_id = attrs.get("project")
         name = attrs.get("name")
 
-        if Sprint.objects.filter(
-            project_id=project_id, name=name
-        ).exists():
+        if Sprint.objects.filter(project_id=project_id, name=name).exists():
             raise serializers.ValidationError(
                 {"name": "Sprint with this name already exists in this project"}
             )
@@ -159,9 +157,7 @@ class SprintUpdateSerializer(serializers.ModelSerializer):
 
         name = attrs.get("name")
         if name and name != instance.name:
-            if Sprint.objects.filter(
-                project=instance.project, name=name
-            ).exists():
+            if Sprint.objects.filter(project=instance.project, name=name).exists():
                 raise serializers.ValidationError(
                     {"name": "Sprint with this name already exists in this project"}
                 )

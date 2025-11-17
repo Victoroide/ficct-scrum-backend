@@ -18,15 +18,19 @@ class MLModelFactory(DjangoModelFactory):
     model_type = "effort_prediction"
     version = "1.0.0"
     is_active = True
-    metadata = factory.Dict({
-        "accuracy": 0.85,
-        "samples_count": 100,
-        "project_id": None,
-    })
-    hyperparameters = factory.Dict({
-        "n_estimators": 100,
-        "max_depth": 10,
-    })
+    metadata = factory.Dict(
+        {
+            "accuracy": 0.85,
+            "samples_count": 100,
+            "project_id": None,
+        }
+    )
+    hyperparameters = factory.Dict(
+        {
+            "n_estimators": 100,
+            "max_depth": 10,
+        }
+    )
 
 
 class PredictionHistoryFactory(DjangoModelFactory):
@@ -36,10 +40,12 @@ class PredictionHistoryFactory(DjangoModelFactory):
         model = PredictionHistory
 
     model = factory.SubFactory(MLModelFactory)
-    input_data = factory.Dict({
-        "title": "Test issue",
-        "issue_type": "task",
-    })
+    input_data = factory.Dict(
+        {
+            "title": "Test issue",
+            "issue_type": "task",
+        }
+    )
     predicted_value = 8.0
     actual_value = None
     confidence = 0.75

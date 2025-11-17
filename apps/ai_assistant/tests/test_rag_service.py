@@ -5,15 +5,15 @@ CRITICAL: All external API calls (Azure OpenAI, Pinecone) are mocked.
 NO real API calls are made during tests.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, call
 import hashlib
+from unittest.mock import MagicMock, call, patch
 
-from apps.ai_assistant.services import RAGService
+import pytest
+
 from apps.ai_assistant.models import IssueEmbedding
+from apps.ai_assistant.services import RAGService
 from apps.ai_assistant.tests.factories import IssueEmbeddingFactory
 from apps.projects.tests.factories import IssueFactory, ProjectFactory
-
 
 # Mock embedding vector (1536 dimensions)
 MOCK_EMBEDDING = [0.1] * 1536
@@ -162,7 +162,9 @@ class TestRAGService:
         assert results[0]["similarity_score"] == 0.95
         assert results[0]["title"] == "Authentication bug"
 
-        mock_openai.generate_embedding.assert_called_once_with("authentication problems")
+        mock_openai.generate_embedding.assert_called_once_with(
+            "authentication problems"
+        )
         mock_pinecone.query.assert_called_once()
 
     @patch("apps.ai_assistant.services.rag_service.get_azure_openai_service")
@@ -177,7 +179,10 @@ class TestRAGService:
             {
                 "id": "issue_similar1",
                 "score": 0.92,
-                "metadata": {"title": "Similar issue", "project_id": str(self.project.id)},
+                "metadata": {
+                    "title": "Similar issue",
+                    "project_id": str(self.project.id),
+                },
             }
         ]
         mock_pinecone_service.return_value = mock_pinecone

@@ -42,7 +42,9 @@ class IssueAttachmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         issue_id = self.kwargs.get("issue_pk")
-        return IssueAttachment.objects.filter(issue_id=issue_id).select_related("uploaded_by", "issue")
+        return IssueAttachment.objects.filter(issue_id=issue_id).select_related(
+            "uploaded_by", "issue"
+        )
 
     def get_permissions(self):
         if self.action == "create":
@@ -57,8 +59,7 @@ class IssueAttachmentViewSet(viewsets.ModelViewSet):
             issue = Issue.objects.get(id=issue_id)
         except Issue.DoesNotExist:
             return Response(
-                {"error": "Issue does not exist"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Issue does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
 
         attachment = serializer.save(issue=issue)
@@ -81,15 +82,13 @@ class IssueAttachmentViewSet(viewsets.ModelViewSet):
 
         if instance.uploaded_by != self.request.user:
             project_member = ProjectTeamMember.objects.filter(
-                project=instance.issue.project,
-                user=self.request.user,
-                is_active=True
+                project=instance.issue.project, user=self.request.user, is_active=True
             ).first()
 
             if not project_member or not project_member.can_manage_project:
                 return Response(
                     {"error": "You can only delete your own attachments"},
-                    status=status.HTTP_403_FORBIDDEN
+                    status=status.HTTP_403_FORBIDDEN,
                 )
 
         LoggerService.log_info(

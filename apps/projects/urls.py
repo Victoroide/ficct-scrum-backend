@@ -1,4 +1,5 @@
 from django.urls import include, path
+
 from rest_framework.routers import DefaultRouter
 
 from .viewsets import (
@@ -48,7 +49,12 @@ urlpatterns = [
     path(
         "issues/<uuid:issue_pk>/comments/<uuid:pk>/",
         IssueCommentViewSet.as_view(
-            {"get": "retrieve", "put": "update", "patch": "partial_update", "delete": "destroy"}
+            {
+                "get": "retrieve",
+                "put": "update",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
         ),
         name="issue-comment-detail",
     ),

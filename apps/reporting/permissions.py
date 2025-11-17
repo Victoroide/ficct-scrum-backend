@@ -8,10 +8,10 @@ class CanGenerateReports(permissions.BasePermission):
 
         # Check for both 'project' and 'project_id' for backward compatibility
         project_id = (
-            request.query_params.get("project") or 
-            request.query_params.get("project_id") or
-            request.data.get("project") or 
-            request.data.get("project_id")
+            request.query_params.get("project")
+            or request.query_params.get("project_id")
+            or request.data.get("project")
+            or request.data.get("project_id")
         )
         if not project_id:
             return True
@@ -23,14 +23,15 @@ class CanGenerateReports(permissions.BasePermission):
         is_project_member = ProjectTeamMember.objects.filter(
             project_id=project_id, user=request.user, is_active=True
         ).exists()
-        
+
         if is_project_member:
             return True
-        
+
         # Check if user is workspace member (has access to all projects in workspace)
         from apps.projects.models import Project
+
         try:
-            project = Project.objects.select_related('workspace').get(id=project_id)
+            project = Project.objects.select_related("workspace").get(id=project_id)
             return WorkspaceMember.objects.filter(
                 workspace=project.workspace, user=request.user, is_active=True
             ).exists()
@@ -62,10 +63,10 @@ class CanExportData(permissions.BasePermission):
 
         # Check for both 'project' and 'project_id' for backward compatibility
         project_id = (
-            request.data.get("project") or 
-            request.data.get("project_id") or
-            request.query_params.get("project") or
-            request.query_params.get("project_id")
+            request.data.get("project")
+            or request.data.get("project_id")
+            or request.query_params.get("project")
+            or request.query_params.get("project_id")
         )
         if not project_id:
             return False
@@ -80,19 +81,20 @@ class CanExportData(permissions.BasePermission):
             role__in=["owner", "admin"],
             is_active=True,
         ).exists()
-        
+
         if is_project_admin:
             return True
-        
+
         # Check if user is workspace admin
         from apps.projects.models import Project
+
         try:
-            project = Project.objects.select_related('workspace').get(id=project_id)
+            project = Project.objects.select_related("workspace").get(id=project_id)
             return WorkspaceMember.objects.filter(
-                workspace=project.workspace, 
-                user=request.user, 
-                role='admin',
-                is_active=True
+                workspace=project.workspace,
+                user=request.user,
+                role="admin",
+                is_active=True,
             ).exists()
         except Project.DoesNotExist:
             return False

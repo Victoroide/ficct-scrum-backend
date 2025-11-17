@@ -7,7 +7,9 @@ from base.serializers import ProjectBasicSerializer, UserBasicSerializer
 
 class BoardColumnSerializer(serializers.ModelSerializer):
     workflow_status = WorkflowStatusBasicSerializer(read_only=True)
-    workflow_status_id = serializers.UUIDField(write_only=True, source="workflow_status")
+    workflow_status_id = serializers.UUIDField(
+        write_only=True, source="workflow_status"
+    )
     issue_count = serializers.ReadOnlyField()
 
     class Meta:
@@ -24,7 +26,13 @@ class BoardColumnSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "workflow_status", "issue_count", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "workflow_status",
+            "issue_count",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate_workflow_status(self, value):
         try:
@@ -41,7 +49,9 @@ class BoardColumnSerializer(serializers.ModelSerializer):
                 workflow_status = WorkflowStatus.objects.get(id=workflow_status_id)
                 if workflow_status.project != board.project:
                     raise serializers.ValidationError(
-                        {"workflow_status_id": "Workflow status must belong to the same project as the board"}
+                        {
+                            "workflow_status_id": "Workflow status must belong to the same project as the board"
+                        }
                     )
 
         min_wip = attrs.get("min_wip")

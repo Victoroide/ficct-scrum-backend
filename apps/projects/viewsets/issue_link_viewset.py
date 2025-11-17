@@ -42,9 +42,9 @@ class IssueLinkViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         issue_id = self.kwargs.get("issue_pk")
-        return IssueLink.objects.filter(
-            source_issue_id=issue_id
-        ).select_related("source_issue", "target_issue", "created_by")
+        return IssueLink.objects.filter(source_issue_id=issue_id).select_related(
+            "source_issue", "target_issue", "created_by"
+        )
 
     def get_permissions(self):
         if self.action in ["create", "destroy"]:
@@ -89,7 +89,7 @@ class IssueLinkViewSet(viewsets.ModelViewSet):
         IssueLink.objects.filter(
             source_issue=instance.target_issue,
             target_issue=instance.source_issue,
-            link_type=reciprocal_link_type
+            link_type=reciprocal_link_type,
         ).delete()
 
         instance.delete()

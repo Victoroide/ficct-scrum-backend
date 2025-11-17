@@ -1,4 +1,5 @@
 from django.db.models import Q
+
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -27,14 +28,14 @@ from apps.projects.serializers.workflow_status_serializer import (
 class WorkflowStatusViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for WorkflowStatus model.
-    
+
     Provides list and retrieve actions for workflow statuses.
     Workflow statuses define the possible states an issue can be in (e.g., To Do, In Progress, Done).
-    
+
     Filters:
     - By default, returns workflow statuses for projects the user has access to
     - Use ?project=<project_id> to filter by specific project (required for most use cases)
-    
+
     Usage:
     - GET /api/v1/projects/workflow-statuses/?project={uuid} - Get statuses for a specific project
     - Used to populate issue status dropdowns and board columns
@@ -51,7 +52,9 @@ class WorkflowStatusViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
 
         # Base queryset - only active workflow statuses
-        queryset = WorkflowStatus.objects.filter(is_active=True).select_related("project")
+        queryset = WorkflowStatus.objects.filter(is_active=True).select_related(
+            "project"
+        )
 
         # Filter by project if specified
         project_id = self.request.query_params.get("project")

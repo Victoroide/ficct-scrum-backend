@@ -1,4 +1,5 @@
 from django.db import transaction
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -11,21 +12,22 @@ from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 class ProjectSerializer(serializers.ModelSerializer):
     """
     Serializer for Project model.
-    
+
     Handles workspace assignment using PrimaryKeyRelatedField for automatic
     UUID to instance conversion on both create and update operations.
     """
+
     team_member_count = serializers.ReadOnlyField()
     attachments_url = serializers.SerializerMethodField()
     attachments = serializers.FileField(required=False, allow_null=True)
-    
+
     # Use PrimaryKeyRelatedField for automatic UUID to instance conversion
     workspace = serializers.PrimaryKeyRelatedField(
         queryset=Workspace.objects.all(),
         required=True,
-        help_text="UUID of the workspace this project belongs to"
+        help_text="UUID of the workspace this project belongs to",
     )
-    
+
     workspace_details = WorkspaceBasicSerializer(source="workspace", read_only=True)
     lead = UserBasicSerializer(read_only=True)
     created_by = UserBasicSerializer(read_only=True)
@@ -74,13 +76,13 @@ class ProjectSerializer(serializers.ModelSerializer):
     def validate_workspace(self, value):
         """
         Validate that the user has access to the workspace.
-        
+
         Args:
             value: Workspace instance (automatically converted from UUID by PrimaryKeyRelatedField)
-        
+
         Returns:
             Validated Workspace instance
-        
+
         Raises:
             ValidationError: If user doesn't have access to workspace
         """
@@ -90,7 +92,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
         # value is already a Workspace instance (converted by PrimaryKeyRelatedField)
         workspace = value
-        
+
         from apps.workspaces.models import WorkspaceMember
 
         if not WorkspaceMember.objects.filter(
@@ -111,7 +113,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 class ProjectTeamMemberSerializer(serializers.ModelSerializer):
     """Serializer for ProjectTeamMember model."""
-    
+
     user = UserBasicSerializer(read_only=True)
     project = ProjectSerializer(read_only=True)
 
@@ -133,7 +135,7 @@ class ProjectTeamMemberSerializer(serializers.ModelSerializer):
 
 class AddTeamMemberSerializer(serializers.Serializer):
     """Serializer for adding team members to a project."""
-    
+
     user_id = serializers.UUIDField()
     role = serializers.ChoiceField(
         choices=ProjectTeamMember.ROLE_CHOICES, default="developer"
@@ -156,7 +158,7 @@ class AddTeamMemberSerializer(serializers.Serializer):
     def save(self):
         """
         Create or reactivate project team member.
-        
+
         Validates that the user is a workspace member before adding to project.
         """
         project = self.context.get("project")

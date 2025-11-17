@@ -7,9 +7,10 @@ Provides ML-powered predictions based on historical project data.
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.db.models import Avg, Count, Q, Sum
+
 import joblib
 import numpy as np
-from django.db.models import Avg, Count, Q, Sum
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -46,11 +47,15 @@ class PredictionService:
         """
         try:
             # Extract features from issue text
-            features = self._extract_issue_features(title, description, issue_type, project_id)
-            
+            features = self._extract_issue_features(
+                title, description, issue_type, project_id
+            )
+
             # Get similar completed issues for reference
-            similar_issues = self._find_similar_completed_issues(title, description, project_id, limit=5)
-            
+            similar_issues = self._find_similar_completed_issues(
+                title, description, project_id, limit=5
+            )
+
             if not similar_issues:
                 # No historical data - use heuristic
                 avg_hours = self._get_average_effort_by_type(project_id, issue_type)
@@ -61,14 +66,18 @@ class PredictionService:
                     "method": "heuristic",
                     "reasoning": f"No similar issues found. Using average for {issue_type} in this project.",
                 }
-            
+
             # Calculate weighted prediction from similar issues
-            similar_efforts = [issue["actual_hours"] for issue in similar_issues if issue["actual_hours"]]
-            
+            similar_efforts = [
+                issue["actual_hours"]
+                for issue in similar_issues
+                if issue["actual_hours"]
+            ]
+
             if similar_efforts:
                 predicted_hours = float(np.mean(similar_efforts))
                 confidence = min(0.7 + (len(similar_efforts) * 0.05), 0.95)
-                
+
                 return {
                     "predicted_hours": round(predicted_hours, 1),
                     "confidence": round(confidence, 2),
@@ -80,7 +89,7 @@ class PredictionService:
                     "method": "similarity",
                     "reasoning": f"Based on {len(similar_efforts)} similar completed issues.",
                 }
-            
+
             # Fallback to type average
             avg_hours = self._get_average_effort_by_type(project_id, issue_type)
             return {
@@ -90,7 +99,7 @@ class PredictionService:
                 "method": "type_average",
                 "reasoning": f"Similar issues found but no effort data. Using type average.",
             }
-            
+
         except Exception as e:
             logger.exception(f"Error predicting effort: {str(e)}")
             raise
@@ -111,10 +120,10 @@ class PredictionService:
             Dictionary with estimated_days, confidence, risk_factors
         """
         try:
-            sprint = Sprint.objects.select_related('project').get(id=sprint_id)
-            
+            sprint = Sprint.objects.select_related("project").get(id=sprint_id)
+
             logger.info(f"[ML] Predicting duration for sprint {sprint.name}")
-            
+
             # METHOD 1: Use Sprint's actual start_date and end_date if available
             if sprint.start_date and sprint.end_date:
                 duration_days = (sprint.end_date - sprint.start_date).days
@@ -126,13 +135,12 @@ class PredictionService:
                     "risk_factors": [],
                     "method": "from_sprint_dates",
                 }
-            
+
             # METHOD 2: Calculate from estimated_hours if available
             total_estimated_hours = sprint.issues.filter(
-                is_active=True,
-                estimated_hours__isnull=False
+                is_active=True, estimated_hours__isnull=False
             ).aggregate(total=Sum("estimated_hours"))["total"]
-            
+
             if total_estimated_hours and total_estimated_hours > 0:
                 hours_per_day = 8  # Standard workday
                 estimated_days = float(total_estimated_hours) / hours_per_day
@@ -146,31 +154,32 @@ class PredictionService:
                     "risk_factors": [],
                     "method": "from_estimated_hours",
                 }
-            
+
             # METHOD 3: Calculate from story points if available
             total_points = sprint.issues.filter(
-                is_active=True,
-                story_points__isnull=False
+                is_active=True, story_points__isnull=False
             ).aggregate(total=Sum("story_points"))["total"]
-            
+
             if total_points and total_points > 0:
                 # Get historical velocity from past sprints
                 past_sprints = Sprint.objects.filter(
-                    project=sprint.project, 
+                    project=sprint.project,
                     status="completed",
                     completed_at__isnull=False,
-                    start_date__isnull=False
+                    start_date__isnull=False,
                 ).order_by("-completed_at")[:5]
-                
+
                 velocity_data = []
                 for ps in past_sprints:
                     duration = (ps.completed_at.date() - ps.start_date).days
                     if duration > 0 and ps.completed_points > 0:
                         velocity_data.append(float(ps.completed_points) / duration)
-                
+
                 if velocity_data:
                     avg_velocity = float(np.mean(velocity_data))
-                    estimated_days = total_points / avg_velocity if avg_velocity > 0 else 14
+                    estimated_days = (
+                        total_points / avg_velocity if avg_velocity > 0 else 14
+                    )
                     logger.info(f"[ML] Using velocity: {estimated_days} days")
                     return {
                         "estimated_days": int(round(estimated_days)),
@@ -181,7 +190,7 @@ class PredictionService:
                         "risk_factors": [],
                         "method": "velocity_based",
                     }
-            
+
             # METHOD 4: Default fallback (2 weeks standard sprint)
             logger.info(f"[ML] Using default duration: 14 days")
             return {
@@ -191,7 +200,7 @@ class PredictionService:
                 "risk_factors": ["No historical data or estimates available"],
                 "method": "default",
             }
-            
+
         except Sprint.DoesNotExist:
             logger.error(f"[ML] Sprint {sprint_id} not found")
             return {
@@ -233,16 +242,16 @@ class PredictionService:
             similar_issues = self._find_similar_completed_issues(
                 title, description, project_id, limit=10
             )
-            
+
             similar_with_points = [
                 issue for issue in similar_issues if issue.get("story_points")
             ]
-            
+
             if not similar_with_points:
                 # Default recommendation based on type
                 default_points = {"bug": 3, "task": 5, "story": 8, "epic": 13}
                 points = default_points.get(issue_type, 5)
-                
+
                 return {
                     "recommended_points": points,
                     "confidence": 0.3,
@@ -250,23 +259,24 @@ class PredictionService:
                     "reasoning": f"No similar issues found. Default for {issue_type}.",
                     "similar_issues": [],
                 }
-            
+
             # Calculate distribution of story points
             points_list = [issue["story_points"] for issue in similar_with_points]
-            
+
             # Most common value
             from collections import Counter
+
             point_counts = Counter(points_list)
             most_common_points = point_counts.most_common(1)[0][0]
-            
+
             # Calculate probability distribution
             total = len(points_list)
             distribution = {
                 point: count / total for point, count in point_counts.items()
             }
-            
+
             confidence = point_counts[most_common_points] / total
-            
+
             return {
                 "recommended_points": most_common_points,
                 "confidence": round(confidence, 2),
@@ -274,7 +284,7 @@ class PredictionService:
                 "reasoning": f"Based on {len(similar_with_points)} similar issues.",
                 "similar_issues": similar_with_points[:5],
             }
-            
+
         except Exception as e:
             logger.exception(f"Error recommending story points: {str(e)}")
             raise
@@ -308,38 +318,42 @@ class PredictionService:
                 "actual_hours",
                 "story_points",
                 "issue_type__name",
-            )[:100]
-            
+            )[
+                :100
+            ]
+
             if not completed_issues:
                 return []
-            
+
             # Simple text similarity using keyword overlap
             query_text = f"{title} {description}".lower()
             query_words = set(query_text.split())
-            
+
             scored_issues = []
             for issue in completed_issues:
                 issue_text = f"{issue['title']} {issue['description'] or ''}".lower()
                 issue_words = set(issue_text.split())
-                
+
                 # Jaccard similarity
                 intersection = len(query_words & issue_words)
                 union = len(query_words | issue_words)
                 similarity = intersection / union if union > 0 else 0
-                
-                scored_issues.append({
-                    "id": str(issue["id"]),
-                    "title": issue["title"],
-                    "issue_type": issue["issue_type__name"],
-                    "actual_hours": issue["actual_hours"],
-                    "story_points": issue["story_points"],
-                    "similarity": similarity,
-                })
-            
+
+                scored_issues.append(
+                    {
+                        "id": str(issue["id"]),
+                        "title": issue["title"],
+                        "issue_type": issue["issue_type__name"],
+                        "actual_hours": issue["actual_hours"],
+                        "story_points": issue["story_points"],
+                        "similarity": similarity,
+                    }
+                )
+
             # Sort by similarity and return top matches
             scored_issues.sort(key=lambda x: x["similarity"], reverse=True)
             return scored_issues[:limit]
-            
+
         except Exception as e:
             logger.exception(f"Error finding similar issues: {str(e)}")
             return []
@@ -352,7 +366,7 @@ class PredictionService:
                 issue_type__category=issue_type,
                 actual_hours__isnull=False,
             ).aggregate(avg_hours=Avg("actual_hours"))["avg_hours"]
-            
+
             return float(avg) if avg else 8.0  # Default 8 hours
         except Exception:
             return 8.0

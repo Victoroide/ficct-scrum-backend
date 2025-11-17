@@ -11,10 +11,11 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from celery import shared_task
-from decouple import config
 from django.conf import settings
 from django.utils import timezone
+
+from celery import shared_task
+from decouple import config
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +74,15 @@ def backup_database(self):
 
             dump_command = [
                 "pg_dump",
-                "-h", db_host,
-                "-p", str(db_port),
-                "-U", db_user,
+                "-h",
+                db_host,
+                "-p",
+                str(db_port),
+                "-U",
+                db_user,
                 "-Fc",  # Custom format (compressed)
-                "-f", str(backup_path),
+                "-f",
+                str(backup_path),
                 db_name,
             ]
 
@@ -137,10 +142,14 @@ def backup_database(self):
                     logger.info(f"Backup uploaded successfully to S3")
 
                     # Step 4: Apply retention policy
-                    results["retention_applied"] = _apply_retention_policy(s3_client, s3_bucket)
+                    results["retention_applied"] = _apply_retention_policy(
+                        s3_client, s3_bucket
+                    )
 
                 else:
-                    logger.warning("S3 backup not configured - backup saved locally only")
+                    logger.warning(
+                        "S3 backup not configured - backup saved locally only"
+                    )
                     results["upload_success"] = False
 
             except ImportError:
@@ -201,13 +210,17 @@ def _apply_retention_policy(s3_client, bucket: str) -> bool:
                 # Extract timestamp from filename
                 try:
                     filename = Path(key).name
-                    timestamp_str = filename.replace("ficct_scrum_backup_", "").replace(".sql.gz", "")
+                    timestamp_str = filename.replace("ficct_scrum_backup_", "").replace(
+                        ".sql.gz", ""
+                    )
                     backup_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
-                    backups.append({
-                        "key": key,
-                        "date": backup_date,
-                        "size": obj["Size"],
-                    })
+                    backups.append(
+                        {
+                            "key": key,
+                            "date": backup_date,
+                            "size": obj["Size"],
+                        }
+                    )
                 except ValueError:
                     continue
 
@@ -245,7 +258,9 @@ def _apply_retention_policy(s3_client, bucket: str) -> bool:
                     except Exception as e:
                         logger.error(f"Error deleting {backup['key']}: {str(e)}")
 
-        logger.info(f"Retention policy applied: kept {len(keep_backups)}, deleted {deleted_count}")
+        logger.info(
+            f"Retention policy applied: kept {len(keep_backups)}, deleted {deleted_count}"
+        )
         return True
 
     except Exception as e:

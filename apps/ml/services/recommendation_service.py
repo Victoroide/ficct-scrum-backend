@@ -37,15 +37,15 @@ class RecommendationService:
         """
         try:
             issue = Issue.objects.get(id=issue_id)
-            
+
             # Get all active team members
             team_members = ProjectTeamMember.objects.filter(
                 project_id=project_id, is_active=True
             ).select_related("user")
-            
+
             if not team_members:
                 return []
-            
+
             # Score each team member
             scored_members = []
             for member in team_members:
@@ -53,12 +53,12 @@ class RecommendationService:
                     member.user, issue, project_id
                 )
                 scored_members.append(score_data)
-            
+
             # Sort by total score
             scored_members.sort(key=lambda x: x["total_score"], reverse=True)
-            
+
             return scored_members[:top_n]
-            
+
         except Exception as e:
             logger.exception(f"Error suggesting task assignment: {str(e)}")
             raise
@@ -77,16 +77,16 @@ class RecommendationService:
         """
         # 1. Skill match score (0-1)
         skill_score = self._calculate_skill_score(user, issue, project_id)
-        
+
         # 2. Workload score (0-1)
         workload_score = self._calculate_workload_score(user, project_id)
-        
+
         # 3. Performance score (0-1)
         performance_score = self._calculate_performance_score(user, issue, project_id)
-        
+
         # 4. Availability score (0-1)
         availability_score = self._calculate_availability_score(user)
-        
+
         # Weighted total
         total_score = (
             skill_score * 0.4
@@ -94,7 +94,7 @@ class RecommendationService:
             + performance_score * 0.2
             + availability_score * 0.1
         )
-        
+
         # Generate reasoning
         reasoning = []
         if skill_score > 0.7:
@@ -107,7 +107,7 @@ class RecommendationService:
             reasoning.append("Limited experience with this issue type")
         if workload_score < 0.3:
             reasoning.append("Currently at high workload")
-        
+
         return {
             "user_id": str(user.id),
             "user_name": user.get_full_name() or user.username,
@@ -120,7 +120,9 @@ class RecommendationService:
             "reasoning": reasoning,
         }
 
-    def _calculate_skill_score(self, user: User, issue: Issue, project_id: str) -> float:
+    def _calculate_skill_score(
+        self, user: User, issue: Issue, project_id: str
+    ) -> float:
         """Calculate skill match score based on past experience."""
         # Count issues of same type completed by user
         same_type_completed = Issue.objects.filter(
@@ -129,21 +131,21 @@ class RecommendationService:
             issue_type=issue.issue_type,
             status__is_final=True,
         ).count()
-        
+
         # Total completed issues by user in project
         total_completed = Issue.objects.filter(
             project_id=project_id, assignee=user, status__is_final=True
         ).count()
-        
+
         if total_completed == 0:
             return 0.3  # New team member baseline
-        
+
         # Ratio of experience with this type
         type_ratio = same_type_completed / total_completed
-        
+
         # Normalize to 0-1 score
         score = min(type_ratio * 2, 1.0)  # 50% experience = full score
-        
+
         return score
 
     def _calculate_workload_score(self, user: User, project_id: str) -> float:
@@ -155,7 +157,7 @@ class RecommendationService:
             status__is_final=False,
             is_active=True,
         ).count()
-        
+
         # Inverse scoring (fewer issues = higher score)
         if active_issues == 0:
             return 1.0
@@ -176,31 +178,27 @@ class RecommendationService:
         assigned_issues = Issue.objects.filter(
             project_id=project_id, assignee=user
         ).count()
-        
+
         if assigned_issues == 0:
             return 0.5  # Neutral score for new members
-        
+
         completed_issues = Issue.objects.filter(
             project_id=project_id, assignee=user, status__is_final=True
         ).count()
-        
+
         completion_rate = completed_issues / assigned_issues
-        
+
         # Check average resolution time
         avg_resolution_time = Issue.objects.filter(
             project_id=project_id,
             assignee=user,
             status__is_final=True,
             resolved_at__isnull=False,
-        ).aggregate(
-            avg_days=Avg(
-                timezone.now() - models.F("created_at")
-            )
-        )["avg_days"]
-        
+        ).aggregate(avg_days=Avg(timezone.now() - models.F("created_at")))["avg_days"]
+
         # Combine completion rate with speed
         performance = completion_rate
-        
+
         return min(performance, 1.0)
 
     def _calculate_availability_score(self, user: User) -> float:
@@ -210,7 +208,7 @@ class RecommendationService:
             assignee=user,
             updated_at__gte=timezone.now() - timezone.timedelta(days=7),
         ).count()
-        
+
         # More recent activity = higher availability
         if recent_updates >= 5:
             return 1.0
@@ -258,22 +256,24 @@ class RecommendationService:
                 status__is_final=False,
                 is_active=True,
             ).select_related("issue_type", "status", "assignee")
-            
+
             scored_issues = []
             for issue in open_issues:
                 priority_score = self._calculate_priority_score(issue)
-                scored_issues.append({
-                    "issue_id": str(issue.id),
-                    "title": issue.title,
-                    "priority_score": priority_score["score"],
-                    "reasoning": priority_score["reasoning"],
-                })
-            
+                scored_issues.append(
+                    {
+                        "issue_id": str(issue.id),
+                        "title": issue.title,
+                        "priority_score": priority_score["score"],
+                        "reasoning": priority_score["reasoning"],
+                    }
+                )
+
             # Sort by priority score
             scored_issues.sort(key=lambda x: x["priority_score"], reverse=True)
-            
+
             return scored_issues[:max_results]
-            
+
         except Exception as e:
             logger.exception(f"Error suggesting issue prioritization: {str(e)}")
             raise
@@ -282,7 +282,7 @@ class RecommendationService:
         """Calculate priority score for an issue."""
         score = 0.0
         reasoning = []
-        
+
         # Age factor
         age_days = (timezone.now() - issue.created_at).days
         if age_days > 30:
@@ -291,22 +291,22 @@ class RecommendationService:
         elif age_days > 14:
             score += 0.2
             reasoning.append("Issue has been open for over 2 weeks")
-        
+
         # Priority factor
         priority_scores = {"P0": 0.5, "P1": 0.4, "P2": 0.2, "P3": 0.1}
         if issue.priority in priority_scores:
             score += priority_scores[issue.priority]
             if issue.priority in ["P0", "P1"]:
                 reasoning.append(f"High priority ({issue.priority})")
-        
+
         # Blocker factor
         if issue.is_blocked:
             score += 0.2
             reasoning.append("Issue is currently blocked")
-        
+
         # Unassigned factor
         if not issue.assignee:
             score += 0.1
             reasoning.append("Issue is unassigned")
-        
+
         return {"score": round(score, 2), "reasoning": reasoning}

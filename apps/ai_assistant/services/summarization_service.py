@@ -41,47 +41,45 @@ class SummarizationService:
         """
         try:
             issue = Issue.objects.prefetch_related("comments").get(id=issue_id)
-            
+
             # Check cache first
             if use_cache:
-                cached = self._get_cached_summary(
-                    issue, "issue_discussion", length
-                )
+                cached = self._get_cached_summary(issue, "issue_discussion", length)
                 if cached:
                     return {"summary": cached.summary_text, "cached": True}
-            
+
             # Get all comments
             comments = issue.comments.select_related("author").order_by("created_at")
-            
+
             if not comments.exists():
                 return {
                     "summary": "No discussion yet for this issue.",
                     "cached": False,
                 }
-            
+
             # Build discussion text
             discussion_text = f"Issue: {issue.title}\n\n"
             for comment in comments:
                 user_name = comment.author.get_full_name() or comment.author.username
                 discussion_text += f"{user_name}: {comment.content}\n\n"
-            
+
             # Generate summary
             word_limits = {"brief": 50, "medium": 150, "detailed": 300}
             max_words = word_limits.get(length, 150)
-            
+
             summary = self._generate_summary(
                 discussion_text,
                 f"Summarize this issue discussion in {max_words} words or less. "
                 "Focus on key points, decisions made, and action items.",
             )
-            
+
             # Cache the summary
             self._cache_summary(
                 issue, "issue_discussion", length, summary, discussion_text
             )
-            
+
             return {"summary": summary, "cached": False}
-            
+
         except Exception as e:
             logger.exception(f"Error summarizing issue discussion: {str(e)}")
             raise
@@ -100,22 +98,24 @@ class SummarizationService:
             Summary with what went well, what didn't, action items
         """
         try:
-            sprint = Sprint.objects.prefetch_related("issues__comments").get(id=sprint_id)
-            
+            sprint = Sprint.objects.prefetch_related("issues__comments").get(
+                id=sprint_id
+            )
+
             # Gather sprint data
             total_issues = sprint.issues.count()
             completed = sprint.issues.filter(status__is_final=True).count()
-            
+
             # Build context
             context = (
                 f"Sprint: {sprint.name}\n"
                 f"Duration: {sprint.start_date} to {sprint.end_date or 'In Progress'}\n"
                 f"Issues: {completed}/{total_issues} completed\n\n"
             )
-            
+
             # Add sample of issue discussions for context
             # (In production, you might want to be more selective)
-            
+
             prompt = (
                 f"{context}\n"
                 "Generate a sprint retrospective summary with:\n"
@@ -123,15 +123,20 @@ class SummarizationService:
                 "2. What could be improved\n"
                 "3. Action items for next sprint"
             )
-            
+
             summary = self._generate_summary(context, prompt)
-            
-            return {"summary": summary, "sprint_metrics": {
-                "total_issues": total_issues,
-                "completed": completed,
-                "completion_rate": round(completed / total_issues * 100, 1) if total_issues > 0 else 0,
-            }}
-            
+
+            return {
+                "summary": summary,
+                "sprint_metrics": {
+                    "total_issues": total_issues,
+                    "completed": completed,
+                    "completion_rate": round(completed / total_issues * 100, 1)
+                    if total_issues > 0
+                    else 0,
+                },
+            }
+
         except Exception as e:
             logger.exception(f"Error summarizing sprint: {str(e)}")
             raise
@@ -158,10 +163,10 @@ class SummarizationService:
                 resolved_at__gte=start_date,
                 resolved_at__lte=end_date,
             ).select_related("issue_type")
-            
+
             if not issues.exists():
                 return {"notes": "No issues completed in this period."}
-            
+
             # Group by issue type
             by_type = {}
             for issue in issues:
@@ -169,7 +174,7 @@ class SummarizationService:
                 if type_name not in by_type:
                     by_type[type_name] = []
                 by_type[type_name].append(issue)
-            
+
             # Build release notes context
             context = f"Release period: {start_date} to {end_date}\n\n"
             for type_name, type_issues in by_type.items():
@@ -177,20 +182,20 @@ class SummarizationService:
                 for issue in type_issues:
                     context += f"- {issue.title}\n"
                 context += "\n"
-            
+
             prompt = (
                 "Generate professional release notes from these completed items. "
                 "Group by category and describe changes clearly for end users."
             )
-            
+
             release_notes = self._generate_summary(context, prompt)
-            
+
             return {
                 "notes": release_notes,
                 "issues_count": issues.count(),
                 "by_type": {k: len(v) for k, v in by_type.items()},
             }
-            
+
         except Exception as e:
             logger.exception(f"Error generating release notes: {str(e)}")
             raise
@@ -201,7 +206,7 @@ class SummarizationService:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": content},
         ]
-        
+
         # Use LLM proxy with automatic fallback
         # Primary: Llama 4 Maverick (cheap, fast)
         # Fallback: Azure OpenAI o4-mini (expensive, reliable)
@@ -213,12 +218,12 @@ class SummarizationService:
             reasoning_effort="low",  # For Azure o-series fallback
             fallback_enabled=True,
         )
-        
+
         logger.debug(
             f"[SUMMARIZATION] Generated with {response.provider}/{response.model}, "
             f"cost=${response.cost_usd:.4f}, tokens={response.total_tokens}"
         )
-        
+
         return response.content
 
     def _get_cached_summary(
@@ -226,7 +231,7 @@ class SummarizationService:
     ) -> Optional[SummaryCache]:
         """Retrieve cached summary if valid."""
         content_type = ContentType.objects.get_for_model(obj)
-        
+
         try:
             cached = SummaryCache.objects.get(
                 content_type=content_type,
@@ -235,13 +240,13 @@ class SummarizationService:
                 summary_length=length,
                 is_valid=True,
             )
-            
+
             # Check if expired
             if cached.expires_at and cached.expires_at < timezone.now():
                 cached.is_valid = False
                 cached.save()
                 return None
-            
+
             return cached
         except SummaryCache.DoesNotExist:
             return None
@@ -252,10 +257,10 @@ class SummarizationService:
         """Cache generated summary."""
         content_type = ContentType.objects.get_for_model(obj)
         content_hash = hashlib.sha256(content.encode()).hexdigest()
-        
+
         # Cache for 24 hours
         expires_at = timezone.now() + timezone.timedelta(hours=24)
-        
+
         SummaryCache.objects.update_or_create(
             content_type=content_type,
             object_id=obj.id,

@@ -82,9 +82,7 @@ class Command(BaseCommand):
                 continue
 
             # Check if project already has workflow transitions
-            existing_count = WorkflowTransition.objects.filter(
-                project=project
-            ).count()
+            existing_count = WorkflowTransition.objects.filter(project=project).count()
 
             if existing_count > 0 and not force:
                 self.stdout.write(
@@ -202,8 +200,6 @@ class Command(BaseCommand):
                 )
             )
             self.stdout.write(
-                self.style.WARNING(
-                    "  💡 Run: python manage.py seed_workflow_statuses"
-                )
+                self.style.WARNING("  💡 Run: python manage.py seed_workflow_statuses")
             )
         self.stdout.write("=" * 70 + "\n")

@@ -72,7 +72,7 @@ class MLViewSet(viewsets.ViewSet):
     def predict_effort(self, request):
         """Predict effort required for an issue."""
         from rest_framework.exceptions import PermissionDenied
-        
+
         try:
             title = request.data.get("title")
             description = request.data.get("description", "")
@@ -87,6 +87,7 @@ class MLViewSet(viewsets.ViewSet):
 
             # Check user has access to project
             from apps.projects.models import Project
+
             try:
                 project = Project.objects.get(id=project_id)
                 self.check_object_permissions(request, project)
@@ -140,7 +141,9 @@ class MLViewSet(viewsets.ViewSet):
             team_capacity_hours = request.data.get("team_capacity_hours", 0)
 
             if not sprint_id:
-                logger.warning("[ML] Missing sprint_id in estimate_sprint_duration request")
+                logger.warning(
+                    "[ML] Missing sprint_id in estimate_sprint_duration request"
+                )
                 return Response(
                     {"error": "sprint_id is required"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -162,7 +165,9 @@ class MLViewSet(viewsets.ViewSet):
             return Response(estimation, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.exception(f"[ML] Error estimating sprint duration for {sprint_id}: {str(e)}")
+            logger.exception(
+                f"[ML] Error estimating sprint duration for {sprint_id}: {str(e)}"
+            )
             return Response(
                 {"error": "Failed to estimate sprint duration.", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -254,11 +259,13 @@ class MLViewSet(viewsets.ViewSet):
         """Detect sprint risks."""
         try:
             logger.info(f"[ML] Detecting risks for sprint {pk}")
-            
+
             risks = self.anomaly_service.detect_sprint_risks(sprint_id=pk)
-            
-            logger.info(f"[ML] Sprint risk detection complete: {len(risks)} risk(s) found")
-            
+
+            logger.info(
+                f"[ML] Sprint risk detection complete: {len(risks)} risk(s) found"
+            )
+
             return Response({"risks": risks}, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -290,7 +297,7 @@ class MLViewSet(viewsets.ViewSet):
                             "velocity": 15.3,
                             "risk_score": 23.5,
                             "project_id": "77cc72d2-1911-4d6c-a6cc-bfb899ba96cd",
-                            "generated_at": "2025-11-16T01:00:00Z"
+                            "generated_at": "2025-11-16T01:00:00Z",
                         }
                     }
                 },
@@ -302,25 +309,26 @@ class MLViewSet(viewsets.ViewSet):
         detail=True,
         methods=["post", "get"],
         url_path="project-summary",
-        url_name="project-summary"
+        url_name="project-summary",
     )
     def project_summary(self, request, pk=None):
         """
         Generate AI Project Summary Report with key metrics.
-        
+
         Consolidates:
         - Completion % (from issues)
         - Velocity (from sprints)
         - Risk Score (from ML anomalies + project health)
         """
         try:
-            from apps.projects.models import Project, Issue, Sprint
-            from django.db.models import Sum, Count, Q
+            from django.db.models import Count, Q, Sum
             from django.db.models.functions import Coalesce
             from django.utils import timezone
-            
+
+            from apps.projects.models import Issue, Project, Sprint
+
             logger.info(f"[ML] Generating project summary for {pk}")
-            
+
             # Verify project exists
             try:
                 project = Project.objects.get(id=pk)
@@ -330,70 +338,82 @@ class MLViewSet(viewsets.ViewSet):
                     {"error": "Project not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            
+
             # Calculate Completion %
             total_issues = Issue.objects.filter(project=project, is_active=True).count()
             completed_issues = Issue.objects.filter(
                 project=project, is_active=True, status__category="done"
             ).count()
-            
-            completion = round((completed_issues / total_issues) * 100, 2) if total_issues > 0 else 0.0
-            
+
+            completion = (
+                round((completed_issues / total_issues) * 100, 2)
+                if total_issues > 0
+                else 0.0
+            )
+
             # Calculate Velocity (average from active + completed sprints)
             sprints = Sprint.objects.filter(
                 project=project, status__in=["active", "completed"]
             ).order_by("-end_date")[:5]
-            
+
             velocities = []
             for sprint in sprints:
                 completed_points = sprint.issues.filter(
                     status__category="done", is_active=True
                 ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
-                
+
                 if completed_points > 0:
                     velocities.append(completed_points)
-            
-            velocity = round(sum(velocities) / len(velocities), 2) if velocities else 0.0
-            
+
+            velocity = (
+                round(sum(velocities) / len(velocities), 2) if velocities else 0.0
+            )
+
             # Calculate Risk Score
             risk_score = 0.0
-            
+
             # Factor 1: Unassigned issues (max 30 points)
             unassigned_count = Issue.objects.filter(
                 project=project, is_active=True, assignee__isnull=True
             ).count()
             if total_issues > 0:
                 risk_score += min((unassigned_count / total_issues) * 100, 30)
-            
+
             # Factor 2: Overdue issues (max 40 points)
             overdue_issues = Issue.objects.filter(
                 project=project,
                 is_active=True,
                 sprint__end_date__lt=timezone.now().date(),
-                status__category__in=["to_do", "in_progress"]  # Fixed: to_do not todo
+                status__category__in=["to_do", "in_progress"],  # Fixed: to_do not todo
             ).count()
             if total_issues > 0:
                 risk_score += min((overdue_issues / total_issues) * 100, 40)
-            
+
             # Factor 3: Velocity decline (max 30 points)
             if len(velocities) >= 2:
                 recent_velocity = sum(velocities[:2]) / 2
-                older_velocity = sum(velocities[2:]) / len(velocities[2:]) if len(velocities) > 2 else recent_velocity
-                
+                older_velocity = (
+                    sum(velocities[2:]) / len(velocities[2:])
+                    if len(velocities) > 2
+                    else recent_velocity
+                )
+
                 if older_velocity > 0:
-                    velocity_change = ((recent_velocity - older_velocity) / older_velocity) * 100
+                    velocity_change = (
+                        (recent_velocity - older_velocity) / older_velocity
+                    ) * 100
                     if velocity_change < -20:  # Velocity dropped > 20%
                         risk_score += min(abs(velocity_change), 30)
-            
+
             risk_score = min(round(risk_score, 2), 100.0)
-            
+
             logger.info(
                 f"[ML] Project summary generated: completion={completion}%, "
                 f"velocity={velocity}, risk_score={risk_score}, "
                 f"total_issues={total_issues}, completed={completed_issues}, "
                 f"sprints_analyzed={len(velocities)}, velocities={velocities}"
             )
-            
+
             return Response(
                 {
                     "completion": completion,
@@ -407,13 +427,15 @@ class MLViewSet(viewsets.ViewSet):
                         "sprints_analyzed": len(velocities),
                         "unassigned_issues": unassigned_count,
                         "overdue_issues": overdue_issues,
-                    }
+                    },
                 },
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
-            
+
         except Exception as e:
-            logger.exception(f"[ML] Error generating project summary for {pk}: {str(e)}")
+            logger.exception(
+                f"[ML] Error generating project summary for {pk}: {str(e)}"
+            )
             return Response(
                 {"error": "Failed to generate project summary.", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -436,15 +458,18 @@ class MLViewSet(viewsets.ViewSet):
         detail=False,
         methods=["get"],
         url_path="project-anomalies/(?P<pk>[^/.]+)",
-        url_name="project-anomalies"
+        url_name="project-anomalies",
     )
     def detect_anomalies(self, request, pk=None):
         """Detect project anomalies."""
         try:
             from apps.ml.models import AnomalyDetection
-            anomalies = list(AnomalyDetection.objects.filter(project_id=pk).values(
-                'id', 'anomaly_type', 'severity', 'description', 'created_at'
-            ))
+
+            anomalies = list(
+                AnomalyDetection.objects.filter(project_id=pk).values(
+                    "id", "anomaly_type", "severity", "description", "created_at"
+                )
+            )
             return Response(anomalies, status=status.HTTP_200_OK)
 
         except Exception as e:

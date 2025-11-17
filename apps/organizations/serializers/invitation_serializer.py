@@ -8,6 +8,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+
 from rest_framework import serializers
 
 from apps.authentication.models import User
@@ -95,7 +96,7 @@ class OrganizationInvitationCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         """
         Create invitation or membership depending on user existence.
-        
+
         Returns:
             dict: Response data with status and details
         """
@@ -194,7 +195,9 @@ class OrganizationInvitationCreateSerializer(serializers.Serializer):
             )
 
             frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:4200")
-            acceptance_url = f"{frontend_url}/accept-invitation?token={invitation.token}"
+            acceptance_url = (
+                f"{frontend_url}/accept-invitation?token={invitation.token}"
+            )
 
             return {
                 "id": str(invitation.id),
@@ -308,7 +311,9 @@ class OrganizationInvitationAcceptSerializer(serializers.Serializer):
         request = self.context.get("request")
 
         if not request or not request.user.is_authenticated:
-            raise serializers.ValidationError("Debe estar autenticado para aceptar invitaciones")
+            raise serializers.ValidationError(
+                "Debe estar autenticado para aceptar invitaciones"
+            )
 
         try:
             invitation = OrganizationInvitation.objects.get(
@@ -329,9 +334,7 @@ class OrganizationInvitationAcceptSerializer(serializers.Serializer):
         if OrganizationMembership.objects.filter(
             organization=invitation.organization, user=request.user, is_active=True
         ).exists():
-            raise serializers.ValidationError(
-                "Ya eres miembro de esta organización"
-            )
+            raise serializers.ValidationError("Ya eres miembro de esta organización")
 
         # Store invitation for create method
         self.context["invitation"] = invitation

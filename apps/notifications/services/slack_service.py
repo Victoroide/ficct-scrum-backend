@@ -24,7 +24,7 @@ class SlackService:
         """Validate Slack webhook URL format."""
         if not webhook_url:
             return False
-        if not webhook_url.startswith('https://hooks.slack.com/'):
+        if not webhook_url.startswith("https://hooks.slack.com/"):
             return False
         return True
 
@@ -54,27 +54,29 @@ class SlackService:
         """
         try:
             url = webhook_url or self.default_webhook_url
-            
+
             if not url:
                 logger.warning("No Slack webhook URL configured")
                 return False
-            
+
             payload = self._build_payload(title, message, link, channel, color, fields)
-            
+
             response = requests.post(
                 url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
                 timeout=10,
             )
-            
+
             if response.status_code == 200:
                 logger.info(f"Slack notification sent: {title}")
                 return True
             else:
-                logger.error(f"Slack API error: {response.status_code} - {response.text}")
+                logger.error(
+                    f"Slack API error: {response.status_code} - {response.text}"
+                )
                 return False
-                
+
         except Exception as e:
             logger.exception(f"Error sending Slack notification: {str(e)}")
             return False
@@ -94,34 +96,42 @@ class SlackService:
             True if successful
         """
         try:
-            issue_key = f"{issue_data.get('project_key', '')}-{issue_data.get('key', '')}"
+            issue_key = (
+                f"{issue_data.get('project_key', '')}-{issue_data.get('key', '')}"
+            )
             title = f"Issue {action}: {issue_key}"
             message = issue_data.get("title", "")
-            
+
             # Build rich message
             fields = []
-            
+
             if issue_data.get("assignee"):
-                fields.append({
-                    "title": "Assignee",
-                    "value": issue_data["assignee"],
-                    "short": True,
-                })
-            
+                fields.append(
+                    {
+                        "title": "Assignee",
+                        "value": issue_data["assignee"],
+                        "short": True,
+                    }
+                )
+
             if issue_data.get("priority"):
-                fields.append({
-                    "title": "Priority",
-                    "value": issue_data["priority"],
-                    "short": True,
-                })
-            
+                fields.append(
+                    {
+                        "title": "Priority",
+                        "value": issue_data["priority"],
+                        "short": True,
+                    }
+                )
+
             if issue_data.get("status"):
-                fields.append({
-                    "title": "Status",
-                    "value": issue_data["status"],
-                    "short": True,
-                })
-            
+                fields.append(
+                    {
+                        "title": "Status",
+                        "value": issue_data["status"],
+                        "short": True,
+                    }
+                )
+
             payload = {
                 "text": title,
                 "attachments": [
@@ -135,14 +145,14 @@ class SlackService:
                     }
                 ],
             }
-            
+
             url = webhook_url or self.default_webhook_url
             if not url:
                 return False
-            
+
             response = requests.post(url, json=payload, timeout=10)
             return response.status_code == 200
-            
+
         except Exception as e:
             logger.exception(f"Error sending issue notification to Slack: {str(e)}")
             return False
@@ -163,15 +173,15 @@ class SlackService:
         try:
             severity = anomaly_data.get("severity", "medium")
             color = self._get_color_for_severity(severity)
-            
+
             title = f"⚠️ Anomaly Detected: {anomaly_data.get('type', 'Unknown')}"
             message = anomaly_data.get("description", "")
-            
+
             suggestions = anomaly_data.get("mitigation_suggestions", [])
             if suggestions:
                 message += "\n\n*Suggested Actions:*\n"
                 message += "\n".join(f"• {s}" for s in suggestions)
-            
+
             return self.send_notification(
                 title=title,
                 message=message,
@@ -179,7 +189,7 @@ class SlackService:
                 webhook_url=webhook_url,
                 color=color,
             )
-            
+
         except Exception as e:
             logger.exception(f"Error sending anomaly alert to Slack: {str(e)}")
             return False
@@ -204,10 +214,10 @@ class SlackService:
                     }
                 ],
             }
-            
+
             response = requests.post(webhook_url, json=payload, timeout=10)
             return response.status_code == 200
-            
+
         except Exception as e:
             logger.exception(f"Error testing Slack webhook: {str(e)}")
             return False
@@ -223,23 +233,23 @@ class SlackService:
     ) -> Dict[str, Any]:
         """Build Slack message payload."""
         payload = {"text": title}
-        
+
         if channel:
             payload["channel"] = channel
-        
+
         attachment = {
             "color": color,
             "text": message,
         }
-        
+
         if link:
             attachment["title_link"] = link
-        
+
         if fields:
             attachment["fields"] = fields
-        
+
         payload["attachments"] = [attachment]
-        
+
         return payload
 
     def _get_color_for_action(self, action: str) -> str:

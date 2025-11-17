@@ -137,19 +137,15 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
     def members(self, request, pk=None):
         """Retrieve a list of members for the given workspace."""
         workspace = self.get_object()
-        
+
         # Query optimization to prevent N+1
-        members = WorkspaceMember.objects.filter(
-            workspace=workspace,
-            is_active=True
-        ).select_related(
-            'user',
-            'workspace'
-        ).order_by('-joined_at')
-        
+        members = (
+            WorkspaceMember.objects.filter(workspace=workspace, is_active=True)
+            .select_related("user", "workspace")
+            .order_by("-joined_at")
+        )
+
         serializer = WorkspaceMemberSerializer(
-            members,
-            many=True,
-            context={"request": request}
+            members, many=True, context={"request": request}
         )
         return Response(serializer.data, status=status.HTTP_200_OK)

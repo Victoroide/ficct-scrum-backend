@@ -1,7 +1,7 @@
 """AI Assistant services."""
 
-from .rag_service import RAGService
 from .assistant_service import AssistantService
+from .rag_service import RAGService
 from .summarization_service import SummarizationService
 
 __all__ = [

@@ -93,13 +93,13 @@ class OrganizationInvitation(models.Model):
     def accept(self, user):
         """
         Accept the invitation and create organization membership.
-        
+
         Args:
             user: The user accepting the invitation
-            
+
         Returns:
             OrganizationMembership: The created membership
-            
+
         Raises:
             ValueError: If invitation is not valid for acceptance
         """

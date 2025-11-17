@@ -1,4 +1,5 @@
 from django.db.models import Q
+
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -27,11 +28,11 @@ from apps.projects.serializers.issue_type_serializer import (
 class IssueTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for IssueType model.
-    
+
     Provides list and retrieve actions for issue types.
     Issue types are read-only through the API as they should be managed
     through project configuration.
-    
+
     Filters:
     - By default, returns issue types for projects the user has access to
     - Use ?project=<project_id> to filter by specific project

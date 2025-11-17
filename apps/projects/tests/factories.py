@@ -90,15 +90,21 @@ class IssueFactory(DjangoModelFactory):
         model = Issue
 
     project = factory.SubFactory(ProjectFactory)
-    issue_type = factory.SubFactory(IssueTypeFactory, project=factory.SelfAttribute('..project'))
-    status = factory.SubFactory(WorkflowStatusFactory, project=factory.SelfAttribute('..project'))
+    issue_type = factory.SubFactory(
+        IssueTypeFactory, project=factory.SelfAttribute("..project")
+    )
+    status = factory.SubFactory(
+        WorkflowStatusFactory, project=factory.SelfAttribute("..project")
+    )
     key = factory.Sequence(lambda n: str(n))
     title = factory.Faker("sentence", nb_words=6)
     description = factory.Faker("text", max_nb_chars=200)
     priority = factory.Iterator(("P1", "P2", "P3", "P4"))
     reporter = factory.SubFactory(UserFactory)
     assignee = factory.SubFactory(UserFactory)
-    estimated_hours = factory.Faker("pydecimal", left_digits=3, right_digits=2, positive=True)
+    estimated_hours = factory.Faker(
+        "pydecimal", left_digits=3, right_digits=2, positive=True
+    )
     story_points = factory.Faker("random_int", min=1, max=13)
     order = factory.Sequence(lambda n: n)
     is_active = True
@@ -142,8 +148,7 @@ class BoardColumnFactory(DjangoModelFactory):
 
     board = factory.SubFactory(BoardFactory)
     workflow_status = factory.SubFactory(
-        WorkflowStatusFactory, 
-        project=factory.SelfAttribute('..board.project')
+        WorkflowStatusFactory, project=factory.SelfAttribute("..board.project")
     )
     name = factory.Sequence(lambda n: f"Column {n}")
     order = factory.Sequence(lambda n: n)
@@ -168,7 +173,7 @@ class IssueAttachmentFactory(DjangoModelFactory):
         model = IssueAttachment
 
     issue = factory.SubFactory(IssueFactory)
-    file = factory.django.FileField(filename='test_file.pdf')
+    file = factory.django.FileField(filename="test_file.pdf")
     filename = "test_file.pdf"
     file_size = 1024
     content_type = "application/pdf"
@@ -183,8 +188,7 @@ class IssueLinkFactory(DjangoModelFactory):
 
     source_issue = factory.SubFactory(IssueFactory)
     target_issue = factory.SubFactory(
-        IssueFactory, 
-        project=factory.SelfAttribute('..source_issue.project')
+        IssueFactory, project=factory.SelfAttribute("..source_issue.project")
     )
     link_type = factory.Iterator(("blocks", "relates_to", "duplicates"))
     created_by = factory.SubFactory(UserFactory)

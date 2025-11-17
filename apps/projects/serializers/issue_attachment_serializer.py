@@ -36,9 +36,7 @@ class IssueAttachmentSerializer(serializers.ModelSerializer):
     def validate_file(self, value):
         max_size = 50 * 1024 * 1024
         if value.size > max_size:
-            raise serializers.ValidationError(
-                "File size cannot exceed 50MB"
-            )
+            raise serializers.ValidationError("File size cannot exceed 50MB")
         return value
 
     def create(self, validated_data):

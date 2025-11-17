@@ -75,19 +75,15 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         # Handle schema generation
         if getattr(self, "swagger_fake_view", False):
             return OrganizationMembership.objects.none()
-        
+
         try:
             # Query optimization to prevent N+1
             queryset = OrganizationMembership.objects.select_related(
-                'user',
-                'organization',
-                'invited_by'
-            ).prefetch_related(
-                Prefetch('user__profile')
-            )
-            
+                "user", "organization", "invited_by"
+            ).prefetch_related(Prefetch("user__profile"))
+
             # Filter by organization if provided (critical for frontend)
-            organization_id = self.request.query_params.get('organization')
+            organization_id = self.request.query_params.get("organization")
             if organization_id:
                 queryset = queryset.filter(organization_id=organization_id)
             else:
@@ -96,41 +92,43 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
                     organization__memberships__user=self.request.user,
                     organization__memberships__is_active=True,
                 ).distinct()
-            
-            return queryset.order_by('-joined_at')
-            
+
+            return queryset.order_by("-joined_at")
+
         except Exception as e:
             logger.error(f"Error in get_queryset: {str(e)}", exc_info=True)
             return OrganizationMembership.objects.none()
-    
+
     def list(self, request, *args, **kwargs):
         """List members with robust error handling."""
         try:
-            organization_id = request.query_params.get('organization')
-            logger.info(f"Listing members for organization: {organization_id}, user: {request.user.username}")
-            
+            organization_id = request.query_params.get("organization")
+            logger.info(
+                f"Listing members for organization: {organization_id}, user: {request.user.username}"
+            )
+
             queryset = self.filter_queryset(self.get_queryset())
             count = queryset.count()
             logger.debug(f"Found {count} members")
-            
+
             page = self.paginate_queryset(queryset)
             if page is not None:
                 serializer = self.get_serializer(page, many=True)
                 return self.get_paginated_response(serializer.data)
-            
+
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
-            
+
         except Exception as e:
             logger.error(f"Error listing organization members: {str(e)}", exc_info=True)
             return Response(
                 {
-                    'error': 'Error al cargar miembros de la organización',
-                    'detail': str(e)
+                    "error": "Error al cargar miembros de la organización",
+                    "detail": str(e),
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-    
+
     def retrieve(self, request, *args, **kwargs):
         """Retrieve member with error handling."""
         try:
@@ -140,8 +138,8 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error retrieving member: {str(e)}", exc_info=True)
             return Response(
-                {'error': 'Error al obtener miembro', 'detail': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Error al obtener miembro", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @transaction.atomic

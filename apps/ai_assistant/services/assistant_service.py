@@ -8,8 +8,9 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from base.services.llm_proxy import get_llm_proxy
-from .rag_service import RAGService
+
 from .query_router import QueryRouter
+from .rag_service import RAGService
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class AssistantService:
         """Initialize assistant with RAG, LLM proxy, and query router."""
         self.available = False
         self.error_message = None
-        
+
         try:
             self.llm_proxy = get_llm_proxy()  # LLM proxy for chat
             self.rag = RAGService()  # RAG keeps Azure for embeddings
@@ -31,11 +32,12 @@ class AssistantService:
         except Exception as e:
             self.error_message = f"Failed to initialize Assistant service: {str(e)}"
             logger.error(f"AssistantService initialization failed: {e}")
-    
+
     def _check_available(self):
         """Check if service is available, raise exception if not."""
         if not self.available:
             from apps.ai_assistant.exceptions import ServiceUnavailable
+
             raise ServiceUnavailable(
                 detail=self.error_message or "Assistant service is not available"
             )
@@ -63,27 +65,25 @@ class AssistantService:
             logger.info(f"Assistant query: '{question}'")
             intent = self.query_router.classify_query_intent(question)
             strategy = self.query_router.build_search_strategy(
-                query=question,
-                project_id=project_id,
-                intent=intent
+                query=question, project_id=project_id, intent=intent
             )
-            
+
             logger.info(f"Query strategy: {strategy['description']}")
-            
+
             # Step 2: Execute intelligent semantic search
             relevant_issues = self.rag.semantic_search(
                 query=question,
                 project_id=project_id,
-                top_k=strategy['top_k'],
-                filters=strategy.get('filters', {}),
+                top_k=strategy["top_k"],
+                filters=strategy.get("filters", {}),
             )
-            
+
             # Step 3: Build enhanced context from retrieved issues
             context = self._build_context(relevant_issues, strategy)
-            
+
             # Step 3: Construct prompt with context
             messages = self._build_messages(question, context, conversation_history)
-            
+
             # Step 4: Get response from LLM proxy (Llama 4 → Azure fallback)
             response = self.llm_proxy.generate(
                 messages=messages,
@@ -93,12 +93,12 @@ class AssistantService:
                 reasoning_effort="low",  # For Azure o-series fallback
                 fallback_enabled=True,
             )
-            
+
             logger.info(
                 f"[ASSISTANT] Answer generated with {response.provider}/{response.model}, "
                 f"cost=${response.cost_usd:.4f}"
             )
-            
+
             # Step 5: Prepare response with sources
             return {
                 "answer": response.content,
@@ -117,7 +117,7 @@ class AssistantService:
                 "model": response.model,
                 "cost_usd": response.cost_usd,
             }
-            
+
         except Exception as e:
             logger.exception(f"Error answering question: {str(e)}")
             raise
@@ -143,16 +143,16 @@ class AssistantService:
                 top_k=10,
                 filters={"status": "Done"},  # Only completed issues
             )
-            
+
             if not similar_issues:
                 return {
                     "suggestions": [],
                     "message": "No similar historical issues found.",
                 }
-            
+
             # Build prompt for solution extraction
             context = self._build_context(similar_issues)
-            
+
             messages = [
                 {
                     "role": "system",
@@ -171,7 +171,7 @@ class AssistantService:
                     ),
                 },
             ]
-            
+
             # Use LLM proxy for solution suggestions
             response = self.llm_proxy.generate(
                 messages=messages,
@@ -181,12 +181,12 @@ class AssistantService:
                 reasoning_effort="low",  # For Azure fallback
                 fallback_enabled=True,
             )
-            
+
             logger.info(
                 f"[ASSISTANT] Solutions suggested with {response.provider}/{response.model}, "
                 f"cost=${response.cost_usd:.4f}"
             )
-            
+
             return {
                 "suggestions": response.content,
                 "similar_issues": similar_issues[:5],
@@ -195,7 +195,7 @@ class AssistantService:
                 "model": response.model,
                 "cost_usd": response.cost_usd,
             }
-            
+
         except Exception as e:
             logger.exception(f"Error suggesting solutions: {str(e)}")
             raise
@@ -204,7 +204,7 @@ class AssistantService:
         """Build context string from retrieved issues."""
         if not issues:
             return "No relevant issues found."
-        
+
         context_parts = []
         for i, issue in enumerate(issues[:5], 1):
             context_parts.append(
@@ -212,7 +212,7 @@ class AssistantService:
                 f"   Type: {issue['issue_type']} | Status: {issue['status']}\n"
                 f"   Description: {issue.get('description', 'N/A')[:200]}\n"
             )
-        
+
         return "\n".join(context_parts)
 
     def _build_messages(
@@ -233,24 +233,26 @@ class AssistantService:
                 ),
             },
         ]
-        
+
         # Add conversation history if provided
         if conversation_history:
             messages.extend(conversation_history[-5:])  # Last 5 messages
-        
+
         # Add current question with context
-        messages.append({
-            "role": "user",
-            "content": f"Context (relevant issues):\n{context}\n\nQuestion: {question}",
-        })
-        
+        messages.append(
+            {
+                "role": "user",
+                "content": f"Context (relevant issues):\n{context}\n\nQuestion: {question}",
+            }
+        )
+
         return messages
 
     def _calculate_confidence(self, issues: List[Dict[str, Any]]) -> float:
         """Calculate confidence score based on similarity scores."""
         if not issues:
             return 0.0
-        
+
         # Average of top 3 similarity scores
         top_scores = [issue["similarity_score"] for issue in issues[:3]]
         return round(sum(top_scores) / len(top_scores), 2)

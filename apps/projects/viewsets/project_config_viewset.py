@@ -1,6 +1,7 @@
 import logging
 
 from django.db import IntegrityError
+
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -49,10 +50,11 @@ logger = logging.getLogger(__name__)
 class ProjectConfigViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing project configurations.
-    
+
     Provides CRUD operations and search by project UUID.
     Prevents duplicate configurations with proper error handling.
     """
+
     queryset = ProjectConfiguration.objects.all()
     serializer_class = ProjectConfigSerializer
     permission_classes = [IsAuthenticated, CanModifyProjectConfiguration]
@@ -63,11 +65,11 @@ class ProjectConfigViewSet(viewsets.ModelViewSet):
             project__workspace__members__user=self.request.user,
             project__workspace__members__is_active=True,
         ).distinct()
-    
+
     def create(self, request, *args, **kwargs):
         """
         Create a new project configuration.
-        
+
         Handles IntegrityError as a fallback to prevent 500 errors.
         The serializer should catch duplicates during validation,
         but this provides an additional safety layer.
@@ -81,10 +83,10 @@ class ProjectConfigViewSet(viewsets.ModelViewSet):
                 f"Error: {str(e)}"
             )
             return Response(
-                {'error': 'A configuration already exists for this project.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "A configuration already exists for this project."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-    
+
     @extend_schema(
         tags=["Projects"],
         operation_id="project_configs_by_project",
@@ -92,46 +94,46 @@ class ProjectConfigViewSet(viewsets.ModelViewSet):
         description="Retrieve the configuration for a specific project using its UUID.",
         parameters=[
             OpenApiParameter(
-                name='project',
+                name="project",
                 type=str,
                 location=OpenApiParameter.QUERY,
                 required=True,
-                description='UUID of the project'
+                description="UUID of the project",
             )
         ],
         responses={
             200: ProjectConfigSerializer,
-            404: {'description': 'Configuration not found for this project'},
-            400: {'description': 'Project UUID is required'}
-        }
+            404: {"description": "Configuration not found for this project"},
+            400: {"description": "Project UUID is required"},
+        },
     )
-    @action(detail=False, methods=['get'], url_path='by-project')
+    @action(detail=False, methods=["get"], url_path="by-project")
     def by_project(self, request):
         """
         Get configuration by project UUID.
-        
+
         Query params:
             project: UUID of the project
-        
+
         Returns:
             200: Configuration found
             404: Configuration not found
             400: Project UUID not provided
         """
-        project_id = request.query_params.get('project')
-        
+        project_id = request.query_params.get("project")
+
         if not project_id:
             return Response(
-                {'error': 'Project UUID is required as query parameter.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Project UUID is required as query parameter."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
             config = self.get_queryset().get(project_id=project_id)
             serializer = self.get_serializer(config)
             return Response(serializer.data)
         except ProjectConfiguration.DoesNotExist:
             return Response(
-                {'error': 'Configuration not found for this project.'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Configuration not found for this project."},
+                status=status.HTTP_404_NOT_FOUND,
             )

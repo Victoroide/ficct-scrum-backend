@@ -50,7 +50,13 @@ class ChatMessageInline(admin.TabularInline):
 class ChatMessageAdmin(admin.ModelAdmin):
     """Admin for ChatMessage."""
 
-    list_display = ["conversation", "role", "prompt_tokens", "completion_tokens", "created_at"]
+    list_display = [
+        "conversation",
+        "role",
+        "prompt_tokens",
+        "completion_tokens",
+        "created_at",
+    ]
     list_filter = ["role", "created_at"]
     readonly_fields = ["created_at"]
     ordering = ["-created_at"]

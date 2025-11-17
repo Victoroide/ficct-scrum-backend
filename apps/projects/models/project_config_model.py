@@ -47,9 +47,9 @@ class ProjectConfiguration(models.Model):
     email_notifications = models.BooleanField(default=True)
     slack_notifications = models.BooleanField(default=False)
     slack_webhook_url = models.URLField(
-        blank=True, 
+        blank=True,
         null=True,
-        help_text="Slack webhook URL for notifications (optional)"
+        help_text="Slack webhook URL for notifications (optional)",
     )
 
     # Security Configuration

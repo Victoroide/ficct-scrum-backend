@@ -1,8 +1,10 @@
-import pytest
 from datetime import date, timedelta
+
 from django.core.exceptions import ValidationError
 
-from apps.projects.models import Sprint, BoardColumn
+import pytest
+
+from apps.projects.models import BoardColumn, Sprint
 from apps.projects.tests.factories import (
     BoardColumnFactory,
     BoardFactory,
@@ -118,10 +120,7 @@ class TestBoardColumnModel:
         other_status = WorkflowStatusFactory(project=other_project)
 
         column = BoardColumn(
-            board=board,
-            workflow_status=other_status,
-            name="Test Column",
-            order=1
+            board=board, workflow_status=other_status, name="Test Column", order=1
         )
 
         with pytest.raises(ValidationError):
@@ -137,7 +136,7 @@ class TestBoardColumnModel:
             name="Test Column",
             order=1,
             min_wip=10,
-            max_wip=5
+            max_wip=5,
         )
 
         with pytest.raises(ValidationError):

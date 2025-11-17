@@ -28,14 +28,14 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
     """
     try:
         from apps.notifications.services import NotificationService
-        
+
         notification_service = NotificationService()
         current_user = get_current_user()
-        
+
         # Skip if no authenticated user (e.g., management commands)
         if not current_user or not current_user.is_authenticated:
             return
-        
+
         # Notify on assignment
         if created and instance.assignee and instance.assignee != current_user:
             notification_service.notify_issue_assigned(
@@ -44,13 +44,15 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
                 assigner_id=str(current_user.id),
             )
             logger.debug(f"Sent assignment notification for issue {instance.id}")
-        
+
         # Notify on status change (detect using update_fields)
         update_fields = kwargs.get("update_fields")
         if not created and update_fields and "status" in update_fields:
             # Would need to track old status - simplified implementation
             # In production, use django-simple-history or custom tracking
             pass
-            
+
     except Exception as e:
-        logger.exception(f"Error creating notification for issue {instance.id}: {str(e)}")
+        logger.exception(
+            f"Error creating notification for issue {instance.id}: {str(e)}"
+        )

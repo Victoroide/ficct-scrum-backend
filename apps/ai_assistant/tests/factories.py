@@ -2,9 +2,10 @@
 Factory classes for AI assistant models.
 """
 
+from django.utils import timezone
+
 import factory
 from factory.django import DjangoModelFactory
-from django.utils import timezone
 
 from apps.ai_assistant.models import (
     ChatConversation,
@@ -56,9 +57,7 @@ class SummaryCacheFactory(DjangoModelFactory):
     class Meta:
         model = SummaryCache
 
-    content_type = factory.SubFactory(
-        "django.contrib.contenttypes.models.ContentType"
-    )
+    content_type = factory.SubFactory("django.contrib.contenttypes.models.ContentType")
     object_id = factory.Faker("uuid4")
     summary_type = "issue_discussion"
     summary_text = factory.Faker("paragraph")

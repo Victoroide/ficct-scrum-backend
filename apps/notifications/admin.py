@@ -25,7 +25,13 @@ class NotificationAdmin(admin.ModelAdmin):
         "slack_sent",
         "created_at",
     ]
-    list_filter = ["notification_type", "is_read", "email_sent", "slack_sent", "created_at"]
+    list_filter = [
+        "notification_type",
+        "is_read",
+        "email_sent",
+        "slack_sent",
+        "created_at",
+    ]
     search_fields = ["recipient__email", "title", "message"]
     readonly_fields = ["created_at", "read_at"]
     ordering = ["-created_at"]
@@ -77,17 +83,25 @@ class ProjectNotificationSettingsAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = (
-        ("Project", {
-            "fields": ("project_id",)
-        }),
-        ("Slack Integration", {
-            "fields": ("slack_enabled", "slack_webhook_url", "slack_channel")
-        }),
-        ("Event Triggers", {
-            "fields": ("notify_on_issue_create", "notify_on_issue_update", "notify_on_status_change", "notify_on_sprint_event", "notify_on_anomaly")
-        }),
-        ("Timestamps", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",)
-        }),
+        ("Project", {"fields": ("project_id",)}),
+        (
+            "Slack Integration",
+            {"fields": ("slack_enabled", "slack_webhook_url", "slack_channel")},
+        ),
+        (
+            "Event Triggers",
+            {
+                "fields": (
+                    "notify_on_issue_create",
+                    "notify_on_issue_update",
+                    "notify_on_status_change",
+                    "notify_on_sprint_event",
+                    "notify_on_anomaly",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )

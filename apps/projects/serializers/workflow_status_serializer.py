@@ -6,10 +6,10 @@ from apps.projects.models import WorkflowStatus
 class WorkflowStatusSerializer(serializers.ModelSerializer):
     """
     Serializer for WorkflowStatus model.
-    
+
     Returns workflow status details for use in issue status dropdowns and board columns.
     """
-    
+
     class Meta:
         model = WorkflowStatus
         fields = [
@@ -36,10 +36,10 @@ class WorkflowStatusSerializer(serializers.ModelSerializer):
 class WorkflowStatusListSerializer(serializers.ModelSerializer):
     """
     Simplified serializer for WorkflowStatus list view.
-    
+
     Returns only essential fields for dropdowns and UI elements.
     """
-    
+
     class Meta:
         model = WorkflowStatus
         fields = [

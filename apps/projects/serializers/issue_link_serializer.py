@@ -24,7 +24,13 @@ class IssueLinkSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
         ]
-        read_only_fields = ["id", "source_issue", "target_issue", "created_by", "created_at"]
+        read_only_fields = [
+            "id",
+            "source_issue",
+            "target_issue",
+            "created_by",
+            "created_at",
+        ]
 
     def validate_source_issue(self, value):
         try:
@@ -51,13 +57,13 @@ class IssueLinkSerializer(serializers.ModelSerializer):
         target_issue = Issue.objects.get(id=target_issue_id)
 
         if source_issue.project != target_issue.project:
-            raise serializers.ValidationError("Both issues must belong to the same project")
+            raise serializers.ValidationError(
+                "Both issues must belong to the same project"
+            )
 
         link_type = attrs.get("link_type")
         if IssueLink.objects.filter(
-            source_issue=source_issue,
-            target_issue=target_issue,
-            link_type=link_type
+            source_issue=source_issue, target_issue=target_issue, link_type=link_type
         ).exists():
             raise serializers.ValidationError("This link already exists")
 
@@ -76,18 +82,20 @@ class IssueLinkSerializer(serializers.ModelSerializer):
 
         link = super().create(validated_data)
 
-        reciprocal_link_type = IssueLink.get_reciprocal_link_type(validated_data["link_type"])
+        reciprocal_link_type = IssueLink.get_reciprocal_link_type(
+            validated_data["link_type"]
+        )
 
         if not IssueLink.objects.filter(
             source_issue=target_issue,
             target_issue=source_issue,
-            link_type=reciprocal_link_type
+            link_type=reciprocal_link_type,
         ).exists():
             IssueLink.objects.create(
                 source_issue=target_issue,
                 target_issue=source_issue,
                 link_type=reciprocal_link_type,
-                created_by=self.context["request"].user
+                created_by=self.context["request"].user,
             )
 
         return link

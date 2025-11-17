@@ -8,6 +8,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -146,7 +147,9 @@ class SimilarIssuesValidationTestCase(TestCase):
         self.client.force_authenticate(user=self.user)
 
         with patch("apps.ai_assistant.services.rag_service.get_pinecone_service"):
-            with patch("apps.ai_assistant.services.rag_service.get_azure_openai_service"):
+            with patch(
+                "apps.ai_assistant.services.rag_service.get_azure_openai_service"
+            ):
                 response = self.client.get(
                     f"/api/v1/ai/{self.issue.id}/similar-issues/?top_k=10"
                 )
@@ -158,9 +161,7 @@ class SimilarIssuesValidationTestCase(TestCase):
 
     @patch("apps.ai_assistant.services.rag_service.get_pinecone_service")
     @patch("apps.ai_assistant.services.rag_service.get_azure_openai_service")
-    def test_similar_issues_with_nonexistent_uuid(
-        self, mock_openai, mock_pinecone
-    ):
+    def test_similar_issues_with_nonexistent_uuid(self, mock_openai, mock_pinecone):
         """Test that non-existent issue UUID returns 404."""
         # Mock services as available
         mock_openai.return_value = MagicMock()

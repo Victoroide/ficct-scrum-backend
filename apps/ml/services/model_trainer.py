@@ -8,14 +8,11 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import joblib
 from django.conf import settings
+
+import joblib
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
-from sklearn.metrics import (
-    mean_absolute_error,
-    mean_squared_error,
-    r2_score,
-)
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 
 from apps.ml.models import MLModel
@@ -47,12 +44,14 @@ class ModelTrainer:
         try:
             if len(training_data) < 50:
                 raise ValueError("Insufficient training data (minimum 50 samples)")
-            
+
             # Prepare features and labels
             # This is a placeholder - actual implementation would extract features
             # from issue text and metadata
-            logger.info(f"Training effort prediction model with {len(training_data)} samples")
-            
+            logger.info(
+                f"Training effort prediction model with {len(training_data)} samples"
+            )
+
             # For now, return a placeholder model
             model = MLModel.objects.create(
                 model_type="effort_prediction",
@@ -61,25 +60,27 @@ class ModelTrainer:
                 training_samples=len(training_data),
                 trained_by=user,
             )
-            
+
             # TODO: Implement actual model training
             # - Extract features from training_data
             # - Train RandomForestRegressor
             # - Evaluate on test set
             # - Save model file
             # - Update model status to 'active'
-            
+
             model.status = "active"
             model.save()
-            
+
             logger.info(f"Model training completed: {model.id}")
             return model
-            
+
         except Exception as e:
             logger.exception(f"Error training model: {str(e)}")
             raise
 
-    def evaluate_model(self, model_id: str, test_data: List[Dict[str, Any]]) -> Dict[str, float]:
+    def evaluate_model(
+        self, model_id: str, test_data: List[Dict[str, Any]]
+    ) -> Dict[str, float]:
         """
         Evaluate model performance on test data.
 
@@ -92,26 +93,26 @@ class ModelTrainer:
         """
         try:
             model = MLModel.objects.get(id=model_id)
-            
+
             # TODO: Load model and evaluate
             # - Load saved model file
             # - Make predictions on test_data
             # - Calculate metrics (MAE, RMSE, R²)
-            
+
             metrics = {
                 "mae": 0.0,
                 "rmse": 0.0,
                 "r2": 0.0,
             }
-            
+
             # Update model with metrics
             model.mae = metrics["mae"]
             model.rmse = metrics["rmse"]
             model.r2_score = metrics["r2"]
             model.save()
-            
+
             return metrics
-            
+
         except Exception as e:
             logger.exception(f"Error evaluating model: {str(e)}")
             raise
@@ -128,26 +129,31 @@ class ModelTrainer:
         """
         try:
             # Get latest active model
-            latest_model = MLModel.objects.filter(
-                model_type=model_type, status="active"
-            ).order_by("-training_date").first()
-            
+            latest_model = (
+                MLModel.objects.filter(model_type=model_type, status="active")
+                .order_by("-training_date")
+                .first()
+            )
+
             if not latest_model:
                 return True  # No model exists
-            
+
             # Check if model is old (> 30 days)
             from django.utils import timezone
+
             age_days = (timezone.now() - latest_model.training_date).days
-            
+
             if age_days > 30:
-                logger.info(f"Model {model_type} is {age_days} days old, retraining recommended")
+                logger.info(
+                    f"Model {model_type} is {age_days} days old, retraining recommended"
+                )
                 return True
-            
+
             # Check if accuracy degraded (would need prediction history analysis)
             # TODO: Implement accuracy degradation check
-            
+
             return False
-            
+
         except Exception as e:
             logger.exception(f"Error checking retrain status: {str(e)}")
             return False

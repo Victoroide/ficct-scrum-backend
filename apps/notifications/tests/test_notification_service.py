@@ -4,17 +4,19 @@ Unit tests for notification service.
 All external services are mocked - no real email or Slack calls.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
 from django.utils import timezone
 
-from apps.notifications.services import NotificationService
+import pytest
+
+from apps.authentication.tests.factories import UserFactory
 from apps.notifications.models import Notification, NotificationPreference
+from apps.notifications.services import NotificationService
 from apps.notifications.tests.factories import (
     NotificationFactory,
     NotificationPreferenceFactory,
 )
-from apps.authentication.tests.factories import UserFactory
 from apps.projects.tests.factories import IssueFactory, ProjectFactory
 
 
@@ -123,7 +125,9 @@ class TestNotificationService:
         count = self.service.mark_all_as_read(self.user)
 
         assert count == 3
-        assert Notification.objects.filter(recipient=self.user, is_read=False).count() == 0
+        assert (
+            Notification.objects.filter(recipient=self.user, is_read=False).count() == 0
+        )
 
     def test_get_unread_count(self):
         """Test getting unread notification count."""
@@ -240,9 +244,7 @@ class TestNotificationFiltering:
             notification_type="issue_commented",
         )
 
-        assigned = self.service.get_notifications_by_type(
-            self.user, "issue_assigned"
-        )
+        assigned = self.service.get_notifications_by_type(self.user, "issue_assigned")
 
         assert assigned.count() == 2
 

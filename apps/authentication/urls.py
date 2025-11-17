@@ -13,7 +13,7 @@ from .viewsets import AuthViewSet, UserProfileViewSet, UserViewSet
 
 class CustomTokenRefreshView(TokenRefreshView):
     """Wraps SimpleJWT TokenRefreshView with proper Swagger documentation"""
-    
+
     @extend_schema(
         tags=["Authentication"],
         operation_id="auth_token_refresh",

@@ -8,11 +8,7 @@ from .settings import *  # noqa
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "daphne"]
 
 # Disable channels layer for tests
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
-}
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
 # Use in-memory cache for tests
 CACHES = {

@@ -102,7 +102,9 @@ class IssueCreateSerializer(serializers.ModelSerializer):
     # Accept either UUID or category string (task, bug, epic, story, improvement, sub_task)
     issue_type = serializers.CharField(write_only=True, required=True)
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    parent_issue = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    parent_issue = serializers.UUIDField(
+        write_only=True, required=False, allow_null=True
+    )
     sprint = serializers.UUIDField(write_only=True, required=False, allow_null=True)
 
     class Meta:
@@ -156,7 +158,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
            Valid categories: epic, story, task, bug, improvement, sub_task
         """
         import uuid as uuid_module
-        
+
         # Try to parse as UUID first
         try:
             uuid_obj = uuid_module.UUID(value)
@@ -170,14 +172,21 @@ class IssueCreateSerializer(serializers.ModelSerializer):
                 )
         except (ValueError, AttributeError):
             # Not a UUID, treat as category string
-            valid_categories = ["epic", "story", "task", "bug", "improvement", "sub_task"]
+            valid_categories = [
+                "epic",
+                "story",
+                "task",
+                "bug",
+                "improvement",
+                "sub_task",
+            ]
             value_lower = value.lower()
-            
+
             if value_lower not in valid_categories:
                 raise serializers.ValidationError(
                     f"Invalid issue type. Must be a valid UUID or one of: {', '.join(valid_categories)}"
                 )
-            
+
             # Return the category string, will be resolved in validate() with project context
             return value_lower
 
@@ -195,19 +204,19 @@ class IssueCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         import uuid as uuid_module
-        
+
         project_id = attrs.get("project")
         issue_type_value = attrs.get("issue_type")
 
         project = Project.objects.get(id=project_id)
-        
+
         # Resolve issue_type: could be UUID string or category string
         try:
             # Check if it's a UUID
             uuid_module.UUID(issue_type_value)
             # It's a UUID, get the IssueType
             issue_type = IssueType.objects.get(id=issue_type_value)
-            
+
             if issue_type.project != project:
                 raise serializers.ValidationError(
                     {"issue_type": "Issue type does not belong to this project"}
@@ -215,20 +224,22 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         except (ValueError, AttributeError):
             # It's a category string, find matching IssueType for this project
             issue_types = IssueType.objects.filter(
-                project=project, 
-                category=issue_type_value,
-                is_active=True
+                project=project, category=issue_type_value, is_active=True
             )
-            
+
             if not issue_types.exists():
-                raise serializers.ValidationError({
-                    "issue_type": f"No issue type with category '{issue_type_value}' found for this project. "
-                                 f"Please create issue types for this project first."
-                })
-            
+                raise serializers.ValidationError(
+                    {
+                        "issue_type": f"No issue type with category '{issue_type_value}' found for this project. "
+                        f"Please create issue types for this project first."
+                    }
+                )
+
             # Prefer default issue type, otherwise take first
-            issue_type = issue_types.filter(is_default=True).first() or issue_types.first()
-            
+            issue_type = (
+                issue_types.filter(is_default=True).first() or issue_types.first()
+            )
+
             # Replace category string with actual UUID for create() method
             attrs["issue_type"] = str(issue_type.id)
 
@@ -318,24 +329,24 @@ class IssueCreateSerializer(serializers.ModelSerializer):
 class IssueTransitionSerializer(serializers.Serializer):
     """
     Serializer for issue status transitions.
-    
+
     Accepts both 'status' and 'status_uuid' field names for backward
     compatibility with different frontend implementations.
-    
+
     Validates:
     - UUID format
     - Status exists in database
     - Status belongs to same project as issue
     - Workflow allows the transition
     - Sets/clears resolved_at timestamp based on final status
-    
+
     Args:
         status: UUID of the target WorkflowStatus (optional)
         status_uuid: UUID of the target WorkflowStatus (optional)
-        
+
     Raises:
         ValidationError: If validation fails with clear error message
-        
+
     Example:
         serializer = IssueTransitionSerializer(
             data={'status_uuid': 'abc-123'},
@@ -344,71 +355,69 @@ class IssueTransitionSerializer(serializers.Serializer):
         if serializer.is_valid():
             new_status = serializer.validated_data['new_status']
     """
-    
+
     status = serializers.UUIDField(
-        required=False,
-        allow_null=False,
-        help_text="UUID of the target workflow status"
+        required=False, allow_null=False, help_text="UUID of the target workflow status"
     )
     status_uuid = serializers.UUIDField(
         required=False,
         allow_null=False,
-        help_text="UUID of the target workflow status (alternative field name)"
+        help_text="UUID of the target workflow status (alternative field name)",
     )
-    
+
     def validate(self, attrs):
         """
         Validate the status transition.
-        
+
         Checks that either 'status' or 'status_uuid' is provided,
         validates the status exists and belongs to the project,
         and verifies the workflow allows the transition.
         """
         # Get status_id from either field name
-        status_id = attrs.get('status') or attrs.get('status_uuid')
-        
+        status_id = attrs.get("status") or attrs.get("status_uuid")
+
         if not status_id:
             raise serializers.ValidationError(
                 "Either 'status' or 'status_uuid' field is required"
             )
-        
+
         # Get issue from context
-        issue = self.context.get('issue')
+        issue = self.context.get("issue")
         if not issue:
             raise serializers.ValidationError(
                 "Issue instance must be provided in serializer context"
             )
-        
+
         # Validate status exists
         try:
-            new_status = WorkflowStatus.objects.select_related(
-                'project'
-            ).get(id=status_id)
+            new_status = WorkflowStatus.objects.select_related("project").get(
+                id=status_id
+            )
         except WorkflowStatus.DoesNotExist:
-            raise serializers.ValidationError({
-                'status': f"Workflow status with ID '{status_id}' does not exist"
-            })
-        
+            raise serializers.ValidationError(
+                {"status": f"Workflow status with ID '{status_id}' does not exist"}
+            )
+
         # Validate status belongs to same project
         if new_status.project != issue.project:
-            raise serializers.ValidationError({
-                'status': (
-                    f"Status '{new_status.name}' does not belong to "
-                    f"project '{issue.project.name}'"
-                )
-            })
-        
+            raise serializers.ValidationError(
+                {
+                    "status": (
+                        f"Status '{new_status.name}' does not belong to "
+                        f"project '{issue.project.name}'"
+                    )
+                }
+            )
+
         # Validate workflow transition is allowed
-        can_transition, message = WorkflowValidator.can_transition(
-            issue, new_status
-        )
+        can_transition, message = WorkflowValidator.can_transition(issue, new_status)
         if not can_transition:
-            raise serializers.ValidationError({'status': message})
-        
+            raise serializers.ValidationError({"status": message})
+
         # Store the validated status object for use in viewset
-        attrs['new_status'] = new_status
-        attrs['old_status'] = issue.status
-        
+        attrs["new_status"] = new_status
+        attrs["old_status"] = issue.status
+
         return attrs
 
 

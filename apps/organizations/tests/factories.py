@@ -21,7 +21,15 @@ class OrganizationFactory(DjangoModelFactory):
     description = factory.Faker("text", max_nb_chars=200)
     owner = factory.SubFactory(UserFactory)
     organization_type = factory.Iterator(
-        ("startup", "enterprise", "agency", "nonprofit", "education", "government", "other")
+        (
+            "startup",
+            "enterprise",
+            "agency",
+            "nonprofit",
+            "education",
+            "government",
+            "other",
+        )
     )
     subscription_plan = "free"
     is_active = True

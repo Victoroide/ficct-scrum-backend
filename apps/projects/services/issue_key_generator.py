@@ -11,10 +11,10 @@ class IssueKeyGenerator:
         last_issue = (
             Issue.objects.filter(project=project)
             .select_for_update()
-            .aggregate(max_key=Max('key'))
+            .aggregate(max_key=Max("key"))
         )
 
-        max_key = last_issue.get('max_key')
+        max_key = last_issue.get("max_key")
         if max_key:
             try:
                 next_number = int(max_key) + 1

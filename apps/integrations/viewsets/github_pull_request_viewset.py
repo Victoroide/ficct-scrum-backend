@@ -13,12 +13,8 @@ from apps.integrations.serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(
-        summary="List GitHub pull requests", tags=["Integrations"]
-    ),
-    retrieve=extend_schema(
-        summary="Get pull request details", tags=["Integrations"]
-    ),
+    list=extend_schema(summary="List GitHub pull requests", tags=["Integrations"]),
+    retrieve=extend_schema(summary="Get pull request details", tags=["Integrations"]),
 )
 class GitHubPullRequestViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GitHubPullRequest.objects.all()

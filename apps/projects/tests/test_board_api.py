@@ -1,5 +1,6 @@
-import pytest
 from django.urls import reverse
+
+import pytest
 from rest_framework import status
 
 from apps.authentication.tests.factories import UserFactory
@@ -109,7 +110,9 @@ class TestBoardAPI:
 
         api_client.force_authenticate(user=user)
 
-        url = reverse("board-update-column", kwargs={"pk": board.id, "column_id": column.id})
+        url = reverse(
+            "board-update-column", kwargs={"pk": board.id, "column_id": column.id}
+        )
         data = {
             "name": "Updated Column",
             "max_wip": 5,
@@ -136,7 +139,9 @@ class TestBoardAPI:
 
         api_client.force_authenticate(user=user)
 
-        url = reverse("board-delete-column", kwargs={"pk": board.id, "column_id": column.id})
+        url = reverse(
+            "board-delete-column", kwargs={"pk": board.id, "column_id": column.id}
+        )
         response = api_client.delete(url)
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -152,7 +157,11 @@ class TestBoardAPI:
         WorkspaceMemberFactory(workspace=workspace, user=user)
         ProjectTeamMemberFactory(project=project, user=user)
 
-        from apps.projects.tests.factories import IssueTypeFactory, WorkflowStatusFactory
+        from apps.projects.tests.factories import (
+            IssueTypeFactory,
+            WorkflowStatusFactory,
+        )
+
         board = BoardFactory(project=project)
         issue_type = IssueTypeFactory(project=project)
         WorkflowStatusFactory(project=project, is_initial=True)
@@ -219,7 +228,9 @@ class TestBoardAPI:
 
         api_client.force_authenticate(user=user)
 
-        url = reverse("board-move-issue", kwargs={"pk": board.id, "issue_id": issue_to_move.id})
+        url = reverse(
+            "board-move-issue", kwargs={"pk": board.id, "issue_id": issue_to_move.id}
+        )
         data = {"column_id": str(column2.id)}
         response = api_client.patch(url, data, format="json")
 

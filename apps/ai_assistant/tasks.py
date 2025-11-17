@@ -7,8 +7,9 @@ Scheduled tasks for embedding maintenance and cache cleanup.
 import logging
 from datetime import timedelta
 
-from celery import shared_task
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,7 @@ def cleanup_old_summaries(self):
         now = timezone.now()
 
         # Delete expired summaries
-        deleted_count, _ = SummaryCache.objects.filter(
-            expires_at__lt=now
-        ).delete()
+        deleted_count, _ = SummaryCache.objects.filter(expires_at__lt=now).delete()
 
         logger.info(f"Deleted {deleted_count} expired summary cache entries")
 

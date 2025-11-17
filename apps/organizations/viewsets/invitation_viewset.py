@@ -3,6 +3,7 @@ ViewSet for organization invitation management.
 Handles invitation creation, verification, acceptance, and revocation.
 """
 from django.db import transaction
+
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -56,7 +57,7 @@ from apps.organizations.serializers import (
 class OrganizationInvitationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing organization invitations.
-    
+
     Supports:
     - Creating invitations by email
     - Verifying invitation tokens
@@ -186,7 +187,10 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
 
         if not serializer.is_valid():
             return Response(
-                {"valid": False, "error": serializer.errors.get("token", ["Invalid token"])[0]},
+                {
+                    "valid": False,
+                    "error": serializer.errors.get("token", ["Invalid token"])[0],
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -279,6 +283,4 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         except ValueError as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -4,8 +4,9 @@ Unit tests for Slack integration service.
 All Slack API calls are mocked - no real webhook requests.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 import requests
 
 from apps.notifications.services import SlackService

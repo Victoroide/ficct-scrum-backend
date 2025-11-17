@@ -1,5 +1,6 @@
-import pytest
 from django.core.exceptions import ValidationError
+
+import pytest
 
 from apps.integrations.models import GitHubCommit, GitHubIntegration, GitHubPullRequest
 from apps.integrations.tests.factories import (

@@ -12,29 +12,35 @@ class NotificationPreference(models.Model):
     """User notification preferences."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="notification_preferences")
-    
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="notification_preferences"
+    )
+
     # Channel preferences
     email_enabled = models.BooleanField(default=True)
     in_app_enabled = models.BooleanField(default=True)
     slack_enabled = models.BooleanField(default=False)
-    
+
     # Notification type preferences
     notification_types = models.JSONField(
         default=dict,
         help_text="Dictionary of notification types and their enabled status",
     )
     # Example: {"issue_assigned": True, "issue_commented": True, "sprint_started": False}
-    
+
     # Frequency settings
-    digest_enabled = models.BooleanField(default=False, help_text="Receive daily digest instead of real-time")
-    digest_time = models.TimeField(null=True, blank=True, help_text="Time to send daily digest")
-    
+    digest_enabled = models.BooleanField(
+        default=False, help_text="Receive daily digest instead of real-time"
+    )
+    digest_time = models.TimeField(
+        null=True, blank=True, help_text="Time to send daily digest"
+    )
+
     # Quiet hours
     quiet_hours_enabled = models.BooleanField(default=False)
     quiet_hours_start = models.TimeField(null=True, blank=True)
     quiet_hours_end = models.TimeField(null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -66,25 +72,27 @@ class Notification(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+
     # Notification details
     notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
     title = models.CharField(max_length=255)
     message = models.TextField()
     link = models.URLField(blank=True, help_text="Link to related resource")
-    
+
     # Additional data (issue_id, project_id, etc.)
     data = models.JSONField(default=dict, blank=True)
-    
+
     # Status
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Delivery tracking
     email_sent = models.BooleanField(default=False)
     slack_sent = models.BooleanField(default=False)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -103,6 +111,7 @@ class Notification(models.Model):
         """Mark notification as read."""
         if not self.is_read:
             from django.utils import timezone
+
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])
@@ -113,22 +122,22 @@ class ProjectNotificationSettings(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project_id = models.UUIDField(unique=True)
-    
+
     # Slack integration
     slack_webhook_url = models.URLField(blank=True)
     slack_channel = models.CharField(max_length=100, blank=True)
     slack_enabled = models.BooleanField(default=False)
-    
+
     # Event triggers
     notify_on_issue_create = models.BooleanField(default=True)
     notify_on_issue_update = models.BooleanField(default=False)
     notify_on_status_change = models.BooleanField(default=True)
     notify_on_sprint_event = models.BooleanField(default=True)
     notify_on_anomaly = models.BooleanField(default=True)
-    
+
     # Custom settings
     custom_settings = models.JSONField(default=dict, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -24,7 +24,7 @@ class PineconeService:
         self.index_name = config("PINECONE_INDEX_NAME", default="ficct-scrum-issues")
         self.dimension = config("PINECONE_DIMENSION", default=1536, cast=int)
         self.metric = config("PINECONE_METRIC", default="cosine")
-        
+
         self.pc = Pinecone(api_key=self.api_key)
         self._ensure_index_exists()
 
@@ -32,7 +32,7 @@ class PineconeService:
         """Create index if it doesn't exist."""
         try:
             existing_indexes = self.pc.list_indexes()
-            
+
             if self.index_name not in [idx.name for idx in existing_indexes]:
                 logger.info(f"Creating Pinecone index: {self.index_name}")
                 self.pc.create_index(
@@ -42,7 +42,7 @@ class PineconeService:
                     spec=ServerlessSpec(cloud="aws", region=self.environment),
                 )
                 logger.info(f"Pinecone index '{self.index_name}' created successfully")
-            
+
             self.index = self.pc.Index(self.index_name)
         except Exception as e:
             logger.exception(f"Failed to initialize Pinecone index: {str(e)}")
@@ -103,13 +103,15 @@ class PineconeService:
         """
         try:
             total_upserted = 0
-            
+
             for i in range(0, len(vectors), batch_size):
                 batch = vectors[i : i + batch_size]
                 self.index.upsert(vectors=batch, namespace=namespace)
                 total_upserted += len(batch)
-                logger.debug(f"Upserted batch {i // batch_size + 1}: {len(batch)} vectors")
-            
+                logger.debug(
+                    f"Upserted batch {i // batch_size + 1}: {len(batch)} vectors"
+                )
+
             logger.info(f"Successfully upserted {total_upserted} vectors to Pinecone")
             return total_upserted
         except Exception as e:
@@ -151,7 +153,7 @@ class PineconeService:
                 include_metadata=include_metadata,
                 include_values=include_values,
             )
-            
+
             results = []
             for match in response.matches:
                 result = {
@@ -163,7 +165,7 @@ class PineconeService:
                 if include_values:
                     result["values"] = match.values
                 results.append(result)
-            
+
             logger.debug(f"Query returned {len(results)} results")
             return results
         except Exception as e:
@@ -197,13 +199,13 @@ class PineconeService:
         try:
             # Fetch the vector first
             fetch_response = self.index.fetch(ids=[vector_id], namespace=namespace)
-            
+
             if vector_id not in fetch_response.vectors:
                 logger.warning(f"Vector {vector_id} not found in Pinecone")
                 return []
-            
+
             vector = fetch_response.vectors[vector_id].values
-            
+
             # Query for similar vectors
             results = self.query(
                 vector=vector,
@@ -212,7 +214,7 @@ class PineconeService:
                 namespace=namespace,
                 include_metadata=include_metadata,
             )
-            
+
             # Remove the query vector from results
             results = [r for r in results if r["id"] != vector_id]
             return results[:top_k]
@@ -269,25 +271,27 @@ class PineconeService:
     def clear_namespace(self, namespace: str = "issues") -> bool:
         """
         Clear all vectors in a namespace.
-        
+
         Args:
             namespace: Namespace to clear (default: "issues")
-            
+
         Returns:
             True if successful
-            
+
         Raises:
             Exception: If clear fails
         """
         try:
-            logger.warning(f"[PINECONE] Clearing namespace '{namespace}' - ALL VECTORS WILL BE DELETED")
+            logger.warning(
+                f"[PINECONE] Clearing namespace '{namespace}' - ALL VECTORS WILL BE DELETED"
+            )
             self.index.delete(delete_all=True, namespace=namespace)
             logger.info(f"[PINECONE] Namespace '{namespace}' cleared successfully")
             return True
         except Exception as e:
             logger.error(f"Failed to clear namespace '{namespace}': {str(e)}")
             raise
-    
+
     def get_index_stats(self, namespace: str = "") -> Dict[str, Any]:
         """
         Get statistics about the index.

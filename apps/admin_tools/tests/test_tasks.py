@@ -4,9 +4,11 @@ Unit tests for admin tools tasks.
 All external calls (subprocess, S3) are mocked.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, call, patch
+
 from django.utils import timezone
+
+import pytest
 
 from apps.admin_tools.tasks import backup_database, system_health_check
 
@@ -125,9 +127,7 @@ class TestSystemHealthCheckTask:
 
     @patch("apps.admin_tools.tasks.cache.get")
     @patch("apps.admin_tools.tasks.cache.set")
-    def test_system_health_check_cache_failure(
-        self, mock_cache_set, mock_cache_get
-    ):
+    def test_system_health_check_cache_failure(self, mock_cache_set, mock_cache_get):
         """Test health check with cache failure."""
         mock_cache_set.side_effect = Exception("Cache error")
 

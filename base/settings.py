@@ -306,47 +306,47 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
+
 def postprocess_schema_tags(result, generator, request, public):
     """Remap lowercase tags to proper capitalized versions and fix nested routes"""
     tag_mapping = {
-        'auth': 'Authentication',
-        'workspaces': 'Workspaces',
-        'workspace-members': 'Workspaces',
-        'projects': 'Projects',
-        'project-config': 'Projects',
-        'issue': 'Issues',
-        'issue-type': 'Issues',
-        'sprint': 'Sprints',
-        'board': 'Boards',
-        'github-integration': 'Integrations',
-        'github-commit': 'Integrations',
-        'github-pull-request': 'Integrations',
-        'integrations': 'Integrations',
+        "auth": "Authentication",
+        "workspaces": "Workspaces",
+        "workspace-members": "Workspaces",
+        "projects": "Projects",
+        "project-config": "Projects",
+        "issue": "Issues",
+        "issue-type": "Issues",
+        "sprint": "Sprints",
+        "board": "Boards",
+        "github-integration": "Integrations",
+        "github-commit": "Integrations",
+        "github-pull-request": "Integrations",
+        "integrations": "Integrations",
     }
-    
+
     # Path-based tag assignment for nested routes
     path_patterns = {
-        '/issues/': 'Issues',
-        '/sprints/': 'Sprints',
-        '/boards/': 'Boards',
+        "/issues/": "Issues",
+        "/sprints/": "Sprints",
+        "/boards/": "Boards",
     }
-    
-    for path, path_item in result.get('paths', {}).items():
+
+    for path, path_item in result.get("paths", {}).items():
         for operation in path_item.values():
-            if isinstance(operation, dict) and 'tags' in operation:
+            if isinstance(operation, dict) and "tags" in operation:
                 # First, remap existing tags via mapping
-                operation['tags'] = [
-                    tag_mapping.get(tag, tag) 
-                    for tag in operation['tags']
+                operation["tags"] = [
+                    tag_mapping.get(tag, tag) for tag in operation["tags"]
                 ]
-                
+
                 # Then, override based on path patterns for nested routes
                 for pattern, correct_tag in path_patterns.items():
-                    if pattern in path and correct_tag not in operation['tags']:
+                    if pattern in path and correct_tag not in operation["tags"]:
                         # Replace incorrect tag with correct one
-                        operation['tags'] = [correct_tag]
+                        operation["tags"] = [correct_tag]
                         break
-    
+
     return result
 
 
@@ -525,7 +525,12 @@ else:
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [(config("REDIS_HOST", default="127.0.0.1"), config("REDIS_PORT", default=6379, cast=int))],
+                "hosts": [
+                    (
+                        config("REDIS_HOST", default="127.0.0.1"),
+                        config("REDIS_PORT", default=6379, cast=int),
+                    )
+                ],
             },
         },
     }
@@ -540,13 +545,13 @@ CORS_ALLOW_CREDENTIALS = True
 # Celery Broker URL (use same Redis as Channel Layers)
 CELERY_BROKER_URL = os.getenv(
     "CELERY_BROKER_URL",
-    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/0"
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/0",
 )
 
 # Celery Result Backend
 CELERY_RESULT_BACKEND = os.getenv(
     "CELERY_RESULT_BACKEND",
-    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1"
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1",
 )
 
 # Celery Task Settings

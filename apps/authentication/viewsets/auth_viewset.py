@@ -73,15 +73,14 @@ class AuthViewSet(viewsets.GenericViewSet):
                     "auto_joined_organizations": serializers.ListField(
                         child=serializers.DictField(),
                         required=False,
-                        help_text="Organizations auto-joined from pending invitations"
+                        help_text="Organizations auto-joined from pending invitations",
                     ),
                     "pending_invitations_accepted": serializers.IntegerField(
-                        required=False,
-                        help_text="Number of invitations auto-accepted"
+                        required=False, help_text="Number of invitations auto-accepted"
                     ),
                     "redirect_suggestion": serializers.CharField(
                         required=False,
-                        help_text="Suggested redirect URL to first organization"
+                        help_text="Suggested redirect URL to first organization",
                     ),
                 },
             ),
@@ -128,25 +127,27 @@ class AuthViewSet(viewsets.GenericViewSet):
                 # Auto-accept pending invitations for this email
                 auto_joined_organizations = []
                 pending_invitations_count = 0
-                
+
                 try:
                     from apps.organizations.models import OrganizationInvitation
-                    
+
                     pending_invitations = OrganizationInvitation.objects.filter(
                         email=user.email, status="pending"
                     ).select_related("organization", "invited_by")
-                    
+
                     for invitation in pending_invitations:
                         if not invitation.is_expired:
                             try:
                                 membership = invitation.accept(user)
-                                auto_joined_organizations.append({
-                                    "id": str(invitation.organization.id),
-                                    "name": invitation.organization.name,
-                                    "role": invitation.role,
-                                })
+                                auto_joined_organizations.append(
+                                    {
+                                        "id": str(invitation.organization.id),
+                                        "name": invitation.organization.name,
+                                        "role": invitation.role,
+                                    }
+                                )
                                 pending_invitations_count += 1
-                                
+
                                 # Send welcome email for each organization
                                 try:
                                     EmailService.send_organization_welcome_email(
@@ -156,7 +157,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                                     )
                                 except Exception:
                                     pass  # Email failure shouldn't block registration
-                                    
+
                             except Exception as e:
                                 LoggerService.log_error(
                                     action="auto_accept_invitation_failed",
@@ -164,7 +165,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                                     error=str(e),
                                     details={"invitation_id": str(invitation.id)},
                                 )
-                                
+
                 except Exception as e:
                     LoggerService.log_error(
                         action="auto_accept_invitations_check_failed",
@@ -196,16 +197,20 @@ class AuthViewSet(viewsets.GenericViewSet):
 
                 user_serializer = UserSerializer(user)
                 response_data = user_serializer.data
-                
+
                 # Add invitation acceptance info to response
                 if auto_joined_organizations:
-                    response_data["auto_joined_organizations"] = auto_joined_organizations
-                    response_data["pending_invitations_accepted"] = pending_invitations_count
+                    response_data[
+                        "auto_joined_organizations"
+                    ] = auto_joined_organizations
+                    response_data[
+                        "pending_invitations_accepted"
+                    ] = pending_invitations_count
                     if auto_joined_organizations:
-                        response_data["redirect_suggestion"] = (
-                            f"/organizations/{auto_joined_organizations[0]['id']}/dashboard"
-                        )
-                
+                        response_data[
+                            "redirect_suggestion"
+                        ] = f"/organizations/{auto_joined_organizations[0]['id']}/dashboard"
+
                 return Response(response_data, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -352,7 +357,11 @@ class AuthViewSet(viewsets.GenericViewSet):
         responses={
             200: inline_serializer(
                 name="PasswordResetRequestResponse",
-                fields={"message": serializers.CharField(default="Password reset email sent")},
+                fields={
+                    "message": serializers.CharField(
+                        default="Password reset email sent"
+                    )
+                },
             )
         },
     )

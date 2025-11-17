@@ -16,20 +16,22 @@ class IssueEmbedding(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     issue_id = models.UUIDField(unique=True, db_index=True)
     project_id = models.UUIDField(db_index=True)
-    
+
     # Pinecone reference
     vector_id = models.CharField(max_length=255, unique=True)
     namespace = models.CharField(max_length=100, default="issues")
-    
+
     # Metadata for quick filtering
     title = models.CharField(max_length=500)
-    content_hash = models.CharField(max_length=64, help_text="Hash of title+description")
-    
+    content_hash = models.CharField(
+        max_length=64, help_text="Hash of title+description"
+    )
+
     # Indexing status
     is_indexed = models.BooleanField(default=False)
     indexed_at = models.DateTimeField(null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -48,12 +50,14 @@ class ChatConversation(models.Model):
     """Stores AI assistant chat conversations."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ai_conversations")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="ai_conversations"
+    )
     project_id = models.UUIDField(null=True, blank=True)
-    
+
     title = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -82,18 +86,18 @@ class ChatMessage(models.Model):
     conversation = models.ForeignKey(
         ChatConversation, on_delete=models.CASCADE, related_name="messages"
     )
-    
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     content = models.TextField()
-    
+
     # RAG context used
     context_issues = models.JSONField(default=list, blank=True)
     sources = models.JSONField(default=list, blank=True)
-    
+
     # Token usage
     prompt_tokens = models.IntegerField(null=True, blank=True)
     completion_tokens = models.IntegerField(null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -118,22 +122,24 @@ class SummaryCache(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+
     summary_type = models.CharField(max_length=50, choices=SUMMARY_TYPES)
-    
+
     # Generic relation to any model
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.UUIDField()
     content_object = GenericForeignKey("content_type", "object_id")
-    
+
     # Summary data
     summary_text = models.TextField()
-    summary_length = models.CharField(max_length=20, default="medium")  # brief, medium, detailed
-    
+    summary_length = models.CharField(
+        max_length=20, default="medium"
+    )  # brief, medium, detailed
+
     # Cache metadata
     content_hash = models.CharField(max_length=64, help_text="Hash of source content")
     is_valid = models.BooleanField(default=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
 
@@ -144,7 +150,9 @@ class SummaryCache(models.Model):
             models.Index(fields=["content_type", "object_id"]),
             models.Index(fields=["is_valid", "expires_at"]),
         ]
-        unique_together = [["content_type", "object_id", "summary_type", "summary_length"]]
+        unique_together = [
+            ["content_type", "object_id", "summary_type", "summary_length"]
+        ]
 
     def __str__(self):
         return f"{self.get_summary_type_display()} - {self.object_id}"

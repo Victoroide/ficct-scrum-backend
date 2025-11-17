@@ -2,16 +2,17 @@ import logging
 import secrets
 from datetime import timedelta
 
-import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.shortcuts import redirect
 from django.utils import timezone
+
+import requests
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,17 @@ from apps.integrations.services.github_service import GitHubService
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List GitHub integrations", 
+        summary="List GitHub integrations",
         tags=["Integrations"],
-        description="Returns all GitHub integrations the user has access to. Filter by project using ?project={uuid}"
+        description="Returns all GitHub integrations the user has access to. Filter by project using ?project={uuid}",
     ),
     retrieve=extend_schema(
-        summary="Get GitHub integration details", 
+        summary="Get GitHub integration details",
         tags=["Integrations"],
-        description="Returns detailed information about a specific GitHub integration including commit and PR counts"
+        description="Returns detailed information about a specific GitHub integration including commit and PR counts",
     ),
     create=extend_schema(
-        summary="Connect GitHub repository (Direct - Use OAuth flow instead)", 
+        summary="Connect GitHub repository (Direct - Use OAuth flow instead)",
         tags=["Integrations"],
         description="""
         **IMPORTANT**: This endpoint requires a GitHub Personal Access Token. 
@@ -63,35 +64,35 @@ from apps.integrations.services.github_service import GitHubService
                     "project": {
                         "type": "string",
                         "format": "uuid",
-                        "description": "Project UUID (REQUIRED)"
+                        "description": "Project UUID (REQUIRED)",
                     },
                     "repository_url": {
                         "type": "string",
                         "description": "GitHub repository URL (REQUIRED)",
-                        "example": "https://github.com/Victoroide/ficct-scrum-backend"
+                        "example": "https://github.com/Victoroide/ficct-scrum-backend",
                     },
                     "access_token": {
                         "type": "string",
                         "description": "GitHub Personal Access Token (REQUIRED)",
-                        "example": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        "example": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                     },
                     "sync_commits": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Auto-sync commits from repository"
+                        "description": "Auto-sync commits from repository",
                     },
                     "sync_pull_requests": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Auto-sync pull requests from repository"
+                        "description": "Auto-sync pull requests from repository",
                     },
                     "auto_link_commits": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Auto-link commits to issues based on commit messages"
-                    }
+                        "description": "Auto-link commits to issues based on commit messages",
+                    },
                 },
-                "required": ["project", "repository_url", "access_token"]
+                "required": ["project", "repository_url", "access_token"],
             }
         },
         responses={
@@ -107,10 +108,10 @@ from apps.integrations.services.github_service import GitHubService
                             "repository_name": "ficct-scrum-backend",
                             "repository_full_name": "Victoroide/ficct-scrum-backend",
                             "is_active": True,
-                            "connected_at": "2025-11-02T15:30:00Z"
+                            "connected_at": "2025-11-02T15:30:00Z",
                         }
                     }
-                }
+                },
             },
             400: {
                 "description": "Bad Request - Missing required fields",
@@ -119,22 +120,28 @@ from apps.integrations.services.github_service import GitHubService
                         "examples": {
                             "missing_project": {
                                 "value": {
-                                    "project": ["Field 'project' is required to create GitHub integration"]
+                                    "project": [
+                                        "Field 'project' is required to create GitHub integration"
+                                    ]
                                 }
                             },
                             "missing_token": {
                                 "value": {
-                                    "access_token": ["Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."]
+                                    "access_token": [
+                                        "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."
+                                    ]
                                 }
                             },
                             "invalid_url": {
                                 "value": {
-                                    "repository_url": ["Repository URL must be a valid GitHub repository URL"]
+                                    "repository_url": [
+                                        "Repository URL must be a valid GitHub repository URL"
+                                    ]
                                 }
-                            }
+                            },
                         }
                     }
-                }
+                },
             },
             403: {
                 "description": "Forbidden - Insufficient permissions",
@@ -150,27 +157,25 @@ from apps.integrations.services.github_service import GitHubService
                                 "value": {
                                     "detail": "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
                                 }
-                            }
+                            },
                         }
                     }
-                }
+                },
             },
             404: {
                 "description": "Project not found",
                 "content": {
                     "application/json": {
-                        "example": {
-                            "detail": "Project with ID 'xxx' does not exist."
-                        }
+                        "example": {"detail": "Project with ID 'xxx' does not exist."}
                     }
-                }
-            }
-        }
+                },
+            },
+        },
     ),
     destroy=extend_schema(
-        summary="Disconnect GitHub repository", 
+        summary="Disconnect GitHub repository",
         tags=["Integrations"],
-        description="Removes GitHub integration from project. Commits and PRs are preserved but no longer synced."
+        description="Removes GitHub integration from project. Commits and PRs are preserved but no longer synced.",
     ),
 )
 class GitHubIntegrationViewSet(viewsets.ModelViewSet):
@@ -206,7 +211,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                     "commits": {
                         "type": "array",
                         "items": {"type": "object"},
-                        "description": "Latest 50 commits from the repository"
+                        "description": "Latest 50 commits from the repository",
                     },
                     "total_commits": {"type": "integer"},
                 },
@@ -226,18 +231,18 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
         try:
             count = service.sync_commits(integration)
-            
+
             # Query the synced commits to return them in response
             from apps.integrations.models import GitHubCommit
             from apps.integrations.serializers import GitHubCommitSerializer
-            
+
             # Get latest 50 commits for display
-            commits = GitHubCommit.objects.filter(
-                repository=integration
-            ).order_by('-commit_date')[:50]
-            
+            commits = GitHubCommit.objects.filter(repository=integration).order_by(
+                "-commit_date"
+            )[:50]
+
             serializer = GitHubCommitSerializer(commits, many=True)
-            
+
             return Response(
                 {
                     "message": f"Successfully synced {count} commits",
@@ -251,16 +256,13 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             # Configuration/validation errors - user needs to fix something
             logger.warning(f"[Sync Commits] Configuration error: {str(e)}")
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             # Unexpected server errors
             logger.exception(f"[Sync Commits] Unexpected error: {str(e)}")
             return Response(
-                {"error": f"Failed to sync commits: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Failed to sync commits: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @extend_schema(
@@ -286,16 +288,13 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             # Configuration/validation errors - user needs to fix something
             logger.warning(f"[Sync PRs] Configuration error: {str(e)}")
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             # Unexpected server errors
             logger.exception(f"[Sync PRs] Unexpected error: {str(e)}")
             return Response(
-                {"error": f"Failed to sync pull requests: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"Failed to sync pull requests: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @extend_schema(
@@ -401,10 +400,10 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             "created_at": timezone.now().isoformat(),
             "redirect_uri": redirect_uri,
         }
-        
+
         # TTL: 600 seconds (10 minutes) - generous timeout for user authorization
         cache.set(cache_key, cache_data, timeout=600)
-        
+
         logger.info(
             f"[OAuth Init] State generated: {state[:10]}... for project {project_id}, "
             f"user {request.user.email}, TTL: 600s"
@@ -482,7 +481,9 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         code = request.query_params.get("code")
         state = request.query_params.get("state")
 
-        logger.info(f"[OAuth Callback] Received callback with state: {state[:10] if state else 'None'}...")
+        logger.info(
+            f"[OAuth Callback] Received callback with state: {state[:10] if state else 'None'}..."
+        )
 
         if not code or not state:
             logger.error("[OAuth Callback] Missing code or state parameter")
@@ -494,9 +495,9 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         # Validate state from Redis cache (CSRF protection)
         cache_key = f"github_oauth_state_{state}"
         logger.debug(f"[OAuth Callback] Looking up cache key: {cache_key}")
-        
+
         stored_data = cache.get(cache_key)
-        
+
         if not stored_data:
             logger.error(
                 f"[OAuth Callback] State not found in cache or expired. "
@@ -509,7 +510,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         logger.info(f"[OAuth Callback] State validated successfully from cache")
         logger.debug(f"[OAuth Callback] Retrieved data: {stored_data}")
 
@@ -523,7 +524,10 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                     f"Created: {created_at}"
                 )
                 return Response(
-                    {"status": "error", "error": "State expired. Please restart the OAuth flow."},
+                    {
+                        "status": "error",
+                        "error": "State expired. Please restart the OAuth flow.",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         except (KeyError, ValueError) as e:
@@ -543,7 +547,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 {"status": "error", "error": "Invalid OAuth state data"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Delete state immediately to prevent reuse (security best practice)
         cache.delete(cache_key)
         logger.info(
@@ -588,19 +592,20 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             # Store access_token temporarily in Redis for repository selection
             # Generate a temporary token ID
             import secrets
+
             temp_token_id = secrets.token_urlsafe(32)
             temp_cache_key = f"github_temp_token_{temp_token_id}"
-            
+
             temp_token_data = {
                 "access_token": access_token,
                 "project_id": project_id,
                 "user_id": user_id,
                 "created_at": timezone.now().isoformat(),
             }
-            
+
             # Store with 5-minute TTL (enough time to select repository)
             cache.set(temp_cache_key, temp_token_data, timeout=300)
-            
+
             logger.info(
                 f"[OAuth Callback] Access token stored temporarily. "
                 f"Temp ID: {temp_token_id[:10]}..., Project: {project_id}, User: {user_id}"
@@ -610,7 +615,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             # Frontend expects: /projects/github/oauth/callback?github=select_repo&temp_token=XXX
             frontend_url = settings.FRONTEND_URL
             redirect_url = f"{frontend_url}/projects/github/oauth/callback?github=select_repo&temp_token={temp_token_id}"
-            
+
             logger.info(f"[OAuth Callback] Redirecting to frontend: {redirect_url}")
             return redirect(redirect_url)
 
@@ -677,29 +682,33 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         Called by frontend after OAuth callback redirect.
         """
         temp_token = request.query_params.get("temp_token")
-        
+
         if not temp_token:
             logger.error("[List Repos] Missing temp_token parameter")
             return Response(
                 {"error": "Missing temp_token parameter"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Retrieve temporary token data from cache
         temp_cache_key = f"github_temp_token_{temp_token}"
         temp_token_data = cache.get(temp_cache_key)
-        
+
         if not temp_token_data:
-            logger.error(f"[List Repos] Temp token not found or expired: {temp_token[:10]}...")
+            logger.error(
+                f"[List Repos] Temp token not found or expired: {temp_token[:10]}..."
+            )
             return Response(
-                {"error": "Temporary token expired or invalid. Please restart OAuth flow."},
+                {
+                    "error": "Temporary token expired or invalid. Please restart OAuth flow."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         access_token = temp_token_data.get("access_token")
         project_id = temp_token_data.get("project_id")
         user_id = temp_token_data.get("user_id")
-        
+
         # Verify the requesting user is the same as the one who initiated OAuth
         if str(request.user.id) != str(user_id):
             logger.warning(
@@ -709,31 +718,33 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 {"error": "Unauthorized. Token belongs to different user."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         try:
             # Get user's repositories from GitHub
             from github import Github
-            
+
             gh = Github(access_token)
             user = gh.get_user()
-            
+
             # Get all accessible repositories
             repos_data = []
             for repo in user.get_repos():
-                repos_data.append({
-                    "id": repo.id,
-                    "name": repo.name,
-                    "full_name": repo.full_name,
-                    "html_url": repo.html_url,
-                    "description": repo.description or "",
-                    "private": repo.private,
-                    "default_branch": repo.default_branch,
-                })
-            
+                repos_data.append(
+                    {
+                        "id": repo.id,
+                        "name": repo.name,
+                        "full_name": repo.full_name,
+                        "html_url": repo.html_url,
+                        "description": repo.description or "",
+                        "private": repo.private,
+                        "default_branch": repo.default_branch,
+                    }
+                )
+
             logger.info(
                 f"[List Repos] Retrieved {len(repos_data)} repositories for user {user_id}"
             )
-            
+
             return Response(
                 {
                     "repositories": repos_data,
@@ -741,7 +752,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_200_OK,
             )
-        
+
         except Exception as e:
             logger.exception(f"[List Repos] Error fetching repositories: {str(e)}")
             return Response(
@@ -795,32 +806,38 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         temp_token = request.data.get("temp_token")
         repository_url = request.data.get("repository_url")
         repository_name = request.data.get("repository_name")
-        
+
         if not temp_token or not repository_url or not repository_name:
             logger.error("[Complete Integration] Missing required fields")
             return Response(
-                {"error": "Missing required fields: temp_token, repository_url, repository_name"},
+                {
+                    "error": "Missing required fields: temp_token, repository_url, repository_name"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Retrieve and delete temporary token from cache (one-time use)
         temp_cache_key = f"github_temp_token_{temp_token}"
         temp_token_data = cache.get(temp_cache_key)
-        
+
         if not temp_token_data:
-            logger.error(f"[Complete Integration] Temp token not found: {temp_token[:10]}...")
+            logger.error(
+                f"[Complete Integration] Temp token not found: {temp_token[:10]}..."
+            )
             return Response(
-                {"error": "Temporary token expired or invalid. Please restart OAuth flow."},
+                {
+                    "error": "Temporary token expired or invalid. Please restart OAuth flow."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Delete token immediately (one-time use)
         cache.delete(temp_cache_key)
-        
+
         access_token = temp_token_data.get("access_token")
         project_id = temp_token_data.get("project_id")
         user_id = temp_token_data.get("user_id")
-        
+
         # Verify the requesting user is the same as the one who initiated OAuth
         if str(request.user.id) != str(user_id):
             logger.warning(
@@ -830,13 +847,13 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 {"error": "Unauthorized. Token belongs to different user."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        
+
         try:
             # Create GitHubIntegration
             from apps.projects.models import Project
-            
+
             project = Project.objects.get(id=project_id)
-            
+
             # Parse repository_name to extract owner and repo
             # Frontend sends: "owner/repo" or repository_url has that info
             if "/" in repository_name:
@@ -847,13 +864,16 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             else:
                 # Fallback: parse from repository_url
                 from apps.integrations.services.github_service import GitHubService
+
                 service = GitHubService()
-                repository_owner, repo_name_only = service.parse_repository_url(repository_url)
-            
+                repository_owner, repo_name_only = service.parse_repository_url(
+                    repository_url
+                )
+
             logger.info(
                 f"[Complete Integration] Parsed repository: owner={repository_owner}, name={repo_name_only}"
             )
-            
+
             integration = GitHubIntegration.objects.create(
                 project=project,
                 repository_url=repository_url,
@@ -861,16 +881,16 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 repository_name=repo_name_only,
                 is_active=True,
             )
-            
+
             # Set encrypted access token
             integration.set_access_token(access_token)
             integration.save()
-            
+
             logger.info(
                 f"[Complete Integration] Integration created successfully. "
                 f"ID: {integration.id}, Repo: {repository_name}, Project: {project_id}"
             )
-            
+
             return Response(
                 {
                     "status": "success",
@@ -880,9 +900,11 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_201_CREATED,
             )
-        
+
         except Exception as e:
-            logger.exception(f"[Complete Integration] Error creating integration: {str(e)}")
+            logger.exception(
+                f"[Complete Integration] Error creating integration: {str(e)}"
+            )
             return Response(
                 {"error": f"Failed to create integration: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

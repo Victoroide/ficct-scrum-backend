@@ -21,44 +21,49 @@ class DiagramRequestSerializer(serializers.Serializer):
     ]
 
     project = serializers.UUIDField(required=False, help_text="Project UUID")
-    project_id = serializers.UUIDField(required=False, help_text="Project UUID (alternative)")
+    project_id = serializers.UUIDField(
+        required=False, help_text="Project UUID (alternative)"
+    )
     diagram_type = serializers.ChoiceField(choices=DIAGRAM_TYPE_CHOICES, required=True)
     format = serializers.ChoiceField(choices=FORMAT_CHOICES, default="svg")
     parameters = serializers.JSONField(required=False, default=dict)
-    options = serializers.JSONField(required=False, help_text="Diagram options (alias for parameters)")
-    
+    options = serializers.JSONField(
+        required=False, help_text="Diagram options (alias for parameters)"
+    )
+
     def validate(self, data):
         # Accept either 'project' or 'project_id'
-        project = data.get('project') or data.get('project_id')
+        project = data.get("project") or data.get("project_id")
         if not project:
-            raise serializers.ValidationError({
-                "project": "Either 'project' or 'project_id' field is required."
-            })
-        
+            raise serializers.ValidationError(
+                {"project": "Either 'project' or 'project_id' field is required."}
+            )
+
         # Normalize to 'project' for internal use
-        data['project'] = project
-        if 'project_id' in data:
-            data.pop('project_id')
-        
+        data["project"] = project
+        if "project_id" in data:
+            data.pop("project_id")
+
         # Accept either 'options' or 'parameters' (options takes precedence)
-        options = data.get('options') or data.get('parameters', {})
-        data['parameters'] = options
-        if 'options' in data:
-            data.pop('options')
-        
+        options = data.get("options") or data.get("parameters", {})
+        data["parameters"] = options
+        if "options" in data:
+            data.pop("options")
+
         return data
 
 
 class DiagramResponseSerializer(serializers.Serializer):
     """
     Serializer for diagram generation responses.
-    
+
     The 'data' field can be:
     - dict/list: For JSON format (diagram data structure with nodes, edges, etc.)
     - str: For SVG/PNG formats (markup or base64 encoded image)
-    
+
     DRF automatically handles JSON serialization of dict objects.
     """
+
     diagram_type = serializers.CharField()
     data = serializers.JSONField(
         help_text="Diagram data - object for JSON format, string for SVG/PNG"

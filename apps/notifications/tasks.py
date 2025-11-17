@@ -7,8 +7,9 @@ Scheduled tasks for deadline monitoring and notification delivery.
 import logging
 from datetime import timedelta
 
-from celery import shared_task
 from django.utils import timezone
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +65,14 @@ def check_upcoming_deadlines(self):
                         notification_type="deadline_approaching",
                         data__issue_id=str(issue.id),
                         data__days_until=days_until,
-                        created_at__gte=now - timedelta(hours=12),  # Within last 12 hours
+                        created_at__gte=now
+                        - timedelta(hours=12),  # Within last 12 hours
                     ).exists()
 
                     if already_notified:
-                        logger.debug(f"Already notified about issue {issue.key} deadline")
+                        logger.debug(
+                            f"Already notified about issue {issue.key} deadline"
+                        )
                         continue
 
                     # Send notification
@@ -78,7 +82,9 @@ def check_upcoming_deadlines(self):
                     )
 
                     results["notifications_created"] += 1
-                    logger.info(f"Sent deadline notification for issue {issue.key} (due in {days_until} day(s))")
+                    logger.info(
+                        f"Sent deadline notification for issue {issue.key} (due in {days_until} day(s))"
+                    )
 
                 except Exception as e:
                     error_msg = f"Error notifying issue {issue.id} deadline: {str(e)}"
@@ -122,7 +128,13 @@ def check_upcoming_deadlines(self):
                             continue
 
                         # Create notification
-                        urgency = "critical" if days_until == 0 else "high" if days_until == 1 else "medium"
+                        urgency = (
+                            "critical"
+                            if days_until == 0
+                            else "high"
+                            if days_until == 1
+                            else "medium"
+                        )
                         title = f"Sprint deadline {'today' if days_until == 0 else f'in {days_until} day(s)'}"
                         message = f"Sprint '{sprint.name}' ends on {sprint.end_date.strftime('%Y-%m-%d')}"
 
@@ -132,12 +144,18 @@ def check_upcoming_deadlines(self):
                             title=title,
                             message=message,
                             link=f"/projects/{sprint.project.key}/sprints/{sprint.id}",
-                            data={"sprint_id": str(sprint.id), "days_until": days_until, "urgency": urgency},
+                            data={
+                                "sprint_id": str(sprint.id),
+                                "days_until": days_until,
+                                "urgency": urgency,
+                            },
                             send_email=True if days_until <= 1 else False,
                         )
 
                         results["notifications_created"] += 1
-                        logger.info(f"Sent sprint deadline notification for {sprint.name} to {team_member.user.email}")
+                        logger.info(
+                            f"Sent sprint deadline notification for {sprint.name} to {team_member.user.email}"
+                        )
 
                 except Exception as e:
                     error_msg = f"Error notifying sprint {sprint.id} deadline: {str(e)}"
@@ -204,7 +222,9 @@ def send_notification_digests(self):
                     notification_groups[notif.notification_type].append(notif)
 
                 # Build digest email (simplified - would use email template in production)
-                digest_summary = f"You have {unread_notifications.count()} unread notifications:\n\n"
+                digest_summary = (
+                    f"You have {unread_notifications.count()} unread notifications:\n\n"
+                )
                 for notif_type, notifs in notification_groups.items():
                     digest_summary += f"- {len(notifs)} {notif_type.replace('_', ' ')} notifications\n"
 
@@ -212,7 +232,9 @@ def send_notification_digests(self):
                 # notification_service.email_service.send_digest_email(user.email, digest_summary)
 
                 results["digests_sent"] += 1
-                logger.info(f"Sent digest to {user.email} with {unread_notifications.count()} notifications")
+                logger.info(
+                    f"Sent digest to {user.email} with {unread_notifications.count()} notifications"
+                )
 
             except Exception as e:
                 error_msg = f"Error sending digest to {preference.user_id}: {str(e)}"

@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -14,10 +15,7 @@ from rest_framework.response import Response
 
 from apps.reporting.models import ReportSnapshot
 from apps.reporting.permissions import CanExportData, CanGenerateReports
-from apps.reporting.serializers import (
-    ExportRequestSerializer,
-    ReportSnapshotSerializer,
-)
+from apps.reporting.serializers import ExportRequestSerializer, ReportSnapshotSerializer
 from apps.reporting.services.analytics_service import AnalyticsService
 
 
@@ -49,6 +47,7 @@ class ReportViewSet(viewsets.ViewSet):
             return None
         try:
             import uuid
+
             uuid.UUID(uuid_string)
             return uuid_string
         except (ValueError, AttributeError):
@@ -61,11 +60,11 @@ class ReportViewSet(viewsets.ViewSet):
         try:
             self._validate_uuid(project_id, "project")
             project = Project.objects.get(id=project_id)
-            
+
             # Check user has access to project
             if not self._user_has_project_access(project):
                 raise PermissionDenied("You do not have access to this project")
-            
+
             return project
         except Project.DoesNotExist:
             raise ValidationError("Project not found")
@@ -77,11 +76,11 @@ class ReportViewSet(viewsets.ViewSet):
         try:
             self._validate_uuid(sprint_id, "sprint")
             sprint = Sprint.objects.get(id=sprint_id)
-            
+
             # Check user has access to sprint's project
             if not self._user_has_project_access(sprint.project):
                 raise PermissionDenied("You do not have access to this sprint")
-            
+
             return sprint
         except Sprint.DoesNotExist:
             raise ValidationError("Sprint not found")
@@ -92,20 +91,20 @@ class ReportViewSet(viewsets.ViewSet):
         from apps.workspaces.models import WorkspaceMember
 
         user = self.request.user
-        
+
         # Check project membership
         is_project_member = ProjectTeamMember.objects.filter(
             project=project, user=user, is_active=True
         ).exists()
-        
+
         if is_project_member:
             return True
-        
+
         # Check workspace membership
         is_workspace_member = WorkspaceMember.objects.filter(
             workspace=project.workspace, user=user, is_active=True
         ).exists()
-        
+
         return is_workspace_member
 
     @extend_schema(
@@ -138,10 +137,13 @@ class ReportViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def velocity(self, request):
         project_id = request.query_params.get("project")
-        
+
         if not project_id:
             return Response(
-                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
+                {
+                    "error": "project parameter is required",
+                    "detail": "Provide project UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -163,7 +165,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -199,7 +203,10 @@ class ReportViewSet(viewsets.ViewSet):
 
         if not sprint_id:
             return Response(
-                {"error": "sprint parameter is required", "detail": "Provide sprint UUID in query params"},
+                {
+                    "error": "sprint parameter is required",
+                    "detail": "Provide sprint UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -208,7 +215,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -259,7 +268,10 @@ class ReportViewSet(viewsets.ViewSet):
 
         if not project_id:
             return Response(
-                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
+                {
+                    "error": "project parameter is required",
+                    "detail": "Provide project UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -281,7 +293,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -324,7 +338,10 @@ class ReportViewSet(viewsets.ViewSet):
 
         if not project_id:
             return Response(
-                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
+                {
+                    "error": "project parameter is required",
+                    "detail": "Provide project UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -346,7 +363,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -394,7 +413,7 @@ class ReportViewSet(viewsets.ViewSet):
                     "download_url": {"type": "string"},
                     "snapshot_id": {"type": "string"},
                     "rows_exported": {"type": "integer"},
-                }
+                },
             },
             400: OpenApiResponse(description="Invalid request parameters"),
             403: OpenApiResponse(description="No permission to export data"),
@@ -410,16 +429,16 @@ class ReportViewSet(viewsets.ViewSet):
 
         data_type = serializer.validated_data["data_type"]
         project_id = serializer.validated_data["project"]
-        
+
         # Build filters from specific fields (new way)
         filters = {}
-        
+
         # Date filters
         if serializer.validated_data.get("start_date"):
             filters["start_date"] = serializer.validated_data["start_date"]
         if serializer.validated_data.get("end_date"):
             filters["end_date"] = serializer.validated_data["end_date"]
-        
+
         # Issue filters
         if serializer.validated_data.get("sprint_id"):
             filters["sprint"] = serializer.validated_data["sprint_id"]
@@ -431,13 +450,13 @@ class ReportViewSet(viewsets.ViewSet):
             filters["issue_type"] = serializer.validated_data["issue_type_id"]
         if serializer.validated_data.get("priority"):
             filters["priority"] = serializer.validated_data["priority"]
-        
+
         # Activity filters
         if serializer.validated_data.get("user_id"):
             filters["user"] = serializer.validated_data["user_id"]
         if serializer.validated_data.get("action_type"):
             filters["action_type"] = serializer.validated_data["action_type"]
-        
+
         # Legacy filters support
         legacy_filters = serializer.validated_data.get("filters", {})
         if legacy_filters:
@@ -451,23 +470,23 @@ class ReportViewSet(viewsets.ViewSet):
             return Response(
                 {"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check user has access to project
         if not self._user_has_project_access(project):
             raise PermissionDenied("You do not have access to this project")
 
         service = AnalyticsService()
         export_result = service.export_to_csv(project, data_type, filters)
-        
+
         # Check if export has data
-        csv_lines = export_result.strip().split('\n')
+        csv_lines = export_result.strip().split("\n")
         rows_exported = max(0, len(csv_lines) - 1)  # Exclude header row
-        
+
         snapshot = ReportSnapshot.objects.create(
             project=project,
             report_type="custom",
             report_data={
-                "export_type": data_type, 
+                "export_type": data_type,
                 "filters": filters,
                 "rows_exported": rows_exported,
             },
@@ -514,7 +533,10 @@ class ReportViewSet(viewsets.ViewSet):
 
         if not project_id:
             return Response(
-                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
+                {
+                    "error": "project parameter is required",
+                    "detail": "Provide project UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -523,7 +545,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -538,7 +562,10 @@ class ReportViewSet(viewsets.ViewSet):
 
         if not project_id:
             return Response(
-                {"error": "project parameter is required", "detail": "Provide project UUID in query params"},
+                {
+                    "error": "project parameter is required",
+                    "detail": "Provide project UUID in query params",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -547,7 +574,9 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST if "format" in str(e) else status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST
+                if "format" in str(e)
+                else status.HTTP_404_NOT_FOUND,
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)

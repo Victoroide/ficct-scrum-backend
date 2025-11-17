@@ -22,12 +22,8 @@ class Sprint(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="planning")
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-    completed_points = models.DecimalField(
-        max_digits=8, decimal_places=2, default=0
-    )
-    committed_points = models.DecimalField(
-        max_digits=8, decimal_places=2, default=0
-    )
+    completed_points = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    committed_points = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -80,6 +76,4 @@ class Sprint(models.Model):
 
     @property
     def completed_issue_count(self):
-        return self.issues.filter(
-            is_active=True, status__is_final=True
-        ).count()
+        return self.issues.filter(is_active=True, status__is_final=True).count()

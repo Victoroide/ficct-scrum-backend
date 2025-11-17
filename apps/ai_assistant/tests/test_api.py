@@ -4,15 +4,16 @@ API endpoint tests for AI Assistant features.
 All external API calls (OpenAI, Pinecone) are mocked.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 from django.urls import reverse
+
+import pytest
 from rest_framework import status
-from unittest.mock import patch, MagicMock
 
 from apps.authentication.tests.factories import UserFactory
-from apps.projects.tests.factories import ProjectFactory, IssueFactory, SprintFactory
+from apps.projects.tests.factories import IssueFactory, ProjectFactory, SprintFactory
 from apps.workspaces.tests.factories import WorkspaceFactory, WorkspaceMemberFactory
-
 
 MOCK_EMBEDDING = [0.1] * 1536
 
@@ -52,9 +53,7 @@ class TestRAGIndexingEndpoints:
 
     @patch("apps.ai_assistant.services.rag_service.get_azure_openai_service")
     @patch("apps.ai_assistant.services.rag_service.get_pinecone_service")
-    def test_index_project_issues(
-        self, mock_pinecone_svc, mock_openai_svc, api_client
-    ):
+    def test_index_project_issues(self, mock_pinecone_svc, mock_openai_svc, api_client):
         """Test batch indexing project issues."""
         mock_openai = MagicMock()
         mock_openai.generate_embedding_batch.return_value = [MOCK_EMBEDDING] * 5

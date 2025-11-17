@@ -18,20 +18,26 @@ class MLModelAdmin(admin.ModelAdmin):
     ordering = ["-training_date"]
 
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("model_type", "version", "status")
-        }),
-        ("Model Details", {
-            "fields": ("model_file", "model_path", "training_samples", "trained_by")
-        }),
-        ("Performance Metrics", {
-            "fields": ("accuracy_score", "precision_score", "recall_score", "f1_score", "mae", "rmse"),
-            "classes": ("collapse",)
-        }),
-        ("Timestamps", {
-            "fields": ("training_date",),
-            "classes": ("collapse",)
-        }),
+        ("Basic Information", {"fields": ("model_type", "version", "status")}),
+        (
+            "Model Details",
+            {"fields": ("model_file", "model_path", "training_samples", "trained_by")},
+        ),
+        (
+            "Performance Metrics",
+            {
+                "fields": (
+                    "accuracy_score",
+                    "precision_score",
+                    "recall_score",
+                    "f1_score",
+                    "mae",
+                    "rmse",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        ("Timestamps", {"fields": ("training_date",), "classes": ("collapse",)}),
     )
 
 

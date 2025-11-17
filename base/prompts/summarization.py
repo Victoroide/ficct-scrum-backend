@@ -9,23 +9,23 @@ from typing import Any, Dict, List
 
 class SummarizationPrompts:
     """Prompt templates for summarization tasks."""
-    
+
     @staticmethod
     def issue_discussion_llama4(
         issue_title: str,
         discussion_text: str,
         max_words: int = 150,
-        language: str = "English"
+        language: str = "English",
     ) -> List[Dict[str, str]]:
         """
         Issue discussion summary prompt optimized for Llama 4.
-        
+
         Args:
             issue_title: Issue title
             discussion_text: Full discussion content
             max_words: Maximum summary length
             language: Output language
-        
+
         Returns:
             Message list for Llama 4
         """
@@ -51,21 +51,19 @@ class SummarizationPrompts:
                 "content": f"Issue: {issue_title}\n\nDiscussion:\n{discussion_text}",
             },
         ]
-    
+
     @staticmethod
     def issue_discussion_openai(
-        issue_title: str,
-        discussion_text: str,
-        max_words: int = 150
+        issue_title: str, discussion_text: str, max_words: int = 150
     ) -> List[Dict[str, str]]:
         """
         Issue discussion summary prompt for OpenAI (more concise).
-        
+
         Args:
             issue_title: Issue title
             discussion_text: Full discussion content
             max_words: Maximum summary length
-        
+
         Returns:
             Message list for OpenAI
         """
@@ -82,34 +80,32 @@ class SummarizationPrompts:
                 "content": f"Issue: {issue_title}\n\n{discussion_text}",
             },
         ]
-    
+
     @staticmethod
     def sprint_retrospective_llama4(
-        sprint_name: str,
-        sprint_data: Dict[str, Any],
-        language: str = "English"
+        sprint_name: str, sprint_data: Dict[str, Any], language: str = "English"
     ) -> List[Dict[str, str]]:
         """
         Sprint retrospective prompt optimized for Llama 4.
-        
+
         Args:
             sprint_name: Sprint name
             sprint_data: Sprint metrics and context
             language: Output language
-        
+
         Returns:
             Message list for Llama 4
         """
         total = sprint_data.get("total_issues", 0)
         completed = sprint_data.get("completed", 0)
         completion_rate = sprint_data.get("completion_rate", 0)
-        
+
         context = (
             f"Sprint: {sprint_name}\n"
             f"Duration: {sprint_data.get('start_date')} to {sprint_data.get('end_date', 'In Progress')}\n"
             f"Completion: {completed}/{total} issues ({completion_rate}%)\n"
         )
-        
+
         return [
             {
                 "role": "system",
@@ -132,19 +128,18 @@ class SummarizationPrompts:
                 "content": f"Sprint Data:\n{context}\n\nGenerate a retrospective summary.",
             },
         ]
-    
+
     @staticmethod
     def sprint_retrospective_openai(
-        sprint_name: str,
-        sprint_data: Dict[str, Any]
+        sprint_name: str, sprint_data: Dict[str, Any]
     ) -> List[Dict[str, str]]:
         """
         Sprint retrospective prompt for OpenAI (simplified).
-        
+
         Args:
             sprint_name: Sprint name
             sprint_data: Sprint metrics and context
-        
+
         Returns:
             Message list for OpenAI
         """
@@ -153,7 +148,7 @@ class SummarizationPrompts:
             f"Issues: {sprint_data.get('completed', 0)}/{sprint_data.get('total_issues', 0)} completed\n"
             f"Rate: {sprint_data.get('completion_rate', 0)}%\n"
         )
-        
+
         return [
             {
                 "role": "system",
@@ -169,34 +164,32 @@ class SummarizationPrompts:
                 "content": context,
             },
         ]
-    
+
     @staticmethod
     def release_notes_llama4(
-        period: str,
-        issues_by_type: Dict[str, List[str]],
-        language: str = "English"
+        period: str, issues_by_type: Dict[str, List[str]], language: str = "English"
     ) -> List[Dict[str, str]]:
         """
         Release notes prompt optimized for Llama 4.
-        
+
         Args:
             period: Release period description
             issues_by_type: Issues grouped by type
             language: Output language
-        
+
         Returns:
             Message list for Llama 4
         """
         # Build context from issues
         context_parts = [f"Release Period: {period}\n"]
-        
+
         for issue_type, issue_titles in issues_by_type.items():
             context_parts.append(f"\n{issue_type.upper()}S:")
             for title in issue_titles:
                 context_parts.append(f"- {title}")
-        
+
         context = "\n".join(context_parts)
-        
+
         return [
             {
                 "role": "system",
@@ -223,19 +216,16 @@ class SummarizationPrompts:
                 "content": f"Completed Items:\n{context}\n\nGenerate release notes.",
             },
         ]
-    
+
     @staticmethod
-    def release_notes_openai(
-        period: str,
-        context: str
-    ) -> List[Dict[str, str]]:
+    def release_notes_openai(period: str, context: str) -> List[Dict[str, str]]:
         """
         Release notes prompt for OpenAI.
-        
+
         Args:
             period: Release period
             context: Formatted issue context
-        
+
         Returns:
             Message list for OpenAI
         """
@@ -252,42 +242,44 @@ class SummarizationPrompts:
                 "content": f"Release period: {period}\n\n{context}",
             },
         ]
-    
+
     @staticmethod
-    def get_prompts_for_provider(provider: str, task: str, **kwargs) -> List[Dict[str, str]]:
+    def get_prompts_for_provider(
+        provider: str, task: str, **kwargs
+    ) -> List[Dict[str, str]]:
         """
         Get appropriate prompts based on provider and task.
-        
+
         Args:
             provider: 'bedrock' or 'azure'
             task: 'issue_discussion', 'sprint_retrospective', or 'release_notes'
             **kwargs: Task-specific parameters
-        
+
         Returns:
             Message list optimized for provider
-        
+
         Raises:
             ValueError: If task not recognized
         """
         is_llama = provider == "bedrock"
-        
+
         if task == "issue_discussion":
             if is_llama:
                 return SummarizationPrompts.issue_discussion_llama4(**kwargs)
             else:
                 return SummarizationPrompts.issue_discussion_openai(**kwargs)
-        
+
         elif task == "sprint_retrospective":
             if is_llama:
                 return SummarizationPrompts.sprint_retrospective_llama4(**kwargs)
             else:
                 return SummarizationPrompts.sprint_retrospective_openai(**kwargs)
-        
+
         elif task == "release_notes":
             if is_llama:
                 return SummarizationPrompts.release_notes_llama4(**kwargs)
             else:
                 return SummarizationPrompts.release_notes_openai(**kwargs)
-        
+
         else:
             raise ValueError(f"Unknown summarization task: {task}")

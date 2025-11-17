@@ -1,5 +1,6 @@
-import pytest
 from django.core.exceptions import ValidationError
+
+import pytest
 
 from apps.projects.models import Issue, IssueLink
 from apps.projects.tests.factories import (
@@ -99,7 +100,7 @@ class TestIssueLinkModel:
             source_issue=issue,
             target_issue=issue,
             link_type="relates_to",
-            created_by=issue.reporter
+            created_by=issue.reporter,
         )
 
         with pytest.raises(ValidationError):
@@ -113,7 +114,7 @@ class TestIssueLinkModel:
             source_issue=issue1,
             target_issue=issue2,
             link_type="relates_to",
-            created_by=issue1.reporter
+            created_by=issue1.reporter,
         )
 
         with pytest.raises(ValidationError):

@@ -9,12 +9,9 @@ import uuid
 from functools import wraps
 
 from django.core.exceptions import ValidationError
+
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiResponse,
-    extend_schema,
-)
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -33,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 def handle_ai_service_unavailable(func):
     """Decorator to handle ServiceUnavailable exceptions from AI services."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -47,6 +45,7 @@ def handle_ai_service_unavailable(func):
                 {"error": f"Failed to execute {func.__name__}."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
     return wrapper
 
 
@@ -54,27 +53,27 @@ class AIAssistantViewSet(viewsets.ViewSet):
     """AI-powered features (RAG, search, summarization)."""
 
     permission_classes = [IsAuthenticated, CanAccessProject]
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._rag_service = None
         self._assistant_service = None
         self._summarization_service = None
-    
+
     @property
     def rag_service(self):
         """Lazy load RAG service to avoid Windows readline import error."""
         if self._rag_service is None:
             self._rag_service = RAGService()
         return self._rag_service
-    
+
     @property
     def assistant_service(self):
         """Lazy load Assistant service."""
         if self._assistant_service is None:
             self._assistant_service = AssistantService()
         return self._assistant_service
-    
+
     @property
     def summarization_service(self):
         """Lazy load Summarization service."""
@@ -92,16 +91,26 @@ class AIAssistantViewSet(viewsets.ViewSet):
     def index_issue(self, request, pk=None):
         """Index single issue in Pinecone."""
         force_reindex = request.data.get("force_reindex", False)
-        success, error_msg = self.rag_service.index_issue(issue_id=pk, force_reindex=force_reindex)
+        success, error_msg = self.rag_service.index_issue(
+            issue_id=pk, force_reindex=force_reindex
+        )
 
         if success:
             return Response(
-                {"status": "success", "message": "Issue indexed successfully", "issue_id": pk},
+                {
+                    "status": "success",
+                    "message": "Issue indexed successfully",
+                    "issue_id": pk,
+                },
                 status=status.HTTP_200_OK,
             )
         else:
             return Response(
-                {"status": "error", "error": error_msg or "Failed to index issue", "issue_id": pk},
+                {
+                    "status": "error",
+                    "error": error_msg or "Failed to index issue",
+                    "issue_id": pk,
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -179,7 +188,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
     def similar_issues(self, request, pk=None):
         """
         Find similar issues using semantic search.
-        
+
         Returns issues with similar content for duplicate detection.
         Requires Pinecone AI service to be available.
         """
@@ -194,7 +203,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Validate and parse parameters
         try:
             top_k = int(request.query_params.get("top_k", 5))
@@ -208,10 +217,13 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 )
         except (ValueError, TypeError):
             return Response(
-                {"error": "Invalid top_k parameter", "detail": "top_k must be an integer"},
+                {
+                    "error": "Invalid top_k parameter",
+                    "detail": "top_k must be an integer",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         same_project_only = (
             request.query_params.get("same_project_only", "true").lower() == "true"
         )
@@ -220,7 +232,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
         similar = self.rag_service.find_similar_issues(
             issue_id=pk, top_k=top_k, same_project_only=same_project_only
         )
-        
+
         # Check if issue exists
         if similar is None:
             return Response(
@@ -247,26 +259,27 @@ class AIAssistantViewSet(viewsets.ViewSet):
     def pinecone_diagnostics(self, request):
         """
         Get Pinecone diagnostics information.
-        
+
         Returns connection status, index stats, and embedding model info.
         Useful for debugging indexing issues.
         """
         try:
             import logging
+
             logger = logging.getLogger(__name__)
-            
+
             diagnostics = {
                 "status": "checking",
                 "pinecone": {},
                 "azure_openai": {},
                 "errors": [],
             }
-            
+
             # Test Pinecone connection
             try:
                 logger.info("[DIAGNOSTICS] Testing Pinecone connection...")
                 stats = self.rag_service.pinecone.get_index_stats()
-                
+
                 diagnostics["pinecone"] = {
                     "status": "connected",
                     "index_name": self.rag_service.pinecone.index_name,
@@ -277,20 +290,24 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     "environment": self.rag_service.pinecone.environment,
                     "metric": self.rag_service.pinecone.metric,
                 }
-                logger.info(f"[DIAGNOSTICS] Pinecone connected: {stats.get('total_vector_count')} vectors")
+                logger.info(
+                    f"[DIAGNOSTICS] Pinecone connected: {stats.get('total_vector_count')} vectors"
+                )
             except Exception as e:
                 error_msg = f"Pinecone connection failed: {type(e).__name__}: {str(e)}"
                 diagnostics["pinecone"]["status"] = "error"
                 diagnostics["pinecone"]["error"] = str(e)
                 diagnostics["errors"].append(error_msg)
                 logger.error(f"[DIAGNOSTICS] {error_msg}")
-            
+
             # Test Azure OpenAI
             try:
-                logger.info("[DIAGNOSTICS] Testing Azure OpenAI embedding generation...")
+                logger.info(
+                    "[DIAGNOSTICS] Testing Azure OpenAI embedding generation..."
+                )
                 test_text = "This is a test sentence for embedding generation."
                 embedding = self.rag_service.openai.generate_embedding(test_text)
-                
+
                 diagnostics["azure_openai"] = {
                     "status": "connected",
                     "embedding_deployment": self.rag_service.openai.embedding_deployment,
@@ -298,8 +315,10 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     "endpoint": self.rag_service.openai.endpoint,
                     "api_version": self.rag_service.openai.api_version,
                 }
-                logger.info(f"[DIAGNOSTICS] Azure OpenAI connected: embedding dimension {len(embedding)}")
-                
+                logger.info(
+                    f"[DIAGNOSTICS] Azure OpenAI connected: embedding dimension {len(embedding)}"
+                )
+
                 # Verify dimension matches Pinecone
                 if diagnostics["pinecone"].get("dimension"):
                     if len(embedding) != diagnostics["pinecone"]["dimension"]:
@@ -309,20 +328,20 @@ class AIAssistantViewSet(viewsets.ViewSet):
                         )
                         diagnostics["errors"].append(error_msg)
                         logger.error(f"[DIAGNOSTICS] {error_msg}")
-                    
+
             except Exception as e:
                 error_msg = f"Azure OpenAI test failed: {type(e).__name__}: {str(e)}"
                 diagnostics["azure_openai"]["status"] = "error"
                 diagnostics["azure_openai"]["error"] = str(e)
                 diagnostics["errors"].append(error_msg)
                 logger.error(f"[DIAGNOSTICS] {error_msg}")
-            
+
             # Overall status
             if not diagnostics["errors"]:
                 diagnostics["status"] = "healthy"
             else:
                 diagnostics["status"] = "error"
-            
+
             # Add recommendation if errors exist
             if diagnostics["errors"]:
                 diagnostics["recommendations"] = [
@@ -331,11 +350,13 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     "Check server logs for detailed error messages",
                     "Ensure Pinecone index dimension is 1536 for text-embedding-3-small model",
                 ]
-            
-            logger.info(f"[DIAGNOSTICS] Complete: status={diagnostics['status']}, errors={len(diagnostics['errors'])}")
-            
+
+            logger.info(
+                f"[DIAGNOSTICS] Complete: status={diagnostics['status']}, errors={len(diagnostics['errors'])}"
+            )
+
             return Response(diagnostics, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             logger.exception(f"[DIAGNOSTICS] Critical error: {str(e)}")
             return Response(
@@ -386,9 +407,9 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 "clear_existing": {
                     "type": "boolean",
                     "default": True,
-                    "description": "Clear existing vectors before sync (default: true)"
+                    "description": "Clear existing vectors before sync (default: true)",
                 }
-            }
+            },
         },
     )
     @action(detail=False, methods=["post"], url_path="sync-all")
@@ -396,25 +417,25 @@ class AIAssistantViewSet(viewsets.ViewSet):
     def sync_all_issues(self, request):
         """
         Full synchronization: Clear Pinecone and reindex ALL issues.
-        
+
         This operation:
         1. Clears all vectors in 'issues' namespace
         2. Reindexes all active issues from all projects
         3. Updates IssueEmbedding records
-        
+
         ⚠️ WARNING: This is a DESTRUCTIVE operation that clears existing data.
         """
         clear_existing = request.data.get("clear_existing", True)
-        
+
         logger.warning(
             f"[SYNC-ALL] User {request.user.email} initiated full Pinecone sync "
             f"(clear_existing={clear_existing})"
         )
-        
+
         result = self.rag_service.sync_all_issues(clear_existing=clear_existing)
-        
+
         return Response(result, status=status.HTTP_200_OK)
-    
+
     @extend_schema(
         tags=["AI Assistant"],
         summary="Suggest solutions",

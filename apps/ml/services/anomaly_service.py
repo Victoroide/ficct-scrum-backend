@@ -8,10 +8,11 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 from django.db import models
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
+
+import numpy as np
 
 from apps.ml.models import AnomalyDetection
 from apps.projects.models import Issue, Sprint
@@ -25,7 +26,7 @@ class AnomalyDetectionService:
     def detect_sprint_risks(self, sprint_id: str) -> List[Dict[str, Any]]:
         """
         Detect if a sprint is at risk of missing deadlines.
-        Uses REAL Issue model fields: assignee, priority, estimated_hours, 
+        Uses REAL Issue model fields: assignee, priority, estimated_hours,
         actual_hours, story_points, updated_at, status.
 
         Args:
@@ -35,54 +36,54 @@ class AnomalyDetectionService:
             List of detected risks with severity and mitigation suggestions
         """
         try:
-            sprint = Sprint.objects.select_related('project').get(id=sprint_id)
+            sprint = Sprint.objects.select_related("project").get(id=sprint_id)
             risks = []
-            
+
             logger.info(f"[ML] Analyzing sprint {sprint.name} for risks")
-            
+
             # 1. Check burndown velocity
             velocity_risk = self._check_burndown_velocity(sprint)
             if velocity_risk:
                 risks.append(velocity_risk)
-            
+
             # 2. Check unassigned issues (replaces is_blocked check)
             unassigned_risk = self._check_unassigned_issues(sprint)
             if unassigned_risk:
                 risks.append(unassigned_risk)
-            
+
             # 3. Check unestimated work
             estimation_risk = self._check_unestimated_work(sprint)
             if estimation_risk:
                 risks.append(estimation_risk)
-            
+
             # 4. Check scope changes
             scope_risk = self._check_scope_changes(sprint)
             if scope_risk:
                 risks.append(scope_risk)
-            
+
             # 5. Check team capacity
             capacity_risk = self._check_team_capacity(sprint)
             if capacity_risk:
                 risks.append(capacity_risk)
-            
+
             # 6. Check hours drift (actual vs estimated)
             hours_risk = self._check_hours_drift(sprint)
             if hours_risk:
                 risks.append(hours_risk)
-            
+
             # 7. Check stalled issues
             stalled_risk = self._check_stalled_issues(sprint)
             if stalled_risk:
                 risks.append(stalled_risk)
-            
+
             # 8. Check high priority issues
             priority_risk = self._check_high_priority_issues(sprint)
             if priority_risk:
                 risks.append(priority_risk)
-            
+
             logger.info(f"[ML] Risk analysis complete: {len(risks)} risk(s) detected")
             return risks
-            
+
         except Sprint.DoesNotExist:
             logger.error(f"[ML] Sprint {sprint_id} not found")
             return []
@@ -102,39 +103,39 @@ class AnomalyDetectionService:
         """
         try:
             anomalies = []
-            
+
             # 1. Velocity trend analysis
             velocity_anomaly = self._detect_velocity_anomaly(project_id)
             if velocity_anomaly:
                 anomalies.append(velocity_anomaly)
-            
+
             # 2. Issue reassignment frequency
             reassignment_anomaly = self._detect_excessive_reassignments(project_id)
             if reassignment_anomaly:
                 anomalies.append(reassignment_anomaly)
-            
+
             # 3. Long-standing issues
             stale_issues_anomaly = self._detect_stale_issues(project_id)
             if stale_issues_anomaly:
                 anomalies.append(stale_issues_anomaly)
-            
+
             # 4. Unusual issue creation rate
             creation_anomaly = self._detect_unusual_creation_rate(project_id)
             if creation_anomaly:
                 anomalies.append(creation_anomaly)
-            
+
             # 5. Status transition bottlenecks
             bottleneck_anomaly = self._detect_status_bottlenecks(project_id)
             if bottleneck_anomaly:
                 anomalies.append(bottleneck_anomaly)
-            
+
             # Store detected anomalies in database
             for anomaly_data in anomalies:
                 if anomaly_data["severity"] in ["high", "critical"]:
                     self._store_anomaly(project_id, anomaly_data)
-            
+
             return anomalies
-            
+
         except Exception as e:
             logger.exception(f"Error detecting project anomalies: {str(e)}")
             raise
@@ -143,36 +144,39 @@ class AnomalyDetectionService:
         """Check if burndown velocity is below expected rate."""
         if sprint.status != "active" or not sprint.start_date:
             return None
-        
+
         # Calculate days elapsed
         days_elapsed = (timezone.now().date() - sprint.start_date).days
         total_days = sprint.get_duration_days()
-        
+
         if days_elapsed <= 0 or total_days <= 0:
             return None
-        
+
         # Expected completion percentage
         expected_completion = days_elapsed / total_days
-        
+
         # Actual completion (completed story points / total)
-        total_points = sprint.issues.aggregate(
-            total=Sum("story_points")
-        )["total"] or 0
-        
-        completed_points = sprint.issues.filter(
-            status__is_final=True
-        ).aggregate(total=Sum("story_points"))["total"] or 0
-        
+        total_points = sprint.issues.aggregate(total=Sum("story_points"))["total"] or 0
+
+        completed_points = (
+            sprint.issues.filter(status__is_final=True).aggregate(
+                total=Sum("story_points")
+            )["total"]
+            or 0
+        )
+
         if total_points == 0:
             return None
-        
+
         actual_completion = completed_points / total_points
-        
+
         # Check if significantly behind
         if actual_completion < expected_completion - 0.2:  # 20% behind
             return {
                 "risk_type": "burndown_velocity",
-                "severity": "high" if actual_completion < expected_completion - 0.3 else "medium",
+                "severity": "high"
+                if actual_completion < expected_completion - 0.3
+                else "medium",
                 "description": f"Sprint is {int((expected_completion - actual_completion) * 100)}% behind expected progress",
                 "expected_completion": round(expected_completion * 100, 1),
                 "actual_completion": round(actual_completion * 100, 1),
@@ -182,7 +186,7 @@ class AnomalyDetectionService:
                     "Reassign work to available team members",
                 ],
             }
-        
+
         return None
 
     def _check_unassigned_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
@@ -190,13 +194,12 @@ class AnomalyDetectionService:
         total_issues = sprint.issues.filter(is_active=True).count()
         if total_issues == 0:
             return None
-        
+
         unassigned_count = sprint.issues.filter(
-            is_active=True,
-            assignee__isnull=True
+            is_active=True, assignee__isnull=True
         ).count()
         unassigned_ratio = unassigned_count / total_issues
-        
+
         if unassigned_ratio > 0.3:  # More than 30% unassigned
             return {
                 "risk_type": "unassigned_issues",
@@ -210,7 +213,7 @@ class AnomalyDetectionService:
                     "Remove unplanned work from sprint",
                 ],
             }
-        
+
         return None
 
     def _check_unestimated_work(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
@@ -218,11 +221,11 @@ class AnomalyDetectionService:
         total_issues = sprint.issues.count()
         if total_issues == 0:
             return None
-        
+
         unestimated = sprint.issues.filter(
             Q(story_points__isnull=True) | Q(story_points=0)
         ).count()
-        
+
         if unestimated > 0:
             return {
                 "risk_type": "unestimated_work",
@@ -234,21 +237,21 @@ class AnomalyDetectionService:
                     "Use planning poker for team consensus",
                 ],
             }
-        
+
         return None
 
     def _check_scope_changes(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
         """Check for excessive scope changes during sprint."""
         if not sprint.start_date:
             return None
-        
+
         # Count issues added after sprint start
         issues_added_after_start = sprint.issues.filter(
             created_at__gt=sprint.start_date
         ).count()
-        
+
         total_issues = sprint.issues.count()
-        
+
         if total_issues > 0 and issues_added_after_start / total_issues > 0.25:
             return {
                 "risk_type": "scope_creep",
@@ -261,22 +264,22 @@ class AnomalyDetectionService:
                     "Discuss scope management in retrospective",
                 ],
             }
-        
+
         return None
 
     def _check_team_capacity(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
         """Check if team capacity matches sprint workload."""
         # Get unique assignees
         assigned_users = sprint.issues.values("assignee").distinct().count()
-        
+
         # Get team size
         team_size = sprint.project.team_members.filter(is_active=True).count()
-        
+
         # Check if too many issues per person
         total_issues = sprint.issues.count()
         if assigned_users > 0:
             issues_per_person = total_issues / assigned_users
-            
+
             if issues_per_person > 10:
                 return {
                     "risk_type": "capacity_overload",
@@ -289,36 +292,34 @@ class AnomalyDetectionService:
                         "Identify and defer low-priority items",
                     ],
                 }
-        
+
         return None
 
     def _check_hours_drift(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
         """Check for hours drift using real estimated_hours and actual_hours fields."""
         issues_with_hours = sprint.issues.filter(
-            is_active=True,
-            estimated_hours__isnull=False,
-            actual_hours__isnull=False
+            is_active=True, estimated_hours__isnull=False, actual_hours__isnull=False
         )
-        
+
         if not issues_with_hours.exists():
             return None
-        
+
         total_estimated = sum(
-            float(issue.estimated_hours) 
-            for issue in issues_with_hours 
+            float(issue.estimated_hours)
+            for issue in issues_with_hours
             if issue.estimated_hours
         )
         total_actual = sum(
-            float(issue.actual_hours) 
-            for issue in issues_with_hours 
+            float(issue.actual_hours)
+            for issue in issues_with_hours
             if issue.actual_hours
         )
-        
+
         if total_estimated == 0:
             return None
-        
+
         drift_ratio = total_actual / total_estimated
-        
+
         if drift_ratio > 1.2:  # 20% over estimate
             return {
                 "risk_type": "hours_drift",
@@ -333,31 +334,28 @@ class AnomalyDetectionService:
                     "Improve planning process",
                 ],
             }
-        
+
         return None
 
     def _check_stalled_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
         """Check for stalled issues using real updated_at field."""
         from datetime import timedelta
-        
+
         cutoff_date = timezone.now() - timedelta(days=3)
-        
+
         stalled_count = sprint.issues.filter(
-            is_active=True,
-            status__is_final=False,
-            updated_at__lt=cutoff_date
+            is_active=True, status__is_final=False, updated_at__lt=cutoff_date
         ).count()
-        
+
         total_active = sprint.issues.filter(
-            is_active=True,
-            status__is_final=False
+            is_active=True, status__is_final=False
         ).count()
-        
+
         if total_active == 0:
             return None
-        
+
         stalled_ratio = stalled_count / total_active
-        
+
         if stalled_ratio > 0.2:  # More than 20% stalled
             return {
                 "risk_type": "stalled_issues",
@@ -371,17 +369,15 @@ class AnomalyDetectionService:
                     "Update issue status",
                 ],
             }
-        
+
         return None
 
     def _check_high_priority_issues(self, sprint: Sprint) -> Optional[Dict[str, Any]]:
         """Check for high priority issues using real priority field (P1, P2)."""
         high_priority_count = sprint.issues.filter(
-            is_active=True,
-            priority__in=['P1', 'P2'],
-            status__is_final=False
+            is_active=True, priority__in=["P1", "P2"], status__is_final=False
         ).count()
-        
+
         if high_priority_count > 0:
             return {
                 "risk_type": "high_priority_issues",
@@ -394,7 +390,7 @@ class AnomalyDetectionService:
                     "Monitor progress daily",
                 ],
             }
-        
+
         return None
 
     def _detect_velocity_anomaly(self, project_id: str) -> Optional[Dict[str, Any]]:
@@ -403,27 +399,30 @@ class AnomalyDetectionService:
         sprints = Sprint.objects.filter(
             project_id=project_id, status="completed"
         ).order_by("-created_at")[:5]
-        
+
         if len(sprints) < 3:
             return None  # Need at least 3 sprints for trend
-        
+
         # Calculate velocity for each sprint
         velocities = []
         for sprint in sprints:
-            completed_points = sprint.issues.filter(
-                status__is_final=True
-            ).aggregate(total=Sum("story_points"))["total"] or 0
+            completed_points = (
+                sprint.issues.filter(status__is_final=True).aggregate(
+                    total=Sum("story_points")
+                )["total"]
+                or 0
+            )
             velocities.append(completed_points)
-        
+
         # Calculate statistics
         avg_velocity = np.mean(velocities)
         std_velocity = np.std(velocities)
         latest_velocity = velocities[0]
-        
+
         # Detect if latest is significantly below average
         if std_velocity > 0:
             z_score = (latest_velocity - avg_velocity) / std_velocity
-            
+
             if z_score < -1.5:  # More than 1.5 std deviations below
                 return {
                     "anomaly_type": "velocity_drop",
@@ -443,10 +442,12 @@ class AnomalyDetectionService:
                         "Identify and address recurring blockers",
                     ],
                 }
-        
+
         return None
 
-    def _detect_excessive_reassignments(self, project_id: str) -> Optional[Dict[str, Any]]:
+    def _detect_excessive_reassignments(
+        self, project_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Detect if issues are being reassigned too frequently."""
         # This would require tracking assignment history
         # For now, placeholder implementation
@@ -455,14 +456,14 @@ class AnomalyDetectionService:
     def _detect_stale_issues(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Detect issues that haven't been updated in a long time."""
         cutoff_date = timezone.now() - timedelta(days=30)
-        
+
         stale_issues = Issue.objects.filter(
             project_id=project_id,
             status__is_final=False,
             is_active=True,
             updated_at__lt=cutoff_date,
         ).count()
-        
+
         if stale_issues > 5:
             return {
                 "anomaly_type": "stale_issues",
@@ -480,27 +481,29 @@ class AnomalyDetectionService:
                     "Update issue statuses",
                 ],
             }
-        
+
         return None
 
-    def _detect_unusual_creation_rate(self, project_id: str) -> Optional[Dict[str, Any]]:
+    def _detect_unusual_creation_rate(
+        self, project_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Detect sudden spikes in issue creation."""
         # Compare last week to historical average
         last_week = timezone.now() - timedelta(days=7)
         last_month = timezone.now() - timedelta(days=30)
-        
+
         recent_count = Issue.objects.filter(
             project_id=project_id, created_at__gte=last_week
         ).count()
-        
+
         historical_count = Issue.objects.filter(
             project_id=project_id,
             created_at__gte=last_month,
             created_at__lt=last_week,
         ).count()
-        
+
         avg_weekly = historical_count / 3  # Avg over 3 weeks
-        
+
         if avg_weekly > 0 and recent_count > avg_weekly * 2:
             return {
                 "anomaly_type": "creation_spike",
@@ -519,33 +522,31 @@ class AnomalyDetectionService:
                     "Consider impact on current sprint",
                 ],
             }
-        
+
         return None
 
     def _detect_status_bottlenecks(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Detect if too many issues are stuck in one status."""
         # Get all non-final statuses
         from apps.projects.models import WorkflowStatus
-        
-        statuses = WorkflowStatus.objects.filter(
-            project_id=project_id, is_final=False
-        )
-        
+
+        statuses = WorkflowStatus.objects.filter(project_id=project_id, is_final=False)
+
         total_open = Issue.objects.filter(
             project_id=project_id, status__is_final=False, is_active=True
         ).count()
-        
+
         if total_open == 0:
             return None
-        
+
         # Check each status for concentration
         for status in statuses:
             count_in_status = Issue.objects.filter(
                 project_id=project_id, status=status, is_active=True
             ).count()
-            
+
             ratio = count_in_status / total_open
-            
+
             if ratio > 0.5:  # More than 50% in one status
                 return {
                     "anomaly_type": "status_bottleneck",
@@ -565,7 +566,7 @@ class AnomalyDetectionService:
                         "Consider adding resources",
                     ],
                 }
-        
+
         return None
 
     def _store_anomaly(self, project_id: str, anomaly_data: Dict[str, Any]):
@@ -582,6 +583,8 @@ class AnomalyDetectionService:
                 possible_causes=anomaly_data.get("possible_causes", []),
                 mitigation_suggestions=anomaly_data.get("mitigation_suggestions", []),
             )
-            logger.info(f"Stored {anomaly_data['severity']} anomaly for project {project_id}")
+            logger.info(
+                f"Stored {anomaly_data['severity']} anomaly for project {project_id}"
+            )
         except Exception as e:
             logger.exception(f"Error storing anomaly: {str(e)}")

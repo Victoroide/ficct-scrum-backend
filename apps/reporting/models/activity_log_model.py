@@ -102,7 +102,7 @@ class ActivityLog(models.Model):
             return f"{hours} hour{'s' if hours > 1 else ''} ago"
         elif diff.seconds > 60:
             minutes = diff.seconds // 60
-            plural = 's' if minutes > 1 else ''
+            plural = "s" if minutes > 1 else ""
             return f"{minutes} minute{plural} ago"
         else:
             return "just now"

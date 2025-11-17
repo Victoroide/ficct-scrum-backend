@@ -11,7 +11,7 @@ class WorkflowValidator:
             project=issue.project,
             from_status=issue.status,
             to_status=to_status,
-            is_active=True
+            is_active=True,
         ).exists()
 
         if transition_exists:
@@ -20,12 +20,13 @@ class WorkflowValidator:
         if to_status.project != issue.project:
             return False, "Target status does not belong to this project"
 
-        return False, f"Cannot transition from '{issue.status.name}' to '{to_status.name}'"
+        return (
+            False,
+            f"Cannot transition from '{issue.status.name}' to '{to_status.name}'",
+        )
 
     @staticmethod
     def get_available_transitions(issue):
         return WorkflowTransition.objects.filter(
-            project=issue.project,
-            from_status=issue.status,
-            is_active=True
-        ).select_related('to_status')
+            project=issue.project, from_status=issue.status, is_active=True
+        ).select_related("to_status")

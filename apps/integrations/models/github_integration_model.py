@@ -57,6 +57,7 @@ class GitHubIntegration(models.Model):
 
     def set_access_token(self, token: str):
         import base64
+
         from cryptography.fernet import Fernet
 
         secret = (
@@ -71,6 +72,7 @@ class GitHubIntegration(models.Model):
 
     def get_access_token(self) -> str:
         import base64
+
         from cryptography.fernet import Fernet
 
         if not self.access_token:
@@ -91,6 +93,6 @@ class GitHubIntegration(models.Model):
             access_token_bytes = self.access_token
         else:
             access_token_bytes = self.access_token.encode()
-            
+
         decrypted = f.decrypt(access_token_bytes)
         return decrypted.decode()

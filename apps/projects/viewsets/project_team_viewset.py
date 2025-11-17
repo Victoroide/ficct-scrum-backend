@@ -55,13 +55,13 @@ from apps.projects.serializers import (
 class ProjectTeamViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing project team members.
-    
+
     Provides endpoints for:
     - Listing all team members in a project
     - Adding new team members
     - Updating team member roles and permissions
     - Removing team members from the project
-    
+
     Permissions:
     - Read: Any project member
     - Write: Project lead, admins, or workspace/org admins
@@ -80,7 +80,13 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """Apply appropriate permissions based on action."""
-        if self.action in ["create", "partial_update", "destroy", "deactivate", "reactivate"]:
+        if self.action in [
+            "create",
+            "partial_update",
+            "destroy",
+            "deactivate",
+            "reactivate",
+        ]:
             return [IsAuthenticated(), CanManageProjectTeam()]
         return [IsAuthenticated(), CanAccessProject()]
 
@@ -95,7 +101,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Add a new team member to the project.
-        
+
         Validates that:
         - User exists and is active
         - User is a workspace member
@@ -104,8 +110,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         project = self.get_project()
         if not project:
             return Response(
-                {"error": "Project not found"}, 
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         serializer = AddTeamMemberSerializer(
@@ -116,10 +121,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         try:
             team_member = serializer.save()
         except Exception as e:
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         LoggerService.log_info(
             action="project_team_member_added",
@@ -142,7 +144,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         """
         Update team member role, permissions, or hourly rate.
-        
+
         Only project lead and admins can update team members.
         """
         team_member = self.get_object()
@@ -154,13 +156,13 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
             valid_roles = [choice[0] for choice in ProjectTeamMember.ROLE_CHOICES]
             if role not in valid_roles:
                 return Response(
-                    {"error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"},
+                    {
+                        "error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        serializer = self.get_serializer(
-            team_member, data=request.data, partial=True
-        )
+        serializer = self.get_serializer(team_member, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -182,7 +184,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Remove team member from project (soft delete).
-        
+
         Sets is_active to False rather than deleting the record.
         """
         team_member = self.get_object()

@@ -53,7 +53,9 @@ class IssueCommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         issue_id = self.kwargs.get("issue_pk")
-        return IssueComment.objects.filter(issue_id=issue_id).select_related("author", "issue")
+        return IssueComment.objects.filter(issue_id=issue_id).select_related(
+            "author", "issue"
+        )
 
     def get_permissions(self):
         if self.action == "create":
@@ -68,8 +70,7 @@ class IssueCommentViewSet(viewsets.ModelViewSet):
             issue = Issue.objects.get(id=issue_id)
         except Issue.DoesNotExist:
             return Response(
-                {"error": "Issue does not exist"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Issue does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
 
         comment = serializer.save(issue=issue, author=self.request.user)
@@ -91,7 +92,7 @@ class IssueCommentViewSet(viewsets.ModelViewSet):
         if comment.author != self.request.user:
             return Response(
                 {"error": "You can only edit your own comments"},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         serializer.save()
@@ -100,7 +101,7 @@ class IssueCommentViewSet(viewsets.ModelViewSet):
         if not instance.can_delete(self.request.user):
             return Response(
                 {"error": "You do not have permission to delete this comment"},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         LoggerService.log_info(

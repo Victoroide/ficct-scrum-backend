@@ -32,16 +32,22 @@ class MLModel(models.Model):
     model_type = models.CharField(max_length=50, choices=MODEL_TYPES)
     version = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="training")
-    
+
     # Model file storage
     model_file = models.FileField(upload_to="ml_models/", null=True, blank=True)
-    model_path = models.CharField(max_length=500, blank=True, help_text="Path to model file if not using FileField")
-    
+    model_path = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Path to model file if not using FileField",
+    )
+
     # Training metadata
     training_samples = models.IntegerField(default=0)
     training_date = models.DateTimeField(auto_now_add=True)
-    trained_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    
+    trained_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
     # Performance metrics
     accuracy_score = models.FloatField(null=True, blank=True)
     precision_score = models.FloatField(null=True, blank=True)
@@ -50,12 +56,12 @@ class MLModel(models.Model):
     mae = models.FloatField(null=True, blank=True, help_text="Mean Absolute Error")
     rmse = models.FloatField(null=True, blank=True, help_text="Root Mean Squared Error")
     r2_score = models.FloatField(null=True, blank=True, help_text="R-squared Score")
-    
+
     # Additional metadata
     hyperparameters = models.JSONField(default=dict, blank=True)
     feature_importance = models.JSONField(default=dict, blank=True)
     notes = models.TextField(blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,27 +81,31 @@ class PredictionHistory(models.Model):
     """Stores prediction history for analysis and improvement."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    model = models.ForeignKey(MLModel, on_delete=models.CASCADE, related_name="predictions")
-    
+    model = models.ForeignKey(
+        MLModel, on_delete=models.CASCADE, related_name="predictions"
+    )
+
     # Input data
     input_data = models.JSONField(help_text="Input features used for prediction")
-    
+
     # Prediction results
     predicted_value = models.FloatField()
     confidence_score = models.FloatField(null=True, blank=True)
     prediction_range_min = models.FloatField(null=True, blank=True)
     prediction_range_max = models.FloatField(null=True, blank=True)
-    
+
     # Actual outcome (for validation)
     actual_value = models.FloatField(null=True, blank=True)
     outcome_recorded_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Context
     project_id = models.UUIDField(null=True, blank=True)
     issue_id = models.UUIDField(null=True, blank=True)
     sprint_id = models.UUIDField(null=True, blank=True)
-    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -135,32 +145,42 @@ class AnomalyDetection(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+
     # Anomaly details
-    anomaly_type = models.CharField(max_length=100, help_text="Type of anomaly detected")
+    anomaly_type = models.CharField(
+        max_length=100, help_text="Type of anomaly detected"
+    )
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="detected")
-    
+
     # Context
     project_id = models.UUIDField(null=True, blank=True)
     sprint_id = models.UUIDField(null=True, blank=True)
     affected_metric = models.CharField(max_length=100)
-    
+
     # Detection data
     expected_value = models.FloatField(null=True, blank=True)
     actual_value = models.FloatField()
-    deviation_score = models.FloatField(help_text="How far from normal (in standard deviations)")
-    
+    deviation_score = models.FloatField(
+        help_text="How far from normal (in standard deviations)"
+    )
+
     # Analysis
     description = models.TextField()
     possible_causes = models.JSONField(default=list, blank=True)
     mitigation_suggestions = models.JSONField(default=list, blank=True)
-    
+
     # Resolution
     resolved_at = models.DateTimeField(null=True, blank=True)
-    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="resolved_anomalies")
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_anomalies",
+    )
     resolution_notes = models.TextField(blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

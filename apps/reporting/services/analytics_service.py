@@ -3,7 +3,7 @@ import logging
 from datetime import timedelta
 from typing import Dict, List
 
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -17,17 +17,21 @@ class AnalyticsService:
     def generate_velocity_chart(self, project, num_sprints: int = 5) -> Dict:
         from apps.projects.models import Sprint
 
-        logger.info(f"[VELOCITY] Generating velocity chart for project {project.id} ({project.key})")
-        
+        logger.info(
+            f"[VELOCITY] Generating velocity chart for project {project.id} ({project.key})"
+        )
+
         # Include active, completed, and closed sprints for better coverage
         sprints = Sprint.objects.filter(
             project=project, status__in=["active", "completed", "closed"]
         ).order_by("-end_date")[:num_sprints]
-        
-        logger.info(f"[VELOCITY] Found {sprints.count()} sprints with status active/completed/closed")
+
+        logger.info(
+            f"[VELOCITY] Found {sprints.count()} sprints with status active/completed/closed"
+        )
 
         chart_data = {"labels": [], "velocities": [], "planned_points": []}
-        
+
         # Handle empty sprint list early
         if not sprints.exists():
             logger.warning(f"[VELOCITY] No sprints found - returning empty chart")
@@ -36,19 +40,23 @@ class AnalyticsService:
 
         total_velocity = 0
         for sprint in reversed(list(sprints)):
-            logger.debug(f"[VELOCITY] Processing sprint: {sprint.name} (status={sprint.status})")
-            
+            logger.debug(
+                f"[VELOCITY] Processing sprint: {sprint.name} (status={sprint.status})"
+            )
+
             # Count all issues in sprint
             all_sprint_issues = sprint.issues.filter(is_active=True)
-            logger.debug(f"[VELOCITY]   Total active issues in sprint: {all_sprint_issues.count()}")
-            
+            logger.debug(
+                f"[VELOCITY]   Total active issues in sprint: {all_sprint_issues.count()}"
+            )
+
             # Count done issues (support both 'done' and potential variants)
             done_issues = sprint.issues.filter(
                 Q(status__category="done") | Q(status__category__iexact="done"),
-                is_active=True
+                is_active=True,
             ).distinct()
             logger.debug(f"[VELOCITY]   Done issues: {done_issues.count()}")
-            
+
             # Calculate points
             completed_points = done_issues.aggregate(
                 total=Coalesce(Sum("story_points"), 0)
@@ -68,7 +76,7 @@ class AnalyticsService:
         chart_data["average_velocity"] = (
             round(total_velocity / len(sprints), 2) if sprints else 0
         )
-        
+
         logger.info(
             f"[VELOCITY] Chart generated: labels={chart_data['labels']}, "
             f"velocities={chart_data['velocities']}, "
@@ -89,9 +97,9 @@ class AnalyticsService:
         completed_points = completed_issues.aggregate(
             total=Coalesce(Sum("story_points"), 0)
         )["total"]
-        planned_points = issues.aggregate(
-            total=Coalesce(Sum("story_points"), 0)
-        )["total"]
+        planned_points = issues.aggregate(total=Coalesce(Sum("story_points"), 0))[
+            "total"
+        ]
 
         completion_rate = (
             round((completed_points / planned_points) * 100, 2) if planned_points else 0
@@ -221,7 +229,7 @@ class AnalyticsService:
                 issues = issues.filter(issue_type_id=filters["issue_type"])
             if filters.get("priority"):
                 issues = issues.filter(priority=filters["priority"])
-            
+
             # Date range filters
             if filters.get("start_date"):
                 issues = issues.filter(created_at__date__gte=filters["start_date"])
@@ -263,7 +271,7 @@ class AnalyticsService:
 
         elif data_type == "sprints":
             sprints = Sprint.objects.filter(project=project)
-            
+
             # Date range filters
             if filters.get("start_date"):
                 sprints = sprints.filter(start_date__gte=filters["start_date"])
@@ -291,7 +299,9 @@ class AnalyticsService:
                     status__category="done", is_active=True
                 ).aggregate(total=Coalesce(Sum("story_points"), 0))["total"]
                 completion_rate = (
-                    round((completed_points / total_points) * 100, 1) if total_points else 0
+                    round((completed_points / total_points) * 100, 1)
+                    if total_points
+                    else 0
                 )
 
                 writer.writerow(
@@ -306,26 +316,30 @@ class AnalyticsService:
                         f"{completion_rate}%",
                     ]
                 )
-        
+
         elif data_type == "activity":
             # Export activity logs
             activities = ActivityLog.objects.filter(project=project)
-            
+
             # Apply filters
             if filters.get("user"):
                 activities = activities.filter(user_id=filters["user"])
             if filters.get("action_type"):
                 activities = activities.filter(action_type=filters["action_type"])
-            
+
             # Date range filters
             if filters.get("start_date"):
-                activities = activities.filter(created_at__date__gte=filters["start_date"])
+                activities = activities.filter(
+                    created_at__date__gte=filters["start_date"]
+                )
             if filters.get("end_date"):
-                activities = activities.filter(created_at__date__lte=filters["end_date"])
-            
+                activities = activities.filter(
+                    created_at__date__lte=filters["end_date"]
+                )
+
             # Order by most recent
             activities = activities.order_by("-created_at")
-            
+
             writer.writerow(
                 [
                     "Date",
@@ -337,7 +351,7 @@ class AnalyticsService:
                     "IP Address",
                 ]
             )
-            
+
             for activity in activities:
                 writer.writerow(
                     [
@@ -464,9 +478,9 @@ class AnalyticsService:
             "name": sprint.name,
             "total_issues": issues.count(),
             "completed_issues": completed.count(),
-            "story_points": issues.aggregate(
-                total=Coalesce(Sum("story_points"), 0)
-            )["total"],
+            "story_points": issues.aggregate(total=Coalesce(Sum("story_points"), 0))[
+                "total"
+            ],
             "completed_points": completed.aggregate(
                 total=Coalesce(Sum("story_points"), 0)
             )["total"],
