@@ -95,8 +95,8 @@ class AssistantService:
             )
 
             logger.info(
-                f"[ASSISTANT] Answer generated with {response.provider}/"
-                f"{response.model}, cost=${response.cost_usd:.4f}"
+                f"[ASSISTANT] Answer generated with {response.provider}/{response.model}, "
+                f"cost=${response.cost_usd:.4f}"
             )
 
             # Step 5: Prepare response with sources
@@ -183,8 +183,8 @@ class AssistantService:
             )
 
             logger.info(
-                f"[ASSISTANT] Solutions suggested with {response.provider}/"
-                f"{response.model}, cost=${response.cost_usd:.4f}"
+                f"[ASSISTANT] Solutions suggested with {response.provider}/{response.model}, "
+                f"cost=${response.cost_usd:.4f}"
             )
 
             return {
@@ -227,10 +227,9 @@ class AssistantService:
                 "role": "system",
                 "content": (
                     "You are a helpful project management assistant for FICCT-SCRUM. "
-                    "Answer questions based on the provided context about project"
-                    " issues. Be concise, accurate, and cite specific issues when"
-                    " relevant. If you don't know the answer based on the context,"
-                    " say so."
+                    "Answer questions based on the provided context about project issues. "
+                    "Be concise, accurate, and cite specific issues when relevant. "
+                    "If you don't know the answer based on the context, say so."
                 ),
             },
         ]
@@ -243,8 +242,7 @@ class AssistantService:
         messages.append(
             {
                 "role": "user",
-                "content": f"Context (relevant issues):\n{context}\n\n"
-                f"Question: {question}",
+                "content": f"Context (relevant issues):\n{context}\n\nQuestion: {question}",
             }
         )
 
