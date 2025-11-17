@@ -8,7 +8,7 @@ import gzip
 import logging
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -113,7 +113,6 @@ def backup_database(self):
             # Step 3: Upload to S3 (if configured)
             try:
                 import boto3
-                from botocore.exceptions import ClientError
 
                 s3_bucket = config("BACKUP_S3_BUCKET", default="")
                 aws_access_key = config("AWS_ACCESS_KEY_ID", default="")
