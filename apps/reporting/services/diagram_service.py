@@ -20,6 +20,8 @@ from .github_code_fetcher import GitHubCodeFetcher
 from .python_code_analyzer import PythonCodeAnalyzer
 from .uml_generator import UMLGenerator
 from .architecture_generator import ArchitectureGenerator
+from .angular_analyzer import AngularAnalyzer
+from .angular_diagram_generator import AngularDiagramGenerator
 
 
 logger = logging.getLogger(__name__)
@@ -49,15 +51,32 @@ class DiagramService:
 
         return {"diagram_type": "workflow", "data": svg_data, "format": "svg", "cached": False}
 
-    def generate_dependency_diagram(self, project) -> Dict:
-        """Generate dependency graph showing issue relationships with connections."""
-        cache_key = self._generate_cache_key("dependency", project.id)
+    def generate_dependency_diagram(self, project, filters=None) -> Dict:
+        """
+        Generate dependency graph showing issue relationships with connections.
+        
+        Args:
+            project: Project instance
+            filters: Dict with optional filter keys:
+                - sprint_id: Filter by sprint UUID or 'backlog'
+                - status_ids: List of status UUIDs
+                - priorities: List of priority strings ['P1', 'P2', etc]
+                - assignee_id: Assignee UUID or 'unassigned'
+                - issue_type_ids: List of issue type UUIDs
+                - search: Search term for title/key
+        
+        Returns:
+            Dict with diagram data
+        """
+        # Generate cache key including filters
+        filter_str = str(sorted(filters.items())) if filters else ""
+        cache_key = self._generate_cache_key(f"dependency_{filter_str}", project.id)
         cached = self._get_cached_diagram(cache_key)
         if cached:
             return cached
 
-        # Use new generator
-        svg_data = generate_dependency_graph_svg(project)
+        # Use new generator with filters
+        svg_data = generate_dependency_graph_svg(project, filters)
 
         self._cache_diagram(cache_key, svg_data, "dependency", project, "svg")
 
@@ -173,6 +192,124 @@ class DiagramService:
             "format": "json",
             "cached": False
         }
+    
+    def generate_angular_diagram(
+        self, 
+        project, 
+        diagram_type: str,
+        diagram_format: str = "json", 
+        parameters: Dict = None
+    ) -> Dict:
+        """
+        Generate Angular/TypeScript diagram.
+        
+        Supports:
+        - component_hierarchy: Component tree
+        - service_dependencies: Service dependency graph
+        - module_graph: Module imports/exports
+        - routing_structure: Route tree
+        
+        Args:
+            project: Project instance
+            diagram_type: Type of Angular diagram
+            diagram_format: Output format (json)
+            parameters: Additional parameters
+            
+        Returns:
+            Angular diagram data
+            
+        Raises:
+            ValueError: On analysis errors
+        """
+        logger.info(
+            f"Generating Angular {diagram_type} diagram for project {project.name}"
+        )
+        
+        # Check cache first
+        cache_key = self._generate_cache_key(f"angular_{diagram_type}", project.id)
+        cached = self._get_cached_diagram(cache_key)
+        if cached:
+            logger.info("Returning cached Angular diagram")
+            return cached
+        
+        # Get GitHub integration and analyze Angular code
+        integration = self._get_github_integration(project)
+        
+        try:
+            # Fetch TypeScript files from GitHub
+            fetcher = GitHubCodeFetcher(integration)
+            
+            # Get Angular-specific files
+            all_files = fetcher.list_files()
+            
+            ts_files = [
+                f for f in all_files 
+                if f.endswith('.ts') and not f.endswith('.spec.ts')
+            ]
+            
+            if not ts_files:
+                raise ValueError(
+                    "No TypeScript files found in repository. "
+                    "Please ensure this is an Angular project."
+                )
+            
+            logger.info(f"Found {len(ts_files)} TypeScript files")
+            
+            # Fetch file contents (limit to 100 files)
+            files_content = fetcher.fetch_multiple_files(ts_files, max_files=100)
+            
+            if not files_content:
+                raise ValueError(
+                    "Could not fetch TypeScript files. "
+                    "Please check repository access."
+                )
+            
+            # Analyze Angular code
+            analyzer = AngularAnalyzer()
+            analysis = analyzer.analyze_angular_code(files_content)
+            
+            # Generate specific diagram type
+            generator = AngularDiagramGenerator()
+            
+            if diagram_type == "component_hierarchy":
+                diagram_data = generator.generate_component_hierarchy(analysis)
+            elif diagram_type == "service_dependencies":
+                diagram_data = generator.generate_service_dependencies(analysis)
+            elif diagram_type == "module_graph":
+                diagram_data = generator.generate_module_graph(analysis)
+            elif diagram_type == "routing_structure":
+                diagram_data = generator.generate_routing_structure(analysis)
+            else:
+                raise ValueError(
+                    f"Unknown Angular diagram type: {diagram_type}. "
+                    f"Supported: component_hierarchy, service_dependencies, "
+                    f"module_graph, routing_structure"
+                )
+            
+            import json
+            data_str = json.dumps(diagram_data, indent=2)
+            
+            # Cache the result
+            self._cache_diagram(cache_key, data_str, f"angular_{diagram_type}", project, "json")
+            
+            logger.info(f"Angular {diagram_type} diagram generated successfully")
+            
+            return {
+                "diagram_type": f"angular_{diagram_type}",
+                "data": data_str,
+                "format": "json",
+                "cached": False
+            }
+            
+        except ValueError as e:
+            # Re-raise ValueError as-is
+            raise
+        except Exception as e:
+            logger.error(f"Error generating Angular diagram: {str(e)}", exc_info=True)
+            raise ValueError(
+                f"Failed to generate Angular diagram: {str(e)}. "
+                "Please check GitHub integration and ensure this is an Angular project."
+            )
 
     def _generate_cache_key(self, diagram_type: str, project_id) -> str:
         data = f"{diagram_type}_{project_id}_{timezone.now().date()}"

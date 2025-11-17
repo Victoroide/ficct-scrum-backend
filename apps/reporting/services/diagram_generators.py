@@ -302,7 +302,7 @@ def generate_workflow_diagram_svg(project) -> str:
 # DEPENDENCY GRAPH
 # ============================================================================
 
-def generate_dependency_graph_svg(project) -> str:
+def generate_dependency_graph_svg(project, filters=None) -> str:
     """
     Generate dependency graph showing issue relationships.
     
@@ -312,21 +312,60 @@ def generate_dependency_graph_svg(project) -> str:
     - Hierarchical layout (dependencies at top)
     - Color-coded by status
     - Critical path highlighting
+    - Filterable by sprint, status, priority, assignee, issue_type, search
     
     Args:
         project: Project model instance
+        filters: Dict with optional keys: sprint_id, status_ids, priority_ids, 
+                 assignee_id, issue_type_ids, search
         
     Returns:
         SVG string
     """
     from apps.projects.models import Issue, IssueLink
+    from django.db.models import Q
     
     ds = DesignSystem
+    filters = filters or {}
     
-    # Get issues with links (limit to 30 for readability)
-    issues = list(Issue.objects.filter(
-        project=project, is_active=True
-    ).select_related('status', 'issue_type')[:30])
+    # Build query with filters
+    query = Q(project=project, is_active=True)
+    
+    # Sprint filter
+    if filters.get('sprint_id'):
+        if filters['sprint_id'] == 'backlog':
+            query &= Q(sprint__isnull=True)
+        else:
+            query &= Q(sprint_id=filters['sprint_id'])
+    
+    # Status filter (list of status IDs)
+    if filters.get('status_ids'):
+        query &= Q(status_id__in=filters['status_ids'])
+    
+    # Priority filter (list like ['P1', 'P2'])
+    if filters.get('priorities'):
+        query &= Q(priority__in=filters['priorities'])
+    
+    # Assignee filter
+    if filters.get('assignee_id'):
+        if filters['assignee_id'] == 'unassigned':
+            query &= Q(assignee__isnull=True)
+        else:
+            query &= Q(assignee_id=filters['assignee_id'])
+    
+    # Issue type filter
+    if filters.get('issue_type_ids'):
+        query &= Q(issue_type_id__in=filters['issue_type_ids'])
+    
+    # Search filter (title or key)
+    if filters.get('search'):
+        search_term = filters['search']
+        query &= (Q(title__icontains=search_term) | Q(key__icontains=search_term))
+    
+    # Get filtered issues (limit to 50 for readability)
+    issues = list(Issue.objects.filter(query).select_related(
+        'status', 'issue_type', 'assignee', 'sprint'
+    )[:50])
     
     if not issues:
         return create_empty_state(
@@ -397,11 +436,27 @@ def generate_dependency_graph_svg(project) -> str:
         opacity=0.3
     ))
     
-    # Title
+    # Title with filter info
+    filter_info = []
+    if filters.get('sprint_id'):
+        filter_info.append(f"Sprint filtered")
+    if filters.get('status_ids'):
+        filter_info.append(f"{len(filters['status_ids'])} statuses")
+    if filters.get('priorities'):
+        filter_info.append(f"{len(filters['priorities'])} priorities")
+    if filters.get('assignee_id'):
+        filter_info.append("Assignee filtered")
+    if filters.get('search'):
+        filter_info.append(f"Search: '{filters['search']}'")
+    
+    subtitle = f"{len(nodes)} issues, {len(edges)} dependencies"
+    if filter_info:
+        subtitle += f" ({', '.join(filter_info)})"
+    
     parts.append(create_title(
         f"{project.name} - Dependencies",
         canvas_width / 2, padding / 2 + 10,
-        subtitle=f"{len(nodes)} issues, {len(edges)} dependencies"
+        subtitle=subtitle
     ))
     
     # Calculate node positions
@@ -921,12 +976,15 @@ def generate_roadmap_timeline_svg(project) -> str:
     max_date = max(end_dates)
     total_days = (max_date - min_date).days + 1
     
-    # Chart dimensions
-    canvas_width = 1200
-    canvas_height = 100 + (len(sprints) * 60) + 100
+    # Chart dimensions - IMPROVED for better label spacing
+    canvas_width = max(1400, 200 * len(sprints))  # Dynamic width based on sprint count
+    row_height = ds.LAYOUT['roadmap_row_height']
+    bar_height = ds.LAYOUT['roadmap_bar_height']
+    label_width = ds.LAYOUT['roadmap_label_width']
+    canvas_height = 100 + (len(sprints) * row_height) + 120  # Extra space for legend
     margin = ds.LAYOUT['canvas_padding']
-    chart_width = canvas_width - (margin * 2) - 200  # Reserve space for labels
-    chart_height = len(sprints) * 60
+    chart_width = canvas_width - (margin * 2) - label_width
+    chart_height = len(sprints) * row_height
     
     # Start SVG
     parts = [
@@ -950,7 +1008,7 @@ def generate_roadmap_timeline_svg(project) -> str:
     
     # Draw timeline axis
     timeline_y = 80
-    timeline_x_start = margin + 200
+    timeline_x_start = margin + label_width
     timeline_x_end = timeline_x_start + chart_width
     
     # Today marker
@@ -981,15 +1039,14 @@ def generate_roadmap_timeline_svg(project) -> str:
         if not sprint.start_date or not sprint.end_date:
             continue
         
-        y = timeline_y + 20 + (i * 60)
+        y = timeline_y + 20 + (i * row_height)
         
         # Calculate bar position and width
         start_offset = (sprint.start_date - min_date).days
         duration = (sprint.end_date - sprint.start_date).days + 1
         
         bar_x = timeline_x_start + (start_offset / total_days * chart_width)
-        bar_width = (duration / total_days * chart_width)
-        bar_height = 40
+        bar_width = max((duration / total_days * chart_width), 40)  # Minimum 40px width
         
         # Sprint status color
         status_colors = {
@@ -1004,26 +1061,41 @@ def generate_roadmap_timeline_svg(project) -> str:
             bar_x, y, bar_width, bar_height,
             fill=bar_color,
             stroke=ds.COLORS['border'],
-            shadow=True
+            shadow=True,
+            radius=4
         ))
         
-        # Sprint name label
+        # Sprint name label (left side, outside bar)
         parts.append(create_text(
-            margin + 10, y + 25,
+            margin + 10, y + bar_height / 2 + 4,
             sprint.name,
             size=ds.FONTS['size_body'],
             weight='bold',
-            truncate_at=25
+            truncate_at=22
         ))
         
-        # Date range inside bar
-        date_text = f"{sprint.start_date.strftime('%m/%d')} - {sprint.end_date.strftime('%m/%d')}"
-        parts.append(create_text(
-            bar_x + 5, y + 25,
-            date_text,
-            size=ds.FONTS['size_tiny'],
-            fill=ds.COLORS['text_inverse']
-        ))
+        # Date range inside bar (if bar is wide enough)
+        if bar_width > 100:
+            date_text = f"{sprint.start_date.strftime('%m/%d')} - {sprint.end_date.strftime('%m/%d')}"
+            parts.append(create_text(
+                bar_x + bar_width / 2, y + bar_height / 2 + 4,
+                date_text,
+                size=ds.FONTS['size_tiny'],
+                fill=ds.COLORS['text_inverse'],
+                anchor='middle',
+                weight='bold'
+            ))
+        
+        # Issue count badge (if sprint has issues)
+        sprint_issues = sprint.issues.filter(is_active=True).count() if hasattr(sprint, 'issues') else 0
+        if sprint_issues > 0:
+            badge_x = bar_x + bar_width + 10
+            parts.append(create_text(
+                badge_x, y + bar_height / 2 + 4,
+                f"{sprint_issues} issues",
+                size=ds.FONTS['size_tiny'],
+                fill=ds.COLORS['text_tertiary']
+            ))
     
     # Legend
     legend_items = [

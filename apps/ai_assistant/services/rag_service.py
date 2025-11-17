@@ -66,7 +66,7 @@ class RAGService:
         try:
             logger.info(f"[INDEX] Starting index for issue {issue_id}")
             issue = Issue.objects.select_related(
-                "project", "issue_type", "status", "assignee", "reporter"
+                "project", "issue_type", "status", "assignee", "reporter", "sprint"
             ).get(id=issue_id)
             
             logger.debug(f"[INDEX] Issue loaded: {issue.title}")
@@ -582,9 +582,15 @@ class RAGService:
         """
         defaults = {
             "assignee_id": "unassigned",
+            "assignee_username": "unassigned",
             "assignee_name": "Unassigned",
             "reporter_id": "unknown",
+            "reporter_username": "unknown",
             "reporter_name": "Unknown",
+            "sprint_id": "backlog",
+            "sprint_name": "Backlog",
+            "sprint_status": "backlog",
+            "labels": "",
         }
         
         sanitized = {}
@@ -603,25 +609,64 @@ class RAGService:
     
     def _prepare_metadata(self, issue: Issue) -> Dict[str, Any]:
         """
-        Prepare metadata for Pinecone storage.
+        Prepare COMPLETE metadata for Pinecone storage.
+        
+        ENHANCED with sprint context, labels, status_category, issue_key
+        for better semantic search and metadata filtering.
         
         NOTE: All null values will be sanitized before upsert to prevent
         Pinecone rejection errors.
         """
         metadata = {
+            # Core identification
             "issue_id": str(issue.id),
             "project_id": str(issue.project_id),
-            "title": issue.title,
+            "project_key": issue.project.key,
+            "issue_key": issue.key,
+            "full_key": issue.full_key,
+            "title": issue.title[:200],  # Truncate for Pinecone limits
+            
+            # Classification
             "issue_type": issue.issue_type.name,
+            "issue_type_category": issue.issue_type.category if hasattr(issue.issue_type, 'category') else None,
             "status": issue.status.name,
+            "status_category": issue.status.category if hasattr(issue.status, 'category') else None,
             "priority": issue.priority,
+            
+            # Assignment context
             "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
+            "assignee_username": issue.assignee.username if issue.assignee else None,
             "assignee_name": issue.assignee.get_full_name() if issue.assignee else None,
             "reporter_id": str(issue.reporter_id) if issue.reporter_id else None,
+            "reporter_username": issue.reporter.username if issue.reporter else None,
             "reporter_name": issue.reporter.get_full_name() if issue.reporter else None,
+            
+            # Sprint context (CRITICAL for temporal queries)
+            "sprint_id": str(issue.sprint_id) if issue.sprint_id else None,
+            "sprint_name": issue.sprint.name if issue.sprint else None,
+            "sprint_status": issue.sprint.status if issue.sprint else None,
+            
+            # Estimation
+            "story_points": issue.story_points if issue.story_points else None,
+            "estimated_hours": float(issue.estimated_hours) if issue.estimated_hours else None,
+            
+            # Temporal
             "created_at": issue.created_at.isoformat(),
             "updated_at": issue.updated_at.isoformat(),
+            "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None,
         }
+        
+        # Add labels if model supports them
+        if hasattr(issue, 'labels'):
+            try:
+                labels = issue.labels.all()
+                if labels.exists():
+                    label_names = [label.name for label in labels]
+                    metadata["labels"] = ",".join(label_names)  # Comma-separated string
+                else:
+                    metadata["labels"] = None
+            except Exception:
+                metadata["labels"] = None
         
         # Sanitize to remove null values (Pinecone requirement)
         return self._sanitize_metadata(metadata)
@@ -629,3 +674,444 @@ class RAGService:
     def _calculate_hash(self, text: str) -> str:
         """Calculate SHA-256 hash of text content."""
         return hashlib.sha256(text.encode()).hexdigest()
+    
+    def index_sprint(self, sprint_id: str) -> tuple[bool, str]:
+        """
+        Index a single sprint in Pinecone 'sprints' namespace.
+        
+        Args:
+            sprint_id: Sprint UUID
+            
+        Returns:
+            Tuple of (success: bool, error_message: str)
+        """
+        self._check_available()
+        try:
+            from apps.projects.models import Sprint
+            
+            logger.info(f"[INDEX SPRINT] Starting index for sprint {sprint_id}")
+            sprint = Sprint.objects.select_related("project", "created_by").get(id=sprint_id)
+            
+            # Prepare text for embedding
+            text_content = self._prepare_sprint_text(sprint)
+            logger.debug(f"[INDEX SPRINT] Text prepared, length: {len(text_content)} chars")
+            
+            # Generate embedding
+            embedding_vector = self.openai.generate_embedding(text_content)
+            logger.info(f"[OPENAI] Sprint embedding generated, dimension: {len(embedding_vector)}")
+            
+            # Prepare metadata
+            metadata = self._prepare_sprint_metadata(sprint)
+            logger.debug(f"[INDEX SPRINT] Metadata prepared: {len(metadata)} fields")
+            
+            # Upsert to Pinecone
+            vector_id = f"sprint_{sprint_id}"
+            logger.info(f"[PINECONE] Upserting sprint vector {vector_id}...")
+            self.pinecone.upsert_vector(
+                vector_id=vector_id,
+                vector=embedding_vector,
+                metadata=metadata,
+                namespace="sprints",
+            )
+            logger.info(f"[PINECONE] Sprint upsert successful for {vector_id}")
+            
+            return True, ""
+        
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            logger.exception(f"[INDEX SPRINT] ERROR: {error_msg}")
+            return False, error_msg
+    
+    def index_project_sprints(self, project_id: str) -> Dict[str, Any]:
+        """
+        Index all sprints in a project.
+        
+        Args:
+            project_id: Project UUID
+            
+        Returns:
+            Dictionary with indexing statistics
+        """
+        self._check_available()
+        try:
+            from apps.projects.models import Sprint
+            
+            logger.info(f"[BATCH INDEX SPRINTS] Starting for project {project_id}")
+            
+            sprints = Sprint.objects.filter(project_id=project_id).select_related("project", "created_by")
+            
+            total = sprints.count()
+            indexed = 0
+            failed = 0
+            errors = []
+            
+            logger.info(f"[BATCH INDEX SPRINTS] Found {total} sprints to index")
+            
+            for i, sprint in enumerate(sprints, 1):
+                try:
+                    success, error_msg = self.index_sprint(str(sprint.id))
+                    
+                    if success:
+                        indexed += 1
+                    else:
+                        failed += 1
+                        errors.append({
+                            "sprint_id": str(sprint.id),
+                            "sprint_name": sprint.name,
+                            "error": error_msg
+                        })
+                        logger.warning(f"[BATCH INDEX SPRINTS] FAILED: Sprint {i}/{total} failed: {error_msg}")
+                        
+                except Exception as e:
+                    failed += 1
+                    errors.append({
+                        "sprint_id": str(sprint.id),
+                        "sprint_name": sprint.name,
+                        "error": f"{type(e).__name__}: {str(e)}"
+                    })
+            
+            success_rate = round((indexed / total * 100), 1) if total > 0 else 0
+            
+            logger.info(
+                f"[BATCH INDEX SPRINTS] Complete: {indexed}/{total} indexed ({success_rate}%), "
+                f"{failed} failed"
+            )
+            
+            return {
+                "total": total,
+                "indexed": indexed,
+                "failed": failed,
+                "success_rate": success_rate,
+                "errors": errors,
+            }
+            
+        except Exception as e:
+            logger.exception(f"[BATCH INDEX SPRINTS] Critical error: {str(e)}")
+            raise
+    
+    def index_team_member(self, project_id: str, user_id: int) -> tuple[bool, str]:
+        """
+        Index a team member's activity/context in Pinecone 'team_members' namespace.
+        
+        Args:
+            project_id: Project UUID
+            user_id: User ID
+            
+        Returns:
+            Tuple of (success: bool, error_message: str)
+        """
+        self._check_available()
+        try:
+            from django.contrib.auth import get_user_model
+            from apps.projects.models import Project
+            
+            User = get_user_model()
+            
+            logger.info(f"[INDEX MEMBER] Starting index for user {user_id} in project {project_id}")
+            
+            project = Project.objects.get(id=project_id)
+            user = User.objects.get(id=user_id)
+            
+            # Prepare text for embedding
+            text_content = self._prepare_team_member_text(project, user)
+            logger.debug(f"[INDEX MEMBER] Text prepared, length: {len(text_content)} chars")
+            
+            # Generate embedding
+            embedding_vector = self.openai.generate_embedding(text_content)
+            logger.info(f"[OPENAI] Team member embedding generated, dimension: {len(embedding_vector)}")
+            
+            # Prepare metadata
+            metadata = self._prepare_team_member_metadata(project, user)
+            logger.debug(f"[INDEX MEMBER] Metadata prepared: {len(metadata)} fields")
+            
+            # Upsert to Pinecone
+            vector_id = f"member_{project_id}_{user_id}"
+            logger.info(f"[PINECONE] Upserting team member vector {vector_id}...")
+            self.pinecone.upsert_vector(
+                vector_id=vector_id,
+                vector=embedding_vector,
+                metadata=metadata,
+                namespace="team_members",
+            )
+            logger.info(f"[PINECONE] Team member upsert successful for {vector_id}")
+            
+            return True, ""
+        
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            logger.exception(f"[INDEX MEMBER] ERROR: {error_msg}")
+            return False, error_msg
+    
+    def index_project_context(self, project_id: str) -> tuple[bool, str]:
+        """
+        Index project-level context in Pinecone 'project_context' namespace.
+        
+        Args:
+            project_id: Project UUID
+            
+        Returns:
+            Tuple of (success: bool, error_message: str)
+        """
+        self._check_available()
+        try:
+            from apps.projects.models import Project
+            
+            logger.info(f"[INDEX PROJECT] Starting index for project {project_id}")
+            project = Project.objects.select_related("workspace", "workspace__organization").get(id=project_id)
+            
+            # Prepare text for embedding
+            text_content = self._prepare_project_context_text(project)
+            logger.debug(f"[INDEX PROJECT] Text prepared, length: {len(text_content)} chars")
+            
+            # Generate embedding
+            embedding_vector = self.openai.generate_embedding(text_content)
+            logger.info(f"[OPENAI] Project embedding generated, dimension: {len(embedding_vector)}")
+            
+            # Prepare metadata
+            metadata = self._prepare_project_context_metadata(project)
+            logger.debug(f"[INDEX PROJECT] Metadata prepared: {len(metadata)} fields")
+            
+            # Upsert to Pinecone
+            vector_id = f"project_{project_id}"
+            logger.info(f"[PINECONE] Upserting project vector {vector_id}...")
+            self.pinecone.upsert_vector(
+                vector_id=vector_id,
+                vector=embedding_vector,
+                metadata=metadata,
+                namespace="project_context",
+            )
+            logger.info(f"[PINECONE] Project upsert successful for {vector_id}")
+            
+            return True, ""
+        
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            logger.exception(f"[INDEX PROJECT] ERROR: {error_msg}")
+            return False, error_msg
+    
+    def _prepare_sprint_text(self, sprint) -> str:
+        """
+        Prepare sprint text for embedding generation.
+        
+        Args:
+            sprint: Sprint model instance
+            
+        Returns:
+            Rich text context for embedding
+        """
+        from apps.projects.models import Sprint
+        
+        parts = [
+            f"Sprint: {sprint.name}",
+            f"Status: {sprint.status}",
+            f"Project: {sprint.project.name} ({sprint.project.key})",
+        ]
+        
+        if sprint.goal:
+            parts.append(f"Goal: {sprint.goal}")
+        
+        if sprint.start_date and sprint.end_date:
+            parts.append(f"Duration: {sprint.start_date} to {sprint.end_date} ({sprint.duration_days} days)")
+        
+        # Add sprint statistics
+        issue_count = sprint.issue_count
+        completed_count = sprint.completed_issue_count
+        parts.append(f"Issues: {issue_count} total, {completed_count} completed")
+        
+        parts.append(f"Story Points: {sprint.completed_points}/{sprint.committed_points}")
+        parts.append(f"Progress: {sprint.progress_percentage}%")
+        
+        return "\n".join(parts)
+    
+    def _prepare_sprint_metadata(self, sprint) -> Dict[str, Any]:
+        """
+        Prepare sprint metadata for Pinecone storage.
+        
+        Args:
+            sprint: Sprint model instance
+            
+        Returns:
+            Metadata dictionary
+        """
+        metadata = {
+            "sprint_id": str(sprint.id),
+            "project_id": str(sprint.project_id),
+            "project_key": sprint.project.key,
+            "sprint_name": sprint.name,
+            "sprint_goal": sprint.goal[:500] if sprint.goal else None,
+            "status": sprint.status,
+            "start_date": sprint.start_date.isoformat() if sprint.start_date else None,
+            "end_date": sprint.end_date.isoformat() if sprint.end_date else None,
+            "duration_days": int(sprint.duration_days) if sprint.duration_days else 0,
+            "remaining_days": int(sprint.remaining_days) if sprint.is_active and sprint.remaining_days else None,
+            "committed_points": float(sprint.committed_points),
+            "completed_points": float(sprint.completed_points),
+            "progress_percentage": float(sprint.progress_percentage) if sprint.progress_percentage is not None else 0.0,
+            "issue_count": int(sprint.issue_count) if sprint.issue_count else 0,
+            "completed_issue_count": int(sprint.completed_issue_count) if sprint.completed_issue_count else 0,
+            "created_at": sprint.created_at.isoformat(),
+            "completed_at": sprint.completed_at.isoformat() if sprint.completed_at else None,
+            "entity_type": "sprint",
+        }
+        
+        return self._sanitize_metadata(metadata)
+    
+    def _prepare_team_member_text(self, project, user) -> str:
+        """
+        Prepare team member activity text for embedding.
+        
+        Args:
+            project: Project instance
+            user: User instance
+            
+        Returns:
+            Rich text context about team member activity
+        """
+        parts = [
+            f"Team Member: {user.get_full_name()} ({user.username})",
+            f"Email: {user.email}",
+            f"Project: {project.name} ({project.key})",
+        ]
+        
+        # Get assigned issues statistics
+        assigned_issues = Issue.objects.filter(
+            project=project,
+            assignee=user,
+            is_active=True
+        ).select_related("status", "issue_type")
+        
+        assigned_count = assigned_issues.count()
+        if assigned_count > 0:
+            completed_count = assigned_issues.filter(status__is_final=True).count()
+            in_progress_count = assigned_issues.filter(status__category="in_progress").count()
+            
+            parts.append(f"Assigned Issues: {assigned_count} total, {completed_count} completed, {in_progress_count} in progress")
+            
+            # Calculate story points
+            total_points = sum(issue.story_points or 0 for issue in assigned_issues)
+            parts.append(f"Total Story Points: {total_points}")
+            
+            # Recent issues
+            recent_issues = assigned_issues.order_by("-updated_at")[:5]
+            if recent_issues.exists():
+                recent_titles = [f"{issue.full_key}: {issue.title}" for issue in recent_issues]
+                parts.append(f"Recent Issues: {', '.join(recent_titles)}")
+        else:
+            parts.append("No assigned issues currently")
+        
+        # Get reported issues
+        reported_count = Issue.objects.filter(
+            project=project,
+            reporter=user,
+            is_active=True
+        ).count()
+        parts.append(f"Reported Issues: {reported_count}")
+        
+        return "\n".join(parts)
+    
+    def _prepare_team_member_metadata(self, project, user) -> Dict[str, Any]:
+        """
+        Prepare team member metadata for Pinecone storage.
+        
+        Args:
+            project: Project instance
+            user: User instance
+            
+        Returns:
+            Metadata dictionary
+        """
+        # Calculate statistics
+        assigned_issues = Issue.objects.filter(project=project, assignee=user, is_active=True)
+        completed_count = assigned_issues.filter(status__is_final=True).count()
+        in_progress_count = assigned_issues.filter(status__category="in_progress").count()
+        total_points = sum(issue.story_points or 0 for issue in assigned_issues)
+        
+        # Get recent activity
+        recent_updated = assigned_issues.order_by("-updated_at").first()
+        
+        metadata = {
+            "user_id": str(user.id),
+            "project_id": str(project.id),
+            "project_key": project.key,
+            "username": user.username,
+            "full_name": user.get_full_name(),
+            "email": user.email,
+            "assigned_issues_count": assigned_issues.count(),
+            "completed_issues_count": completed_count,
+            "in_progress_issues_count": in_progress_count,
+            "total_story_points": total_points,
+            "reported_issues_count": Issue.objects.filter(project=project, reporter=user, is_active=True).count(),
+            "last_activity": recent_updated.updated_at.isoformat() if recent_updated else None,
+            "entity_type": "team_member",
+        }
+        
+        return self._sanitize_metadata(metadata)
+    
+    def _prepare_project_context_text(self, project) -> str:
+        """
+        Prepare project context text for embedding.
+        
+        Args:
+            project: Project instance
+            
+        Returns:
+            Rich text context about project
+        """
+        parts = [
+            f"Project: {project.name} ({project.key})",
+            f"Description: {project.description if project.description else 'No description'}",
+        ]
+        
+        # Workspace and organization context
+        if project.workspace:
+            parts.append(f"Workspace: {project.workspace.name} ({project.workspace.slug})")
+            if project.workspace.organization:
+                parts.append(f"Organization: {project.workspace.organization.name}")
+        
+        # Project statistics
+        total_issues = project.issues.filter(is_active=True).count()
+        total_sprints = project.sprints.count()
+        active_sprints = project.sprints.filter(status="active").count()
+        
+        parts.append(f"Total Issues: {total_issues}")
+        parts.append(f"Total Sprints: {total_sprints} ({active_sprints} active)")
+        
+        # Team size
+        team_size = project.team_members.filter(is_active=True).count()
+        parts.append(f"Team Size: {team_size} members")
+        
+        return "\n".join(parts)
+    
+    def _prepare_project_context_metadata(self, project) -> Dict[str, Any]:
+        """
+        Prepare project context metadata for Pinecone storage.
+        
+        Args:
+            project: Project instance
+            
+        Returns:
+            Metadata dictionary
+        """
+        total_issues = project.issues.filter(is_active=True).count()
+        total_sprints = project.sprints.count()
+        active_sprints = project.sprints.filter(status="active").count()
+        team_size = project.team_members.filter(is_active=True).count()
+        
+        metadata = {
+            "project_id": str(project.id),
+            "project_key": project.key,
+            "project_name": project.name,
+            "description": project.description[:1000] if project.description else None,
+            "workspace_id": str(project.workspace_id) if project.workspace_id else None,
+            "workspace_name": project.workspace.name if project.workspace else None,
+            "organization_id": str(project.workspace.organization_id) if project.workspace and project.workspace.organization else None,
+            "organization_name": project.workspace.organization.name if project.workspace and project.workspace.organization else None,
+            "total_issues": total_issues,
+            "total_sprints": total_sprints,
+            "active_sprints": active_sprints,
+            "team_size": team_size,
+            "created_at": project.created_at.isoformat() if hasattr(project, 'created_at') else None,
+            "entity_type": "project",
+        }
+        
+        return self._sanitize_metadata(metadata)

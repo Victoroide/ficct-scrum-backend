@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from base.services.llm_proxy import get_llm_proxy
 from .rag_service import RAGService
+from .query_router import QueryRouter
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,14 @@ class AssistantService:
     """Service for AI assistant question answering."""
 
     def __init__(self):
-        """Initialize assistant with RAG and LLM proxy."""
+        """Initialize assistant with RAG, LLM proxy, and query router."""
         self.available = False
         self.error_message = None
         
         try:
             self.llm_proxy = get_llm_proxy()  # LLM proxy for chat
             self.rag = RAGService()  # RAG keeps Azure for embeddings
+            self.query_router = QueryRouter()  # Intelligent query routing
             self.available = self.rag.available  # Inherit RAG availability
             self.error_message = self.rag.error_message
         except Exception as e:
@@ -57,16 +59,27 @@ class AssistantService:
         """
         self._check_available()
         try:
-            # Step 1: Retrieve relevant context from Pinecone
+            # Step 1: Classify query intent and build search strategy
             logger.info(f"Assistant query: '{question}'")
+            intent = self.query_router.classify_query_intent(question)
+            strategy = self.query_router.build_search_strategy(
+                query=question,
+                project_id=project_id,
+                intent=intent
+            )
+            
+            logger.info(f"Query strategy: {strategy['description']}")
+            
+            # Step 2: Execute intelligent semantic search
             relevant_issues = self.rag.semantic_search(
                 query=question,
                 project_id=project_id,
-                top_k=5,
+                top_k=strategy['top_k'],
+                filters=strategy.get('filters', {}),
             )
             
-            # Step 2: Build context from retrieved issues
-            context = self._build_context(relevant_issues)
+            # Step 3: Build enhanced context from retrieved issues
+            context = self._build_context(relevant_issues, strategy)
             
             # Step 3: Construct prompt with context
             messages = self._build_messages(question, context, conversation_history)

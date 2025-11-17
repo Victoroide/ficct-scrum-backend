@@ -8,6 +8,10 @@ class DiagramRequestSerializer(serializers.Serializer):
         ("roadmap", "Roadmap"),
         ("uml", "UML"),
         ("architecture", "Architecture"),
+        ("angular_component_hierarchy", "Angular Component Hierarchy"),
+        ("angular_service_dependencies", "Angular Service Dependencies"),
+        ("angular_module_graph", "Angular Module Graph"),
+        ("angular_routing_structure", "Angular Routing Structure"),
     ]
 
     FORMAT_CHOICES = [

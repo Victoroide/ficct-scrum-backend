@@ -311,8 +311,19 @@ class AddTeamMemberSerializer(serializers.Serializer):
         hourly_rate = self.validated_data.get("hourly_rate")
 
         from apps.authentication.models import User
+        from apps.workspaces.models import WorkspaceMember
 
         user = User.objects.get(id=user_id)
+
+        # Validate that user is a workspace member
+        is_workspace_member = WorkspaceMember.objects.filter(
+            workspace=project.workspace, user=user, is_active=True
+        ).exists()
+
+        if not is_workspace_member:
+            raise serializers.ValidationError(
+                "User must be a workspace member before being added to a project"
+            )
 
         # Check if user is already a team member
         existing_member = ProjectTeamMember.objects.filter(

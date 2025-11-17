@@ -1,8 +1,9 @@
+from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.projects.models import Project
+from apps.projects.models import Project, ProjectTeamMember
 from apps.workspaces.models import Workspace
 from base.serializers import UserBasicSerializer, WorkspaceBasicSerializer
 
@@ -106,3 +107,96 @@ class ProjectSerializer(serializers.ModelSerializer):
         if value and value.size > 50 * 1024 * 1024:
             raise serializers.ValidationError("Attachment file size cannot exceed 50MB")
         return value
+
+
+class ProjectTeamMemberSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectTeamMember model."""
+    
+    user = UserBasicSerializer(read_only=True)
+    project = ProjectSerializer(read_only=True)
+
+    class Meta:
+        model = ProjectTeamMember
+        fields = [
+            "id",
+            "project",
+            "user",
+            "role",
+            "permissions",
+            "hourly_rate",
+            "is_active",
+            "joined_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "project", "user", "joined_at", "updated_at"]
+
+
+class AddTeamMemberSerializer(serializers.Serializer):
+    """Serializer for adding team members to a project."""
+    
+    user_id = serializers.UUIDField()
+    role = serializers.ChoiceField(
+        choices=ProjectTeamMember.ROLE_CHOICES, default="developer"
+    )
+    hourly_rate = serializers.DecimalField(
+        max_digits=8, decimal_places=2, required=False, allow_null=True
+    )
+
+    def validate_user_id(self, value):
+        """Validate that user exists and is active."""
+        from apps.authentication.models import User
+
+        try:
+            user = User.objects.get(id=value, is_active=True)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User not found or inactive")
+        return value
+
+    @transaction.atomic
+    def save(self):
+        """
+        Create or reactivate project team member.
+        
+        Validates that the user is a workspace member before adding to project.
+        """
+        project = self.context.get("project")
+        user_id = self.validated_data["user_id"]
+        role = self.validated_data["role"]
+        hourly_rate = self.validated_data.get("hourly_rate")
+
+        from apps.authentication.models import User
+        from apps.workspaces.models import WorkspaceMember
+
+        user = User.objects.get(id=user_id)
+
+        # Validate that user is a workspace member
+        is_workspace_member = WorkspaceMember.objects.filter(
+            workspace=project.workspace, user=user, is_active=True
+        ).exists()
+
+        if not is_workspace_member:
+            raise serializers.ValidationError(
+                "User must be a workspace member before being added to a project"
+            )
+
+        # Check if user is already a team member
+        existing_member = ProjectTeamMember.objects.filter(
+            project=project, user=user
+        ).first()
+
+        if existing_member:
+            if existing_member.is_active:
+                raise serializers.ValidationError("User is already a team member")
+            else:
+                # Reactivate existing membership
+                existing_member.is_active = True
+                existing_member.role = role
+                if hourly_rate is not None:
+                    existing_member.hourly_rate = hourly_rate
+                existing_member.save()
+                return existing_member
+
+        # Create new team membership
+        return ProjectTeamMember.objects.create(
+            project=project, user=user, role=role, hourly_rate=hourly_rate
+        )

@@ -162,37 +162,38 @@ class DesignSystem:
     
     LAYOUT: Dict[str, int] = {
         # Canvas
-        'canvas_padding': 40,
-        'canvas_min_width': 800,
-        'canvas_min_height': 600,
+        'canvas_padding': 60,
+        'canvas_min_width': 1000,
+        'canvas_min_height': 700,
         
         # Node Spacing
-        'node_spacing_x': 200,    # Horizontal gap between nodes
-        'node_spacing_y': 120,    # Vertical gap between nodes
+        'node_spacing_x': 250,    # Horizontal gap between nodes - INCREASED
+        'node_spacing_y': 150,    # Vertical gap between nodes - INCREASED
         
-        # Workflow Diagram
-        'workflow_node_width': 160,
-        'workflow_node_height': 80,
-        'workflow_spacing_x': 220,
+        # Workflow Diagram - IMPROVED DIMENSIONS
+        'workflow_node_width': 200,   # Increased from 160
+        'workflow_node_height': 100,  # Increased from 80
+        'workflow_spacing_x': 280,    # Increased from 220
         
-        # Dependency Graph
-        'dependency_node_width': 180,
-        'dependency_node_height': 70,
-        'dependency_spacing_x': 220,
-        'dependency_spacing_y': 100,
+        # Dependency Graph - IMPROVED DIMENSIONS
+        'dependency_node_width': 220,  # Increased from 180
+        'dependency_node_height': 90,  # Increased from 70
+        'dependency_spacing_x': 260,   # Increased from 220
+        'dependency_spacing_y': 130,   # Increased from 100
         
         # Charts
         'chart_margin_top': 60,
         'chart_margin_right': 60,
         'chart_margin_bottom': 60,
         'chart_margin_left': 60,
-        'chart_legend_width': 180,
+        'chart_legend_width': 200,
         'chart_axis_label_space': 40,
         
-        # Roadmap
-        'roadmap_row_height': 50,
-        'roadmap_bar_height': 30,
+        # Roadmap - IMPROVED DIMENSIONS
+        'roadmap_row_height': 70,      # Increased from 50
+        'roadmap_bar_height': 45,      # Increased from 30
         'roadmap_milestone_size': 12,
+        'roadmap_label_width': 220,    # NEW: Space for sprint names
         
         # Grid
         'grid_spacing': 50,  # Grid line spacing for charts

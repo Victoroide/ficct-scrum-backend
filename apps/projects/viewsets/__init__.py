@@ -5,6 +5,7 @@ from .issue_link_viewset import IssueLinkViewSet
 from .issue_type_viewset import IssueTypeViewSet
 from .issue_viewset import IssueViewSet
 from .project_config_viewset import ProjectConfigViewSet
+from .project_team_viewset import ProjectTeamViewSet
 from .project_viewset import ProjectViewSet
 from .sprint_viewset import SprintViewSet
 from .workflow_status_viewset import WorkflowStatusViewSet
@@ -12,6 +13,7 @@ from .workflow_status_viewset import WorkflowStatusViewSet
 __all__ = [
     "ProjectViewSet",
     "ProjectConfigViewSet",
+    "ProjectTeamViewSet",
     "IssueViewSet",
     "IssueTypeViewSet",
     "WorkflowStatusViewSet",

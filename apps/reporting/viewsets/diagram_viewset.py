@@ -141,13 +141,36 @@ class DiagramViewSet(viewsets.ViewSet):
             if diagram_type == "workflow":
                 result = service.generate_workflow_diagram(project)
             elif diagram_type == "dependency":
-                result = service.generate_dependency_diagram(project)
+                # Extract filter parameters
+                filters = {}
+                if 'sprint_id' in parameters:
+                    filters['sprint_id'] = parameters['sprint_id']
+                if 'status_ids' in parameters:
+                    filters['status_ids'] = parameters['status_ids']
+                if 'priorities' in parameters:
+                    filters['priorities'] = parameters['priorities']
+                if 'assignee_id' in parameters:
+                    filters['assignee_id'] = parameters['assignee_id']
+                if 'issue_type_ids' in parameters:
+                    filters['issue_type_ids'] = parameters['issue_type_ids']
+                if 'search' in parameters:
+                    filters['search'] = parameters['search']
+                
+                result = service.generate_dependency_diagram(project, filters)
             elif diagram_type == "roadmap":
                 result = service.generate_roadmap(project)
             elif diagram_type == "uml":
                 result = service.generate_uml_diagram(project, diagram_format, parameters)
             elif diagram_type == "architecture":
                 result = service.generate_architecture_diagram(project, diagram_format, parameters)
+            elif diagram_type == "angular_component_hierarchy":
+                result = service.generate_angular_diagram(project, "component_hierarchy", diagram_format, parameters)
+            elif diagram_type == "angular_service_dependencies":
+                result = service.generate_angular_diagram(project, "service_dependencies", diagram_format, parameters)
+            elif diagram_type == "angular_module_graph":
+                result = service.generate_angular_diagram(project, "module_graph", diagram_format, parameters)
+            elif diagram_type == "angular_routing_structure":
+                result = service.generate_angular_diagram(project, "routing_structure", diagram_format, parameters)
             else:
                 return Response(
                     {"error": "Invalid diagram type"},

@@ -9,6 +9,7 @@ from .viewsets import (
     IssueTypeViewSet,
     IssueViewSet,
     ProjectConfigViewSet,
+    ProjectTeamViewSet,
     ProjectViewSet,
     SprintViewSet,
     WorkflowStatusViewSet,
@@ -25,6 +26,20 @@ router.register(r"boards", BoardViewSet, basename="board")
 
 urlpatterns = [
     path("", include(router.urls)),
+    # Project team members endpoints
+    path(
+        "projects/<uuid:project_pk>/members/",
+        ProjectTeamViewSet.as_view({"get": "list", "post": "create"}),
+        name="project-team-list",
+    ),
+    path(
+        "projects/<uuid:project_pk>/members/<uuid:pk>/",
+        ProjectTeamViewSet.as_view(
+            {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
+        ),
+        name="project-team-detail",
+    ),
+    # Issue comments endpoints
     path(
         "issues/<uuid:issue_pk>/comments/",
         IssueCommentViewSet.as_view({"get": "list", "post": "create"}),
@@ -37,6 +52,7 @@ urlpatterns = [
         ),
         name="issue-comment-detail",
     ),
+    # Issue attachments endpoints
     path(
         "issues/<uuid:issue_pk>/attachments/",
         IssueAttachmentViewSet.as_view({"get": "list", "post": "create"}),
@@ -47,6 +63,7 @@ urlpatterns = [
         IssueAttachmentViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
         name="issue-attachment-detail",
     ),
+    # Issue links endpoints
     path(
         "issues/<uuid:issue_pk>/links/",
         IssueLinkViewSet.as_view({"get": "list", "post": "create"}),
