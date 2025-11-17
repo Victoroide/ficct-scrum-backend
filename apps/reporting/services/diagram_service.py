@@ -8,14 +8,7 @@ from django.utils import timezone
 from django.apps import apps
 from django.db import models as django_models
 
-from .diagram_generators import (
-    generate_workflow_diagram_svg,
-    generate_dependency_graph_svg,
-    generate_burndown_chart_svg,
-    generate_velocity_chart_svg,
-    generate_roadmap_timeline_svg,
-    check_github_integration,
-)
+from .diagram_data_service import DiagramDataService
 from .github_code_fetcher import GitHubCodeFetcher
 from .python_code_analyzer import PythonCodeAnalyzer
 from .uml_generator import UMLGenerator
@@ -35,25 +28,64 @@ class DiagramService:
     """
     
     def __init__(self):
-        self.cache_duration_hours = 1
+        # Dynamic TTL based on diagram type
+        self.cache_ttl_minutes = {
+            'workflow': 30,      # Less dynamic
+            'dependency': 10,    # More dynamic with filters
+            'roadmap': 15,       # Medium dynamism
+            'uml': 60,           # Very stable
+            'architecture': 60,  # Very stable
+        }
+        
+        # Initialize data service for JSON generation
+        self.data_service = DiagramDataService()
 
-    def generate_workflow_diagram(self, project) -> Dict:
-        """Generate workflow diagram with status boxes and transition arrows."""
-        cache_key = self._generate_cache_key("workflow", project.id)
-        cached = self._get_cached_diagram(cache_key)
-        if cached:
-            return cached
-
-        # Use new generator
-        svg_data = generate_workflow_diagram_svg(project)
-
-        self._cache_diagram(cache_key, svg_data, "workflow", project, "svg")
-
-        return {"diagram_type": "workflow", "data": svg_data, "format": "svg", "cached": False}
-
-    def generate_dependency_diagram(self, project, filters=None) -> Dict:
+    def generate_workflow_diagram(self, project, force_refresh: bool = False) -> Dict:
         """
-        Generate dependency graph showing issue relationships with connections.
+        Generate workflow diagram as JSON data structure.
+        
+        Returns dict with structured data for frontend rendering.
+        No SVG generation - frontend handles visualization.
+        """
+        # Generate cache key with data version hash
+        version_hash = self._get_data_version_hash(project, 'workflow')
+        cache_key = self._generate_cache_key("workflow", project.id, version_hash)
+        
+        # Check cache unless force refresh
+        if not force_refresh:
+            cached = self._get_cached_diagram(cache_key)
+            if cached:
+                cached['cache_age'] = self._get_cache_age(cache_key)
+                logger.debug(f"Workflow diagram cache HIT (age: {cached.get('cache_age')}s)")
+                return cached
+
+        # Generate JSON data structure
+        import time
+        start_time = time.time()
+        data = self.data_service.get_workflow_data(project)
+        generation_time = int((time.time() - start_time) * 1000)  # milliseconds
+        
+        logger.info(
+            f"Generated workflow data: {data['metadata']['status_count']} statuses, "
+            f"{data['metadata']['transition_count']} transitions"
+        )
+        logger.debug(f"Data type before caching: {type(data).__name__}")
+
+        # Cache the data as dict (JSONField handles serialization)
+        self._cache_diagram(cache_key, data, "workflow", project, "json")
+
+        return {
+            "diagram_type": "workflow",
+            "data": data,  # Return dict directly - DRF handles JSON serialization
+            "format": "json",
+            "cached": False,
+            "generation_time_ms": generation_time,
+            "cache_key": cache_key
+        }
+
+    def generate_dependency_diagram(self, project, filters=None, force_refresh: bool = False) -> Dict:
+        """
+        Generate dependency graph as JSON data structure.
         
         Args:
             project: Project instance
@@ -66,35 +98,85 @@ class DiagramService:
                 - search: Search term for title/key
         
         Returns:
-            Dict with diagram data
+            Dict with structured data for frontend rendering
         """
-        # Generate cache key including filters
+        # Generate cache key including filters and version hash
         filter_str = str(sorted(filters.items())) if filters else ""
-        cache_key = self._generate_cache_key(f"dependency_{filter_str}", project.id)
-        cached = self._get_cached_diagram(cache_key)
-        if cached:
-            return cached
+        version_hash = self._get_data_version_hash(project, 'dependency')
+        cache_key = self._generate_cache_key(f"dependency_{filter_str}", project.id, version_hash)
+        
+        # Check cache unless force refresh
+        if not force_refresh:
+            cached = self._get_cached_diagram(cache_key)
+            if cached:
+                cached['cache_age'] = self._get_cache_age(cache_key)
+                return cached
 
-        # Use new generator with filters
-        svg_data = generate_dependency_graph_svg(project, filters)
+        # Generate JSON data structure with filters
+        import time
+        start_time = time.time()
+        data = self.data_service.get_dependency_data(project, filters)
+        generation_time = int((time.time() - start_time) * 1000)
+        
+        logger.info(
+            f"Generated dependency data: {data['metadata']['issue_count']} issues, "
+            f"{data['metadata']['dependency_count']} dependencies"
+        )
+        logger.debug(f"Data type before caching: {type(data).__name__}")
 
-        self._cache_diagram(cache_key, svg_data, "dependency", project, "svg")
+        # Cache the data as dict (JSONField handles serialization)
+        self._cache_diagram(cache_key, data, "dependency", project, "json")
 
-        return {"diagram_type": "dependency", "data": svg_data, "format": "svg", "cached": False}
+        return {
+            "diagram_type": "dependency",
+            "data": data,  # Return dict directly - DRF handles JSON serialization
+            "format": "json",
+            "cached": False,
+            "generation_time_ms": generation_time,
+            "cache_key": cache_key,
+            "filters": filters
+        }
 
-    def generate_roadmap(self, project) -> Dict:
-        """Generate roadmap timeline with Gantt-style sprint bars."""
-        cache_key = self._generate_cache_key("roadmap", project.id)
-        cached = self._get_cached_diagram(cache_key)
-        if cached:
-            return cached
+    def generate_roadmap(self, project, force_refresh: bool = False) -> Dict:
+        """
+        Generate roadmap timeline as JSON data structure.
+        
+        Returns dict with structured data for frontend rendering.
+        No SVG generation - frontend handles visualization.
+        """
+        # Generate cache key with version hash
+        version_hash = self._get_data_version_hash(project, 'roadmap')
+        cache_key = self._generate_cache_key("roadmap", project.id, version_hash)
+        
+        # Check cache unless force refresh
+        if not force_refresh:
+            cached = self._get_cached_diagram(cache_key)
+            if cached:
+                cached['cache_age'] = self._get_cache_age(cache_key)
+                return cached
 
-        # Use new generator
-        svg_data = generate_roadmap_timeline_svg(project)
+        # Generate JSON data structure
+        import time
+        start_time = time.time()
+        data = self.data_service.get_roadmap_data(project)
+        generation_time = int((time.time() - start_time) * 1000)
+        
+        logger.info(
+            f"Generated roadmap data: {data['metadata']['sprint_count']} sprints"
+        )
+        logger.debug(f"Data type before caching: {type(data).__name__}")
 
-        self._cache_diagram(cache_key, svg_data, "roadmap", project, "svg")
+        # Cache the data as dict (JSONField handles serialization)
+        self._cache_diagram(cache_key, data, "roadmap", project, "json")
 
-        return {"diagram_type": "roadmap", "data": svg_data, "format": "svg", "cached": False}
+        return {
+            "diagram_type": "roadmap",
+            "data": data,  # Return dict directly - DRF handles JSON serialization
+            "format": "json",
+            "cached": False,
+            "generation_time_ms": generation_time,
+            "cache_key": cache_key
+        }
 
     def generate_uml_diagram(self, project, diagram_format: str = "json", parameters: Dict = None) -> Dict:
         """
@@ -311,8 +393,9 @@ class DiagramService:
                 "Please check GitHub integration and ensure this is an Angular project."
             )
 
-    def _generate_cache_key(self, diagram_type: str, project_id) -> str:
-        data = f"{diagram_type}_{project_id}_{timezone.now().date()}"
+    def _generate_cache_key(self, diagram_type: str, project_id, version_hash: str = "") -> str:
+        """Generate cache key with version hash for automatic invalidation."""
+        data = f"diagram:{project_id}:{diagram_type}:{version_hash}"
         return hashlib.md5(data.encode()).hexdigest()
 
     def _get_cached_diagram(self, cache_key: str) -> Optional[Dict]:
@@ -333,11 +416,23 @@ class DiagramService:
         return None
 
     def _cache_diagram(
-        self, cache_key: str, data: str, diagram_type: str, project, format: str
+        self, cache_key: str, data, diagram_type: str, project, format: str
     ):
+        """
+        Cache diagram data.
+        
+        Args:
+            cache_key: Unique cache identifier
+            data: Diagram data (dict for JSON format, str for SVG/PNG)
+            diagram_type: Type of diagram
+            project: Project instance
+            format: Output format (json, svg, png)
+        """
         from apps.reporting.models import DiagramCache
 
-        expires_at = timezone.now() + timedelta(hours=self.cache_duration_hours)
+        # Get TTL for this diagram type
+        ttl_minutes = self.cache_ttl_minutes.get(diagram_type, 30)
+        expires_at = timezone.now() + timedelta(minutes=ttl_minutes)
 
         DiagramCache.objects.update_or_create(
             cache_key=cache_key,
@@ -349,6 +444,92 @@ class DiagramService:
                 "expires_at": expires_at,
             },
         )
+        
+        logger.debug(f"Cached {diagram_type} diagram with key {cache_key[:8]}... (TTL: {ttl_minutes}min)")
+    
+    def _get_data_version_hash(self, project, diagram_type: str) -> str:
+        """
+        Generate version hash based on relevant data timestamps.
+        When data changes, hash changes, invalidating cache automatically.
+        
+        Args:
+            project: Project instance
+            diagram_type: Type of diagram (workflow, dependency, roadmap)
+            
+        Returns:
+            MD5 hash of timestamps
+        """
+        from apps.projects.models import Issue, Sprint, WorkflowStatus
+        from django.db.models import Max
+        
+        timestamps = []
+        
+        # Common: Project modified timestamp
+        if hasattr(project, 'updated_at'):
+            timestamps.append(str(project.updated_at))
+        
+        # Workflow: Status and transition changes
+        if diagram_type == 'workflow':
+            status_updated = WorkflowStatus.objects.filter(
+                project=project
+            ).aggregate(Max('updated_at'))['updated_at__max']
+            if status_updated:
+                timestamps.append(str(status_updated))
+        
+        # Dependency and Roadmap: Issue changes
+        if diagram_type in ['dependency', 'roadmap']:
+            issue_updated = Issue.objects.filter(
+                project=project,
+                is_active=True
+            ).aggregate(Max('updated_at'))['updated_at__max']
+            if issue_updated:
+                timestamps.append(str(issue_updated))
+        
+        # Roadmap: Sprint changes
+        if diagram_type == 'roadmap':
+            sprint_updated = Sprint.objects.filter(
+                project=project
+            ).aggregate(Max('updated_at'))['updated_at__max']
+            if sprint_updated:
+                timestamps.append(str(sprint_updated))
+        
+        # Generate hash from timestamps
+        version_data = '|'.join(timestamps) if timestamps else str(timezone.now().date())
+        return hashlib.md5(version_data.encode()).hexdigest()[:8]
+    
+    def _get_cache_age(self, cache_key: str) -> int:
+        """
+        Get age of cached diagram in seconds.
+        
+        Args:
+            cache_key: Cache key
+            
+        Returns:
+            Age in seconds, or 0 if not found
+        """
+        from apps.reporting.models import DiagramCache
+        
+        try:
+            cache = DiagramCache.objects.get(cache_key=cache_key)
+            age = (timezone.now() - cache.generated_at).total_seconds()
+            return int(age)
+        except DiagramCache.DoesNotExist:
+            return 0
+    
+    @staticmethod
+    def invalidate_project_cache(project):
+        """
+        Invalidate all cached diagrams for a project.
+        Call this when project data changes significantly.
+        
+        Args:
+            project: Project instance
+        """
+        from apps.reporting.models import DiagramCache
+        
+        deleted_count = DiagramCache.objects.filter(project=project).delete()[0]
+        logger.info(f"Invalidated {deleted_count} cached diagrams for project {project.id}")
+        return deleted_count
 
     def _get_github_integration(self, project):
         """

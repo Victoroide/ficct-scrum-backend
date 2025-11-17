@@ -95,8 +95,23 @@ class DiagramViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate diagram",
         tags=["Reporting"],
+        description="Generate diagram data in JSON format. Returns structured data for frontend rendering with D3.js, Cytoscape.js, or similar libraries. Supports workflow, dependency, roadmap, UML, architecture, and Angular diagrams.",
         request=DiagramRequestSerializer,
-        responses={200: DiagramResponseSerializer},
+        responses={
+            200: OpenApiResponse(
+                description="Diagram data generated successfully. Returns JSON data structure with nodes, edges, metadata, and layout hints.",
+                response=DiagramResponseSerializer
+            ),
+            400: OpenApiResponse(
+                description="Invalid request parameters or configuration error"
+            ),
+            403: OpenApiResponse(
+                description="No permission to access this project"
+            ),
+            404: OpenApiResponse(
+                description="Project not found"
+            )
+        },
     )
     @action(detail=False, methods=["post"])
     def generate(self, request):
@@ -138,8 +153,19 @@ class DiagramViewSet(viewsets.ViewSet):
         service = DiagramService()
 
         try:
+            # Generate diagram with error logging
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Extract force_refresh parameter
+            force_refresh = parameters.get('force_refresh', False)
+            if force_refresh:
+                logger.info(f"Force refresh requested for {diagram_type} diagram (project {project.id})")
+            else:
+                logger.info(f"Generating {diagram_type} diagram for project {project.id}")
+            
             if diagram_type == "workflow":
-                result = service.generate_workflow_diagram(project)
+                result = service.generate_workflow_diagram(project, force_refresh=force_refresh)
             elif diagram_type == "dependency":
                 # Extract filter parameters
                 filters = {}
@@ -156,9 +182,9 @@ class DiagramViewSet(viewsets.ViewSet):
                 if 'search' in parameters:
                     filters['search'] = parameters['search']
                 
-                result = service.generate_dependency_diagram(project, filters)
+                result = service.generate_dependency_diagram(project, filters, force_refresh=force_refresh)
             elif diagram_type == "roadmap":
-                result = service.generate_roadmap(project)
+                result = service.generate_roadmap(project, force_refresh=force_refresh)
             elif diagram_type == "uml":
                 result = service.generate_uml_diagram(project, diagram_format, parameters)
             elif diagram_type == "architecture":
@@ -177,17 +203,37 @@ class DiagramViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Log result structure before serialization
+            logger.debug(f"Service result keys: {result.keys()}")
+            logger.debug(f"Data format: {result.get('format')}")
+            logger.debug(f"Data type: {type(result.get('data')).__name__}")
+            logger.debug(f"Cached: {result.get('cached', False)}")
+            
             response_serializer = DiagramResponseSerializer(data=result)
             response_serializer.is_valid(raise_exception=True)
             
             # Prepare response with cache headers
+            # DRF Response will automatically JSON-encode the dict once
             response = Response(response_serializer.data, status=status.HTTP_200_OK)
             
             # Add cache status headers
-            if result.get('cached', False):
+            is_cached = result.get('cached', False)
+            if is_cached:
                 response['X-Cache-Status'] = 'HIT'
+                response['X-Diagram-Cached'] = 'true'
+                cache_age = result.get('cache_age', 0)
+                response['X-Cache-Age'] = str(cache_age)
+                response['Cache-Control'] = 'private, max-age=600'
             else:
                 response['X-Cache-Status'] = 'MISS'
+                response['X-Diagram-Cached'] = 'false'
+                generation_time = result.get('generation_time_ms', 0)
+                response['X-Generation-Time'] = str(generation_time)
+                response['Cache-Control'] = 'private, max-age=600'
+            
+            # Add cache key for debugging
+            if 'cache_key' in result:
+                response['X-Cache-Key'] = result['cache_key'][:16] + '...'
             
             # Add diagram metadata headers
             response['X-Diagram-Type'] = diagram_type
@@ -207,13 +253,22 @@ class DiagramViewSet(viewsets.ViewSet):
             )
         except Exception as e:
             from django.core.exceptions import FieldError
+            import logging
+            import traceback
+            
+            logger = logging.getLogger(__name__)
+            
+            # Log full traceback for debugging
+            logger.error(
+                f"Error generating {diagram_type} diagram for project {project_id}:\n"
+                f"Error type: {type(e).__name__}\n"
+                f"Error message: {str(e)}\n"
+                f"Traceback:\n{traceback.format_exc()}",
+                exc_info=True
+            )
             
             # Check if it's an ORM field error (like using non-existent field in query)
             if isinstance(e, FieldError):
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Database query error (likely configuration issue): {str(e)}", exc_info=True)
-                
                 return Response(
                     {
                         "status": "error",
@@ -224,16 +279,37 @@ class DiagramViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Unexpected server errors
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Unexpected error generating diagram: {str(e)}", exc_info=True)
+            # Check for attribute errors (missing fields or methods)
+            if isinstance(e, AttributeError):
+                return Response(
+                    {
+                        "status": "error",
+                        "error": f"Diagram generation error: {str(e)}",
+                        "detail": "A required field or method is missing. This may be a data integrity issue.",
+                        "code": "ATTRIBUTE_ERROR"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
+            # Check for type errors (incorrect data types)
+            if isinstance(e, TypeError):
+                return Response(
+                    {
+                        "status": "error",
+                        "error": f"Data type error: {str(e)}",
+                        "detail": "Invalid data type encountered during diagram generation.",
+                        "code": "TYPE_ERROR"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Unexpected server errors
             return Response(
                 {
                     "status": "error",
                     "error": "An unexpected error occurred while generating the diagram",
                     "detail": str(e),
+                    "error_type": type(e).__name__,
                     "code": "INTERNAL_ERROR"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

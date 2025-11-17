@@ -87,7 +87,11 @@ class ActivityLogFilter(filters.FilterSet):
             "- Range: `?created_after=2024-01-01&created_before=2024-12-31`\n\n"
             "**Combine Filters:**\n"
             "- `?project_key=FICCT&action_type=transitioned&created_after=2024-01-01`\n"
-            "- `?workspace_key=SCRUM&user_email=user@example.com&object_type=issue`"
+            "- `?workspace_key=SCRUM&user_email=user@example.com&object_type=issue`\n\n"
+            "**Pagination:**\n"
+            "- Control page size: `?page_size=5` (default: 20, max: 100)\n"
+            "- Navigate pages: `?page=1`, `?page=2`, etc.\n"
+            "- Example: `?page=1&page_size=10` - Get first 10 results"
         ),
         parameters=[
             OpenApiParameter(
@@ -155,6 +159,18 @@ class ActivityLogFilter(filters.FilterSet):
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
                 description="Filter activities created before this datetime (ISO 8601 format)"
+            ),
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Page number (default: 1)"
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Number of results per page (default: 20, max: 100)"
             ),
         ]
     ),

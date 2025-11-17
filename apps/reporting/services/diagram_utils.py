@@ -66,6 +66,28 @@ class DesignSystem:
         'chart_yellow': '#FFAB00',
         'chart_pink': '#E774BB',
         
+        # Status Category Colors (vibrant colors for workflow)
+        'status_todo': '#5E6C84',          # Gray for backlog/todo
+        'status_backlog': '#5E6C84',       # Gray for backlog
+        'status_in_progress': '#0052CC',   # Vibrant blue for in progress
+        'status_in_review': '#0052CC',     # Blue for review
+        'status_done': '#00875A',          # Vibrant green for done
+        'status_blocked': '#DE350B',       # Red for blocked
+        'status_cancelled': '#8993A4',     # Light gray for cancelled
+        
+        # Workflow-specific colors (aliases)
+        'todo': '#5E6C84',
+        'in_progress': '#0052CC',
+        'done': '#00875A',
+        'blocked': '#DE350B',
+        
+        # Priority Colors
+        'priority_p0': '#DE350B',  # Critical - Red
+        'priority_p1': '#FF991F',  # High - Orange
+        'priority_p2': '#0052CC',  # Medium - Blue
+        'priority_p3': '#5E6C84',  # Low - Gray
+        'priority_p4': '#8993A4',  # Lowest - Light Gray
+        
         # Utility Colors
         'grid_line': '#E9ECEF',      # Grid lines in charts
         'today_marker': '#DE350B',   # Today indicator
@@ -90,12 +112,12 @@ class DesignSystem:
         'family': "'Arial', 'Helvetica', sans-serif",
         'family_mono': "'Courier New', 'Courier', monospace",
         
-        # Font Sizes (px)
-        'size_title': 18,      # Main diagram title
-        'size_heading': 14,    # Section headings
-        'size_body': 12,       # Primary text
-        'size_small': 10,      # Secondary text
-        'size_tiny': 9,        # Metadata
+        # Font Sizes (px) - INCREASED for better visibility
+        'size_title': 20,      # Main diagram title (was 18)
+        'size_heading': 16,    # Section headings (was 14)
+        'size_body': 14,       # Primary text (was 12)
+        'size_small': 12,      # Secondary text (was 10)
+        'size_tiny': 11,       # Metadata (was 9)
         
         # Font Weights
         'weight_regular': 'normal',
@@ -161,25 +183,25 @@ class DesignSystem:
     # ========================================================================
     
     LAYOUT: Dict[str, int] = {
-        # Canvas
+        # Canvas - INCREASED minimum dimensions
         'canvas_padding': 60,
-        'canvas_min_width': 1000,
-        'canvas_min_height': 700,
+        'canvas_min_width': 1600,   # Was 1000, increased for better visibility
+        'canvas_min_height': 500,   # Was 700, adjusted
         
         # Node Spacing
         'node_spacing_x': 250,    # Horizontal gap between nodes - INCREASED
         'node_spacing_y': 150,    # Vertical gap between nodes - INCREASED
         
         # Workflow Diagram - IMPROVED DIMENSIONS
-        'workflow_node_width': 200,   # Increased from 160
+        'workflow_node_width': 220,   # Increased from 200 for better text fit
         'workflow_node_height': 100,  # Increased from 80
-        'workflow_spacing_x': 280,    # Increased from 220
+        'workflow_spacing_x': 300,    # Increased from 280 for label space
         
         # Dependency Graph - IMPROVED DIMENSIONS
         'dependency_node_width': 220,  # Increased from 180
-        'dependency_node_height': 90,  # Increased from 70
-        'dependency_spacing_x': 260,   # Increased from 220
-        'dependency_spacing_y': 130,   # Increased from 100
+        'dependency_node_height': 100, # Increased from 90 for better text
+        'dependency_spacing_x': 280,   # Increased from 260 for more breathing room
+        'dependency_spacing_y': 140,   # Increased from 130
         
         # Charts
         'chart_margin_top': 60,
@@ -194,6 +216,8 @@ class DesignSystem:
         'roadmap_bar_height': 45,      # Increased from 30
         'roadmap_milestone_size': 12,
         'roadmap_label_width': 220,    # NEW: Space for sprint names
+        'roadmap_min_width': 1800,     # NEW: Minimum width for timeline
+        'roadmap_min_height': 600,     # NEW: Minimum height
         
         # Grid
         'grid_spacing': 50,  # Grid line spacing for charts

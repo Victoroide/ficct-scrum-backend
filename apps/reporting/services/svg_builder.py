@@ -180,6 +180,65 @@ def create_text(x: float, y: float, text: str,
     )
 
 
+def create_text_with_background(x: float, y: float, text: str,
+                                size: int = 12, fill: Optional[str] = None,
+                                anchor: str = 'middle', weight: str = 'normal',
+                                bg_fill: str = '#FFFFFF', bg_opacity: float = 0.9,
+                                padding: int = 4, truncate_at: Optional[int] = None) -> str:
+    """
+    Create text with background rectangle for better visibility on complex backgrounds.
+    
+    Args:
+        x, y: Position
+        text: Text content
+        size: Font size
+        fill: Text color
+        anchor: Text anchor (start, middle, end)
+        weight: Font weight
+        bg_fill: Background color
+        bg_opacity: Background opacity (0-1)
+        padding: Padding around text
+        truncate_at: Truncate text at character count
+        
+    Returns:
+        SVG group with rect and text
+    """
+    from .diagram_utils import estimate_text_width, truncate_text, escape_svg_text
+    
+    ds = DesignSystem
+    fill = fill or ds.COLORS['text_primary']
+    
+    if truncate_at:
+        text = truncate_text(text, truncate_at)
+    
+    # Estimate text dimensions
+    text_width = estimate_text_width(text, size)
+    text_height = size
+    
+    # Calculate background rectangle dimensions and position
+    bg_width = text_width + (padding * 2)
+    bg_height = text_height + (padding * 2)
+    
+    if anchor == 'middle':
+        bg_x = x - bg_width / 2
+    elif anchor == 'end':
+        bg_x = x - bg_width
+    else:  # start
+        bg_x = x
+    
+    bg_y = y - text_height + (padding / 2)
+    
+    escaped_text = escape_svg_text(text)
+    
+    return f'''<g>
+    <rect x="{bg_x}" y="{bg_y}" width="{bg_width}" height="{bg_height}" 
+          fill="{bg_fill}" opacity="{bg_opacity}" rx="3"/>
+    <text x="{x}" y="{y}" font-size="{size}" fill="{fill}" 
+          text-anchor="{anchor}" font-weight="{weight}" 
+          font-family="{ds.FONTS["family"]}">{escaped_text}</text>
+</g>'''
+
+
 def create_multiline_text(x: float, y: float, lines: List[str],
                           size: int = 12, fill: Optional[str] = None,
                           line_height: float = 1.4, anchor: str = 'start') -> str:

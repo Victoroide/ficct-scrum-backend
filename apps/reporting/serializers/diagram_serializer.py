@@ -50,7 +50,18 @@ class DiagramRequestSerializer(serializers.Serializer):
 
 
 class DiagramResponseSerializer(serializers.Serializer):
+    """
+    Serializer for diagram generation responses.
+    
+    The 'data' field can be:
+    - dict/list: For JSON format (diagram data structure with nodes, edges, etc.)
+    - str: For SVG/PNG formats (markup or base64 encoded image)
+    
+    DRF automatically handles JSON serialization of dict objects.
+    """
     diagram_type = serializers.CharField()
-    data = serializers.CharField()
+    data = serializers.JSONField(
+        help_text="Diagram data - object for JSON format, string for SVG/PNG"
+    )
     format = serializers.CharField()
     cached = serializers.BooleanField(default=False)

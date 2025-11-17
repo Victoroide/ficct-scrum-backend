@@ -94,20 +94,30 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         """
         Generate frontend URL for the object based on type.
         
+        Uses project UUID instead of KEY for frontend routing compatibility.
+        
         Returns:
-            str: Relative URL path to view the object in frontend
+            str: Relative URL path to view the object in frontend (UUID-based)
+        
+        Examples:
+            - Issue: /projects/{uuid}/issues/{uuid}
+            - Sprint: /projects/{uuid}/sprints/{uuid}
+            - Project: /projects/{uuid}
         """
         if not obj.content_type or not obj.object_id:
             return None
         
         model = obj.content_type.model
-        object_id = obj.object_id
+        object_id = str(obj.object_id)  # Ensure string format for UUID
         
-        # Generate URLs based on object type
+        # Get project UUID (not KEY) for URL generation
+        project_id = str(obj.project.id) if obj.project else "unknown"
+        
+        # Generate URLs based on object type using UUIDs
         url_patterns = {
-            'issue': f'/projects/{obj.project.key if obj.project else "unknown"}/issues/{object_id}',
-            'sprint': f'/projects/{obj.project.key if obj.project else "unknown"}/sprints/{object_id}',
-            'board': f'/projects/{obj.project.key if obj.project else "unknown"}/boards/{object_id}',
+            'issue': f'/projects/{project_id}/issues/{object_id}',
+            'sprint': f'/projects/{project_id}/sprints/{object_id}',
+            'board': f'/projects/{project_id}/boards/{object_id}',
             'project': f'/projects/{object_id}',
             'workspace': f'/workspaces/{object_id}',
             'organization': f'/organizations/{object_id}',

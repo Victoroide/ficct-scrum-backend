@@ -25,6 +25,7 @@ from .diagram_utils import (
 from .svg_builder import (
     create_svg_canvas, close_svg, create_svg_defs,
     create_rect, create_circle, create_text, create_multiline_text,
+    create_text_with_background,
     create_line, create_arrow, create_path,
     create_node_box, create_legend, create_title, create_empty_state,
     create_grid, create_axes
@@ -106,14 +107,23 @@ def generate_workflow_diagram_svg(project) -> str:
     spacing_x = ds.LAYOUT['workflow_spacing_x']
     padding = ds.LAYOUT['canvas_padding']
     
-    # Calculate canvas size
+    # Calculate canvas size with minimum dimensions
     num_nodes = len(status_nodes)
-    canvas_width = (num_nodes * node_width) + ((num_nodes - 1) * (spacing_x - node_width)) + (padding * 2)
-    canvas_height = node_height + (padding * 2) + 150  # Extra space for legend
+    calculated_width = (num_nodes * node_width) + ((num_nodes - 1) * (spacing_x - node_width)) + (padding * 2)
+    calculated_height = node_height + (padding * 2) + 150  # Extra space for legend
     
-    # Start SVG
+    # Enforce minimum dimensions for better visibility
+    canvas_width = max(calculated_width, ds.LAYOUT['canvas_min_width'])
+    canvas_height = max(calculated_height, ds.LAYOUT['canvas_min_height'])
+    
+    # Start SVG with improved rendering attributes
+    svg_opening = f'''<svg xmlns="http://www.w3.org/2000/svg" 
+        width="{canvas_width}" height="{canvas_height}" 
+        viewBox="0 0 {canvas_width} {canvas_height}"
+        style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">'''
+    
     parts = [
-        create_svg_canvas(canvas_width, canvas_height),
+        svg_opening,
         create_svg_defs(),
     ]
     
@@ -196,13 +206,16 @@ def generate_workflow_diagram_svg(project) -> str:
                 margin=8
             )
             
-            # Create and add label
-            parts.append(create_text(
+            # Create and add label WITH BACKGROUND for better visibility
+            parts.append(create_text_with_background(
                 final_x, final_y,
                 edge['label'],
                 size=label_font_size,
-                fill=ds.COLORS['text_tertiary'],
+                fill=ds.COLORS['text_primary'],
                 anchor='middle',
+                bg_fill='#FFFFFF',
+                bg_opacity=0.95,
+                padding=4,
                 truncate_at=15
             ))
             
@@ -420,12 +433,23 @@ def generate_dependency_graph_svg(project, filters=None) -> str:
     items_per_row = 4
     
     rows = (len(nodes) + items_per_row - 1) // items_per_row
-    canvas_width = (items_per_row * node_width) + ((items_per_row - 1) * (spacing_x - node_width)) + (padding * 2)
-    canvas_height = (rows * (node_height + spacing_y)) + (padding * 2) + 100
+    calculated_width = (items_per_row * node_width) + ((items_per_row - 1) * (spacing_x - node_width)) + (padding * 2)
+    calculated_height = (rows * (node_height + spacing_y)) + (padding * 2) + 100
     
-    # Start SVG
+    # Enforce minimum dimensions (dynamic minimum based on content)
+    min_width = max(1400, calculated_width)
+    min_height = max(600, calculated_height)
+    canvas_width = min_width
+    canvas_height = min_height
+    
+    # Start SVG with improved rendering
+    svg_opening = f'''<svg xmlns="http://www.w3.org/2000/svg" 
+        width="{canvas_width}" height="{canvas_height}" 
+        viewBox="0 0 {canvas_width} {canvas_height}"
+        style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">'''
+    
     parts = [
-        create_svg_canvas(canvas_width, canvas_height),
+        svg_opening,
         create_svg_defs(),
     ]
     
@@ -977,18 +1001,30 @@ def generate_roadmap_timeline_svg(project) -> str:
     total_days = (max_date - min_date).days + 1
     
     # Chart dimensions - IMPROVED for better label spacing
-    canvas_width = max(1400, 200 * len(sprints))  # Dynamic width based on sprint count
     row_height = ds.LAYOUT['roadmap_row_height']
     bar_height = ds.LAYOUT['roadmap_bar_height']
     label_width = ds.LAYOUT['roadmap_label_width']
-    canvas_height = 100 + (len(sprints) * row_height) + 120  # Extra space for legend
     margin = ds.LAYOUT['canvas_padding']
+    
+    # Calculate canvas dimensions with minimum enforcement
+    calculated_width = max(1400, 200 * len(sprints))  # Dynamic width based on sprint count
+    calculated_height = 100 + (len(sprints) * row_height) + 120  # Extra space for legend
+    
+    # Enforce minimum dimensions from LAYOUT
+    canvas_width = max(calculated_width, ds.LAYOUT.get('roadmap_min_width', 1800))
+    canvas_height = max(calculated_height, ds.LAYOUT.get('roadmap_min_height', 600))
+    
     chart_width = canvas_width - (margin * 2) - label_width
     chart_height = len(sprints) * row_height
     
-    # Start SVG
+    # Start SVG with improved rendering
+    svg_opening = f'''<svg xmlns="http://www.w3.org/2000/svg" 
+        width="{canvas_width}" height="{canvas_height}" 
+        viewBox="0 0 {canvas_width} {canvas_height}"
+        style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">'''
+    
     parts = [
-        create_svg_canvas(canvas_width, canvas_height),
+        svg_opening,
         create_svg_defs(),
     ]
     

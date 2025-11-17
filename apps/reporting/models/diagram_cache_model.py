@@ -25,7 +25,10 @@ class DiagramCache(models.Model):
         "projects.Project", on_delete=models.CASCADE, related_name="diagram_caches"
     )
     diagram_type = models.CharField(max_length=20, choices=DIAGRAM_TYPE_CHOICES)
-    diagram_data = models.TextField()
+    diagram_data = models.JSONField(
+        default=dict,
+        help_text="Diagram data as JSON object (for JSON format) or string (for SVG/PNG)"
+    )
     format = models.CharField(max_length=10, choices=FORMAT_CHOICES, default="svg")
     generated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
