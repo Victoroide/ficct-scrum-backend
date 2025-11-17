@@ -95,14 +95,17 @@ class RAGService:
             logger.info(f"[OPENAI] Generating embedding for issue {issue_id}...")
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Embedding generated successfully, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Embedding generated successfully, dimension: {
+    len(embedding_vector)}"
             )
 
             # Prepare metadata
             metadata = self._prepare_metadata(issue)
             logger.debug(f"[INDEX] Metadata prepared: {len(metadata)} fields")
             logger.debug(
-                f"[INDEX] Metadata sample: assignee_id={metadata.get('assignee_id')}, reporter_id={metadata.get('reporter_id')}"
+                f"[INDEX] Metadata sample: assignee_id={
+    metadata.get('assignee_id')}, reporter_id={
+        metadata.get('reporter_id')}"
             )
 
             # Upsert to Pinecone
@@ -206,7 +209,8 @@ class RAGService:
                     }
                     errors.append(error_detail)
                     logger.error(
-                        f"[BATCH INDEX] EXCEPTION: Issue {i}/{total}: {error_type}: {str(e)}"
+                        f"[BATCH INDEX] EXCEPTION: Issue {i}/{total}: {error_type}: {
+    str(e)}"
                     )
 
                 if i % batch_size == 0:
@@ -764,7 +768,8 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Sprint embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Sprint embedding generated, dimension: {
+    len(embedding_vector)}"
             )
 
             # Prepare metadata
@@ -899,7 +904,8 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Team member embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Team member embedding generated, dimension: {
+    len(embedding_vector)}"
             )
 
             # Prepare metadata
@@ -952,7 +958,8 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Project embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Project embedding generated, dimension: {
+    len(embedding_vector)}"
             )
 
             # Prepare metadata
@@ -1000,7 +1007,10 @@ class RAGService:
 
         if sprint.start_date and sprint.end_date:
             parts.append(
-                f"Duration: {sprint.start_date} to {sprint.end_date} ({sprint.duration_days} days)"
+                f"Duration: {
+    sprint.start_date} to {
+        sprint.end_date} ({
+            sprint.duration_days} days)"
             )
 
         # Add sprint statistics
@@ -1169,7 +1179,8 @@ class RAGService:
         """
         parts = [
             f"Project: {project.name} ({project.key})",
-            f"Description: {project.description if project.description else 'No description'}",
+            f"Description: {
+    project.description if project.description else 'No description'}",
         ]
 
         # Workspace and organization context
