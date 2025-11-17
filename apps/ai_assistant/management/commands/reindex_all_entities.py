@@ -218,7 +218,8 @@ class Command(BaseCommand):
             result = rag_service.index_project_issues(project_id=str(project.id))
 
             self.stdout.write(
-                f"    {self.style.SUCCESS('✓')} {result['indexed']}/{result['total']} indexed "
+                f"    {self.style.SUCCESS('✓')} "
+                f"{result['indexed']}/{result['total']} indexed "
                 f"({result['success_rate']}%)"
             )
 

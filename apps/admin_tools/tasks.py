@@ -147,7 +147,8 @@ def backup_database(self):
 
                 else:
                     logger.warning(
-                        "S3 backup not configured - backup saved locally only"
+                        "S3 backup not configured - "
+                        "backup saved locally only"
                     )
                     results["upload_success"] = False
 
@@ -209,10 +210,12 @@ def _apply_retention_policy(s3_client, bucket: str) -> bool:
                 # Extract timestamp from filename
                 try:
                     filename = Path(key).name
-                    timestamp_str = filename.replace("ficct_scrum_backup_", "").replace(
-                        ".sql.gz", ""
+                    timestamp_str = filename.replace(
+                        "ficct_scrum_backup_", ""
+                    ).replace(".sql.gz", "")
+                    backup_date = datetime.strptime(
+                        timestamp_str, "%Y%m%d_%H%M%S"
                     )
-                    backup_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
                     backups.append(
                         {
                             "key": key,
@@ -258,7 +261,8 @@ def _apply_retention_policy(s3_client, bucket: str) -> bool:
                         logger.error(f"Error deleting {backup['key']}: {str(e)}")
 
         logger.info(
-            f"Retention policy applied: kept {len(keep_backups)}, deleted {deleted_count}"
+            f"Retention policy applied: kept {len(keep_backups)}, "
+            f"deleted {deleted_count}"
         )
         return True
 
