@@ -171,8 +171,14 @@ class DiagramViewSet(viewsets.ViewSet):
                 filters = {}
                 if 'sprint_id' in parameters:
                     filters['sprint_id'] = parameters['sprint_id']
+                
+                # Normalize status_ids: accept UUIDs OR status names/categories
                 if 'status_ids' in parameters:
-                    filters['status_ids'] = parameters['status_ids']
+                    filters['status_ids'] = self._normalize_status_ids(
+                        parameters['status_ids'], 
+                        project
+                    )
+                
                 if 'priorities' in parameters:
                     filters['priorities'] = parameters['priorities']
                 if 'assignee_id' in parameters:
@@ -315,6 +321,187 @@ class DiagramViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        summary="Export diagram as SVG or PNG",
+        tags=["Reporting"],
+        description="""
+        Export a diagram in SVG or PNG format for download.
+        
+        **Supported formats:**
+        - `svg`: Vector graphic (scalable, best quality)
+        - `png`: Raster image (requires cairosvg library)
+        
+        **Supported diagram types:**
+        - `workflow`: Workflow status diagram
+        - `dependency`: Issue dependency graph
+        - `roadmap`: Project roadmap timeline
+        
+        **Response:**
+        - SVG: Returns SVG XML as text/xml
+        - PNG: Returns PNG image as image/png (base64 or binary)
+        """,
+        request=DiagramRequestSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Diagram exported successfully",
+                response={"type": "string", "format": "binary"}
+            ),
+            400: OpenApiResponse(description="Invalid parameters"),
+            404: OpenApiResponse(description="Project not found"),
+            500: OpenApiResponse(description="Export failed"),
+        },
+    )
+    @action(detail=False, methods=["post"])
+    def export(self, request):
+        """Export diagram as SVG or PNG for download."""
+        serializer = DiagramRequestSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        diagram_type = serializer.validated_data["diagram_type"]
+        project_id = serializer.validated_data["project"]
+        export_format = serializer.validated_data.get("format", "svg")
+        parameters = serializer.validated_data.get("parameters", {})
+        
+        # Validate export format
+        if export_format not in ["svg", "png"]:
+            return Response(
+                {
+                    "error": f"Invalid export format: '{export_format}'",
+                    "detail": "Supported formats: svg, png",
+                    "code": "INVALID_FORMAT"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate diagram type supports export
+        if diagram_type not in ["workflow", "dependency", "roadmap"]:
+            return Response(
+                {
+                    "error": f"Diagram type '{diagram_type}' does not support export",
+                    "detail": "Supported types: workflow, dependency, roadmap",
+                    "code": "UNSUPPORTED_DIAGRAM_TYPE"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from apps.projects.models import Project
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            # Generate SVG diagram
+            from apps.reporting.services.diagram_generators import (
+                generate_workflow_diagram_svg,
+                generate_dependency_graph_svg,
+                generate_roadmap_timeline_svg
+            )
+            
+            logger.info(f"Exporting {diagram_type} diagram as {export_format} for project {project.key}")
+            
+            # Generate SVG based on diagram type
+            if diagram_type == "workflow":
+                svg_content = generate_workflow_diagram_svg(project)
+            elif diagram_type == "dependency":
+                # Extract filters for dependency diagram
+                filters = {}
+                if 'sprint_id' in parameters:
+                    filters['sprint_id'] = parameters['sprint_id']
+                if 'status_ids' in parameters:
+                    filters['status_ids'] = self._normalize_status_ids(
+                        parameters['status_ids'], 
+                        project
+                    )
+                if 'priorities' in parameters:
+                    filters['priorities'] = parameters['priorities']
+                if 'assignee_id' in parameters:
+                    filters['assignee_id'] = parameters['assignee_id']
+                if 'issue_type_ids' in parameters:
+                    filters['issue_type_ids'] = parameters['issue_type_ids']
+                if 'search' in parameters:
+                    filters['search'] = parameters['search']
+                
+                svg_content = generate_dependency_graph_svg(project, filters)
+            elif diagram_type == "roadmap":
+                svg_content = generate_roadmap_timeline_svg(project)
+            
+            # Return SVG format
+            if export_format == "svg":
+                from django.http import HttpResponse
+                
+                response = HttpResponse(svg_content, content_type='image/svg+xml')
+                response['Content-Disposition'] = f'attachment; filename="{project.key}_{diagram_type}.svg"'
+                response['X-Diagram-Type'] = diagram_type
+                response['X-Export-Format'] = 'svg'
+                
+                logger.info(f"SVG export successful: {len(svg_content)} bytes")
+                return response
+            
+            # Convert SVG to PNG
+            elif export_format == "png":
+                try:
+                    import cairosvg
+                    import io
+                    
+                    # Convert SVG to PNG
+                    png_data = cairosvg.svg2png(bytestring=svg_content.encode('utf-8'))
+                    
+                    from django.http import HttpResponse
+                    
+                    response = HttpResponse(png_data, content_type='image/png')
+                    response['Content-Disposition'] = f'attachment; filename="{project.key}_{diagram_type}.png"'
+                    response['X-Diagram-Type'] = diagram_type
+                    response['X-Export-Format'] = 'png'
+                    
+                    logger.info(f"PNG export successful: {len(png_data)} bytes")
+                    return response
+                    
+                except ImportError:
+                    return Response(
+                        {
+                            "error": "PNG export not available",
+                            "detail": "cairosvg library is not installed. Install it with: pip install cairosvg",
+                            "code": "PNG_NOT_SUPPORTED",
+                            "alternatives": [
+                                "Use SVG format instead",
+                                "Convert SVG to PNG in frontend using canvas",
+                                "Install cairosvg: pip install cairosvg"
+                            ]
+                        },
+                        status=status.HTTP_501_NOT_IMPLEMENTED
+                    )
+                except Exception as e:
+                    logger.error(f"PNG conversion failed: {str(e)}")
+                    return Response(
+                        {
+                            "error": "PNG conversion failed",
+                            "detail": str(e),
+                            "code": "PNG_CONVERSION_ERROR"
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+        
+        except Exception as e:
+            logger.error(f"Export failed: {str(e)}", exc_info=True)
+            return Response(
+                {
+                    "error": "Export failed",
+                    "detail": str(e),
+                    "code": "EXPORT_ERROR"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     def list(self, request):
         from apps.reporting.models import DiagramCache
 
@@ -352,3 +539,73 @@ class DiagramViewSet(viewsets.ViewSet):
         ]
 
         return Response(data, status=status.HTTP_200_OK)
+    
+    def _normalize_status_ids(self, status_ids, project):
+        """
+        Normalize status_ids to accept both UUIDs and status names/categories.
+        
+        Accepts:
+        - UUIDs: ["uuid1", "uuid2"]
+        - Status names: ["To Do", "In Progress", "Done"]
+        - Status categories: ["backlog", "todo", "in_progress", "done"]
+        - Mixed: ["uuid1", "In Progress", "done"]
+        
+        Returns:
+        - List of valid status UUIDs
+        """
+        from apps.projects.models import WorkflowStatus
+        from uuid import UUID
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        normalized_ids = []
+        
+        for status_id in status_ids:
+            # Try to parse as UUID first
+            try:
+                UUID(str(status_id))
+                # Valid UUID, add directly
+                normalized_ids.append(status_id)
+                logger.debug(f"Accepted UUID: {status_id}")
+            except (ValueError, AttributeError):
+                # Not a UUID, try to find by name or category
+                logger.debug(f"Not a UUID, searching for status: {status_id}")
+                
+                # Try exact name match (case-insensitive)
+                status = WorkflowStatus.objects.filter(
+                    project=project,
+                    name__iexact=status_id
+                ).first()
+                
+                if status:
+                    normalized_ids.append(str(status.id))
+                    logger.debug(f"Found by name: {status_id} -> {status.id}")
+                    continue
+                
+                # Try category match (case-insensitive)
+                status = WorkflowStatus.objects.filter(
+                    project=project,
+                    category__iexact=status_id
+                ).first()
+                
+                if status:
+                    normalized_ids.append(str(status.id))
+                    logger.debug(f"Found by category: {status_id} -> {status.id}")
+                    continue
+                
+                # Try partial name match (contains)
+                status = WorkflowStatus.objects.filter(
+                    project=project,
+                    name__icontains=status_id
+                ).first()
+                
+                if status:
+                    normalized_ids.append(str(status.id))
+                    logger.debug(f"Found by partial name: {status_id} -> {status.id}")
+                    continue
+                
+                # Not found - log warning but don't fail
+                logger.warning(f"Status not found: {status_id} (project: {project.key})")
+        
+        logger.info(f"Normalized {len(status_ids)} status filters to {len(normalized_ids)} UUIDs")
+        return normalized_ids
