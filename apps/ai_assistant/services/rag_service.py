@@ -95,8 +95,8 @@ class RAGService:
             logger.info(f"[OPENAI] Generating embedding for issue {issue_id}...")
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Embedding generated successfully, dimension: {
-    len(embedding_vector)}"
+                f"[OPENAI] Embedding generated successfully, dimension: "
+                f"{len(embedding_vector)}"
             )
 
             # Prepare metadata

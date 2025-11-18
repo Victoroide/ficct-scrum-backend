@@ -7,7 +7,7 @@ Analyzes user queries to determine intent and routing strategy for multi-namespa
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,10 @@ class QueryRouter:
             "namespaces": ["issues"],
             "filters": filters,
             "top_k": 10,
-            "description": f"Searching for issues with priority {priority_filters if priority_filters else 'any'}",
+            "description": (
+                f"Searching for issues with priority "
+                f"{priority_filters if priority_filters else 'any'}"
+            ),
         }
 
     def _build_member_strategy(
@@ -242,7 +245,10 @@ class QueryRouter:
             "filters": filters,
             "member_names": names,  # Will use for filtering results
             "top_k": 10,
-            "description": f"Searching for team member activity{' for ' + ', '.join(names) if names else ''}",
+            "description": (
+                f"Searching for team member activity"
+                f"{' for ' + ', '.join(names) if names else ''}"
+            ),
         }
 
     def _build_sprint_strategy(
@@ -305,7 +311,7 @@ class QueryRouter:
             "namespaces": ["issues"],
             "filters": filters,
             "top_k": 10,
-            "description": f"Searching for issues by status",
+            "description": "Searching for issues by status",
         }
 
     def _build_temporal_strategy(
@@ -342,7 +348,10 @@ class QueryRouter:
             "namespaces": ["issues"],
             "filters": filters,
             "top_k": 10,
-            "description": f"Searching for recently updated issues (since {threshold.date()})",
+            "description": (
+                f"Searching for recently updated issues "
+                f"(since {threshold.date()})"
+            ),
         }
 
     def _build_general_strategy(self, project_id: Optional[str]) -> Dict:
