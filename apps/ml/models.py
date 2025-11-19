@@ -29,16 +29,35 @@ class MLModel(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(
+        max_length=200,
+        help_text="Human-readable model name",
+        blank=True,
+    )
     model_type = models.CharField(max_length=50, choices=MODEL_TYPES)
     version = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="training")
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Whether this model is currently active for predictions",
+    )
 
-    # Model file storage
+    # Model file storage (S3 paths)
     model_file = models.FileField(upload_to="ml_models/", null=True, blank=True)
     model_path = models.CharField(
         max_length=500,
         blank=True,
-        help_text="Path to model file if not using FileField",
+        help_text="S3 key path to model file",
+    )
+    s3_bucket = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="S3 bucket name where model is stored",
+    )
+    s3_key = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="S3 object key for the model file",
     )
 
     # Training metadata
@@ -58,6 +77,11 @@ class MLModel(models.Model):
     r2_score = models.FloatField(null=True, blank=True, help_text="R-squared Score")
 
     # Additional metadata
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional metadata (accuracy, samples_count, project_id, etc.)",
+    )
     hyperparameters = models.JSONField(default=dict, blank=True)
     feature_importance = models.JSONField(default=dict, blank=True)
     notes = models.TextField(blank=True)
@@ -74,7 +98,15 @@ class MLModel(models.Model):
         ]
 
     def __str__(self):
+        if self.name:
+            return f"{self.name} v{self.version} ({self.status})"
         return f"{self.get_model_type_display()} v{self.version} ({self.status})"
+
+    def get_s3_path(self) -> str:
+        """Get full S3 path for the model."""
+        if self.s3_key:
+            return f"s3://{self.s3_bucket}/{self.s3_key}"
+        return ""
 
 
 class PredictionHistory(models.Model):

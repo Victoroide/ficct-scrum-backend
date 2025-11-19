@@ -17,7 +17,16 @@ class MLModelFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Model {n}")
     model_type = "effort_prediction"
     version = "1.0.0"
+    status = "active"
     is_active = True
+    s3_bucket = "test-ml-bucket"
+    s3_key = factory.LazyAttribute(
+        lambda obj: f"ml_models/{obj.model_type}/{obj.version}/model.joblib"
+    )
+    training_samples = 100
+    mae = 1.5
+    rmse = 2.0
+    r2_score = 0.85
     metadata = factory.Dict(
         {
             "accuracy": 0.85,
@@ -48,7 +57,7 @@ class PredictionHistoryFactory(DjangoModelFactory):
     )
     predicted_value = 8.0
     actual_value = None
-    confidence = 0.75
+    confidence_score = 0.75
 
 
 class AnomalyDetectionFactory(DjangoModelFactory):
