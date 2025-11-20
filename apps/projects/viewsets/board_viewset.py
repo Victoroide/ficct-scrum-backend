@@ -75,7 +75,21 @@ class BoardViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
     def get_queryset(self):
-        from django.db.models import Q
+        from django.db.models import Count, Prefetch, Q
+
+        # Optimize columns with pre-calculated issue counts
+        optimized_columns = BoardColumn.objects.select_related(
+            "workflow_status"
+        ).annotate(
+            _issue_count=Count(
+                "workflow_status__issues",
+                filter=Q(
+                    workflow_status__issues__is_active=True,
+                    workflow_status__issues__project_id=models.F("board__project_id")
+                ),
+                distinct=True
+            )
+        ).order_by("order")
 
         return (
             Board.objects.filter(
@@ -89,7 +103,9 @@ class BoardViewSet(viewsets.ModelViewSet):
                 )
             )
             .select_related("project", "created_by")
-            .prefetch_related("columns")
+            .prefetch_related(
+                Prefetch("columns", queryset=optimized_columns)
+            )
             .distinct()
         )
 

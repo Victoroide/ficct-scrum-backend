@@ -83,6 +83,9 @@ class BoardColumn(models.Model):
 
     @property
     def issue_count(self):
+        # Use annotated value if available (from queryset optimization)
+        if hasattr(self, "_issue_count"):
+            return self._issue_count
         return self.workflow_status.issues.filter(
             project=self.board.project, is_active=True
         ).count()

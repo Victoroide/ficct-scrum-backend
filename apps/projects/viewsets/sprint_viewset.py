@@ -69,7 +69,7 @@ class SprintViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        from django.db.models import Q
+        from django.db.models import Count, Q
 
         return (
             Sprint.objects.filter(
@@ -87,10 +87,18 @@ class SprintViewSet(viewsets.ModelViewSet):
                 "project__workspace",
                 "created_by"
             )
-            .prefetch_related(
-                "issues",
-                "issues__status",
-                "issues__assignee"
+            .annotate(
+                # Pre-calculate counts to avoid N queries
+                _issue_count=Count(
+                    "issues",
+                    filter=Q(issues__is_active=True),
+                    distinct=True
+                ),
+                _completed_issue_count=Count(
+                    "issues",
+                    filter=Q(issues__is_active=True, issues__status__is_final=True),
+                    distinct=True
+                )
             )
             .distinct()
         )

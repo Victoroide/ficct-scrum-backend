@@ -75,7 +75,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return Organization.objects.filter(
             memberships__user=self.request.user, memberships__is_active=True
         ).select_related(
-            'created_by'
+            'owner'  # Changed from 'created_by'
         ).prefetch_related(
             'memberships',
             'memberships__user',

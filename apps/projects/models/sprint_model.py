@@ -72,8 +72,14 @@ class Sprint(models.Model):
 
     @property
     def issue_count(self):
+        # Use annotated value if available (from queryset optimization)
+        if hasattr(self, "_issue_count"):
+            return self._issue_count
         return self.issues.filter(is_active=True).count()
 
     @property
     def completed_issue_count(self):
+        # Use annotated value if available (from queryset optimization)
+        if hasattr(self, "_completed_issue_count"):
+            return self._completed_issue_count
         return self.issues.filter(is_active=True, status__is_final=True).count()
