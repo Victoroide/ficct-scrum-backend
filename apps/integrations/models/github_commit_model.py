@@ -32,6 +32,7 @@ class GitHubCommit(models.Model):
             models.Index(fields=["repository", "commit_date"]),
             models.Index(fields=["sha"]),
             models.Index(fields=["author_email"]),
+            models.Index(fields=["author_name"]),  # For search optimization
         ]
 
     def __str__(self):
