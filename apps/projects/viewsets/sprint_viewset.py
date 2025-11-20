@@ -82,7 +82,16 @@ class SprintViewSet(viewsets.ModelViewSet):
                     project__team_members__is_active=True,
                 )
             )
-            .select_related("project", "created_by")
+            .select_related(
+                "project",
+                "project__workspace",
+                "created_by"
+            )
+            .prefetch_related(
+                "issues",
+                "issues__status",
+                "issues__assignee"
+            )
             .distinct()
         )
 

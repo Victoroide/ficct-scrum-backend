@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -50,6 +52,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    # UUID for frontend compatibility (separate from integer ID for backward compatibility)
+    user_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True,
+        db_index=True,
+        help_text="UUID for frontend API requests (assignee, reporter, etc.)"
+    )
     email = models.EmailField(unique=True, max_length=255)
     username = models.CharField(
         max_length=150,

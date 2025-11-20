@@ -101,6 +101,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
     project = serializers.UUIDField(write_only=True, required=True)
     # Accept either UUID or category string (task, bug, epic, story, improvement, sub_task)
     issue_type = serializers.CharField(write_only=True, required=True)
+    # assignee expects user_uuid (not integer id)
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     parent_issue = serializers.UUIDField(
         write_only=True, required=False, allow_null=True
@@ -191,13 +192,14 @@ class IssueCreateSerializer(serializers.ModelSerializer):
             return value_lower
 
     def validate_assignee(self, value):
+        """Validate assignee exists by user_uuid."""
         if not value:
             return None
 
         from apps.authentication.models import User
 
         try:
-            User.objects.get(id=value)
+            User.objects.get(user_uuid=value)
         except User.DoesNotExist:
             raise serializers.ValidationError("Assignee user does not exist")
         return value
@@ -243,12 +245,12 @@ class IssueCreateSerializer(serializers.ModelSerializer):
             # Replace category string with actual UUID for create() method
             attrs["issue_type"] = str(issue_type.id)
 
-        assignee_id = attrs.get("assignee")
-        if assignee_id:
+        assignee_uuid = attrs.get("assignee")
+        if assignee_uuid:
             from apps.authentication.models import User
             from apps.projects.models import ProjectTeamMember
 
-            assignee = User.objects.get(id=assignee_id)
+            assignee = User.objects.get(user_uuid=assignee_uuid)
             if not ProjectTeamMember.objects.filter(
                 project=project, user=assignee, is_active=True
             ).exists():
@@ -290,7 +292,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
 
         project_id = validated_data.pop("project")
         issue_type_id = validated_data.pop("issue_type")
-        assignee_id = validated_data.pop("assignee", None)
+        assignee_uuid = validated_data.pop("assignee", None)
         parent_issue_id = validated_data.pop("parent_issue", None)
         sprint_id = validated_data.pop("sprint", None)
 
@@ -314,8 +316,8 @@ class IssueCreateSerializer(serializers.ModelSerializer):
         validated_data["reporter"] = self.context["request"].user
         validated_data["key"] = key
 
-        if assignee_id:
-            validated_data["assignee"] = User.objects.get(id=assignee_id)
+        if assignee_uuid:
+            validated_data["assignee"] = User.objects.get(user_uuid=assignee_uuid)
 
         if parent_issue_id:
             validated_data["parent_issue"] = Issue.objects.get(id=parent_issue_id)
@@ -422,6 +424,7 @@ class IssueTransitionSerializer(serializers.Serializer):
 
 
 class IssueUpdateSerializer(serializers.ModelSerializer):
+    # assignee expects user_uuid (not integer id)
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     status = serializers.UUIDField(write_only=True, required=False)
     sprint = serializers.UUIDField(write_only=True, required=False, allow_null=True)
@@ -451,13 +454,14 @@ class IssueUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_assignee(self, value):
+        """Validate assignee exists by user_uuid."""
         if not value:
             return None
 
         from apps.authentication.models import User
 
         try:
-            User.objects.get(id=value)
+            User.objects.get(user_uuid=value)
         except User.DoesNotExist:
             raise serializers.ValidationError("Assignee user does not exist")
         return value
@@ -486,12 +490,12 @@ class IssueUpdateSerializer(serializers.ModelSerializer):
             if not can_transition:
                 raise serializers.ValidationError({"status": message})
 
-        assignee_id = attrs.get("assignee")
-        if assignee_id:
+        assignee_uuid = attrs.get("assignee")
+        if assignee_uuid:
             from apps.authentication.models import User
             from apps.projects.models import ProjectTeamMember
 
-            assignee = User.objects.get(id=assignee_id)
+            assignee = User.objects.get(user_uuid=assignee_uuid)
             if not ProjectTeamMember.objects.filter(
                 project=instance.project, user=assignee, is_active=True
             ).exists():
@@ -517,13 +521,13 @@ class IssueUpdateSerializer(serializers.ModelSerializer):
         from apps.authentication.models import User
         from apps.projects.models import Sprint
 
-        assignee_id = validated_data.pop("assignee", None)
+        assignee_uuid = validated_data.pop("assignee", None)
         status_id = validated_data.pop("status", None)
         sprint_id = validated_data.pop("sprint", None)
 
-        if assignee_id is not None:
-            if assignee_id:
-                instance.assignee = User.objects.get(id=assignee_id)
+        if assignee_uuid is not None:
+            if assignee_uuid:
+                instance.assignee = User.objects.get(user_uuid=assignee_uuid)
             else:
                 instance.assignee = None
 

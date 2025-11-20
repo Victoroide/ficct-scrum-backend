@@ -72,11 +72,17 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
     lookup_field = "pk"
 
     def get_queryset(self):
-        """Get team members for the specified project."""
+        """Get team members for the specified project with optimized queries."""
         project_pk = self.kwargs.get("project_pk")
         return ProjectTeamMember.objects.filter(
             project_id=project_pk, is_active=True
-        ).select_related("user", "project", "project__workspace")
+        ).select_related(
+            "user",
+            "project",
+            "project__workspace",
+            "project__lead",
+            "project__created_by"
+        )
 
     def get_permissions(self):
         """Apply appropriate permissions based on action."""

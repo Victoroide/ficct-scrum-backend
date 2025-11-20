@@ -131,23 +131,32 @@ class AnalyticsService:
 
     def generate_team_metrics(self, project, period: int = 30) -> Dict:
         from apps.projects.models import Issue
+        from collections import defaultdict
 
         start_date = timezone.now() - timedelta(days=period)
 
-        issues = Issue.objects.filter(
+        # Load ALL issues ONCE with select_related to avoid N queries
+        all_issues = list(Issue.objects.filter(
             project=project, is_active=True, created_at__gte=start_date
-        )
+        ).select_related('status', 'assignee'))
+
+        # Load team members ONCE
+        team_members = list(project.team_members.filter(is_active=True).select_related("user"))
+
+        # Group issues by assignee in memory
+        issues_by_user = defaultdict(list)
+        for issue in all_issues:
+            if issue.assignee:
+                issues_by_user[issue.assignee.id].append(issue)
 
         user_metrics = []
-        team_members = project.team_members.filter(is_active=True).select_related(
-            "user"
-        )
-
         for member in team_members:
-            user_issues = issues.filter(assignee=member.user)
-            completed_issues = user_issues.filter(status__category="done")
+            user_issues = issues_by_user.get(member.user.id, [])
+            completed_issues = [i for i in user_issues if i.status.category == "done"]
 
-            avg_resolution_time = self._calculate_avg_resolution_time(completed_issues)
+            # Calculate metrics from in-memory list
+            avg_resolution_time = self._calculate_avg_resolution_time_from_list(completed_issues)
+            story_points_total = sum(i.story_points or 0 for i in completed_issues)
 
             user_metrics.append(
                 {
@@ -156,50 +165,74 @@ class AnalyticsService:
                         "email": member.user.email,
                         "name": member.user.get_full_name() or member.user.email,
                     },
-                    "issues_assigned": user_issues.count(),
-                    "issues_completed": completed_issues.count(),
+                    "issues_assigned": len(user_issues),
+                    "issues_completed": len(completed_issues),
                     "avg_resolution_time_hours": avg_resolution_time,
-                    "story_points_completed": completed_issues.aggregate(
-                        total=Coalesce(Sum("story_points"), 0)
-                    )["total"],
+                    "story_points_completed": story_points_total,
                 }
             )
 
+        # Calculate team aggregates from in-memory list
+        completed_issues_total = [i for i in all_issues if i.status.category == "done"]
+        in_progress_issues = [i for i in all_issues if i.status.category == "in_progress"]
+
         team_aggregates = {
-            "total_issues": issues.count(),
-            "total_completed": issues.filter(status__category="done").count(),
-            "throughput": self._calculate_throughput(issues, period),
-            "avg_cycle_time": self._calculate_avg_cycle_time(issues),
-            "work_in_progress": issues.filter(status__category="in_progress").count(),
+            "total_issues": len(all_issues),
+            "total_completed": len(completed_issues_total),
+            "throughput": self._calculate_throughput_from_list(all_issues, period),
+            "avg_cycle_time": self._calculate_avg_cycle_time_from_list(all_issues),
+            "work_in_progress": len(in_progress_issues),
         }
 
         return {"user_metrics": user_metrics, "team_aggregates": team_aggregates}
 
     def generate_cumulative_flow_diagram(self, project, days: int = 30) -> Dict:
         from apps.projects.models import Issue
+        from collections import defaultdict
 
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
 
-        statuses = project.workflow_statuses.all()
+        # Load statuses ONCE
+        statuses = list(project.workflow_statuses.all())
+        status_ids = [s.id for s in statuses]
+        status_names = {s.id: s.name for s in statuses}
+
+        # Load ALL relevant issues ONCE with select_related
+        all_issues = Issue.objects.filter(
+            project=project,
+            is_active=True,
+            created_at__lte=end_date,
+            status_id__in=status_ids
+        ).select_related('status').values('id', 'status_id', 'created_at')
+
+        # Build issue-to-status mapping and creation dates
+        issue_data = {}
+        for issue in all_issues:
+            issue_data[issue['id']] = {
+                'status_id': issue['status_id'],
+                'created_date': issue['created_at'].date()
+            }
 
         cfd_data = {"dates": [], "status_counts": {}}
 
         for status in statuses:
             cfd_data["status_counts"][status.name] = []
 
+        # Calculate counts in Python (memory) instead of 150 DB queries
         current_date = start_date
         while current_date <= end_date:
             cfd_data["dates"].append(str(current_date))
 
-            for status in statuses:
-                count = Issue.objects.filter(
-                    project=project,
-                    status=status,
-                    is_active=True,
-                    created_at__lte=current_date,
-                ).count()
+            # Count issues per status for this date (in memory)
+            status_counts = defaultdict(int)
+            for issue_id, data in issue_data.items():
+                if data['created_date'] <= current_date:
+                    status_counts[data['status_id']] += 1
 
+            # Append counts to each status
+            for status in statuses:
+                count = status_counts.get(status.id, 0)
                 cfd_data["status_counts"][status.name].append(count)
 
             current_date += timedelta(days=1)
@@ -441,14 +474,36 @@ class AnalyticsService:
 
         return round(total_hours / count, 2) if count else 0.0
 
+    def _calculate_avg_resolution_time_from_list(self, issues_list) -> float:
+        """Calculate avg resolution time from in-memory list (optimized)."""
+        resolved = [i for i in issues_list if i.resolved_at is not None]
+        if not resolved:
+            return 0.0
+
+        total_hours = sum(
+            (i.resolved_at - i.created_at).total_seconds() / 3600
+            for i in resolved
+        )
+        return round(total_hours / len(resolved), 2) if resolved else 0.0
+
     def _calculate_throughput(self, issues, period: int) -> float:
         completed = issues.filter(status__category="done").count()
+        return round(completed / period, 2)
+
+    def _calculate_throughput_from_list(self, issues_list, period: int) -> float:
+        """Calculate throughput from in-memory list (optimized)."""
+        completed = sum(1 for i in issues_list if i.status.category == "done")
         return round(completed / period, 2)
 
     def _calculate_avg_cycle_time(self, issues) -> float:
         return self._calculate_avg_resolution_time(
             issues.filter(status__category="done")
         )
+
+    def _calculate_avg_cycle_time_from_list(self, issues_list) -> float:
+        """Calculate avg cycle time from in-memory list (optimized)."""
+        completed = [i for i in issues_list if i.status.category == "done"]
+        return self._calculate_avg_resolution_time_from_list(completed)
 
     def _get_recent_activity(self, project, limit: int = 10) -> List[Dict]:
         from apps.reporting.models import ActivityLog

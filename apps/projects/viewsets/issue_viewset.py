@@ -279,6 +279,8 @@ class IssueViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from django.db.models import Q
 
+        from django.db.models import Count
+
         return (
             Issue.objects.filter(
                 Q(
@@ -292,12 +294,20 @@ class IssueViewSet(viewsets.ModelViewSet):
             )
             .select_related(
                 "project",
+                "project__workspace",
                 "issue_type",
                 "status",
                 "assignee",
                 "reporter",
                 "sprint",
                 "parent_issue",
+            )
+            .annotate(
+                # Pre-calculate counts to avoid N queries
+                _comment_count=Count("comments", distinct=True),
+                _attachment_count=Count("attachments", distinct=True),
+                _source_link_count=Count("source_links", distinct=True),
+                _target_link_count=Count("target_links", distinct=True),
             )
             .distinct()
         )

@@ -104,12 +104,21 @@ class Issue(models.Model):
 
     @property
     def comment_count(self):
+        # Use annotated value if available (from queryset optimization)
+        if hasattr(self, "_comment_count"):
+            return self._comment_count
         return self.comments.count()
 
     @property
     def attachment_count(self):
+        # Use annotated value if available (from queryset optimization)
+        if hasattr(self, "_attachment_count"):
+            return self._attachment_count
         return self.attachments.count()
 
     @property
     def link_count(self):
+        # Use annotated values if available (from queryset optimization)
+        if hasattr(self, "_source_link_count") and hasattr(self, "_target_link_count"):
+            return self._source_link_count + self._target_link_count
         return self.source_links.count() + self.target_links.count()

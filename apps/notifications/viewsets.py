@@ -196,8 +196,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=["get"], url_path="unread-count")
     def unread_count(self, request):
-        """Get unread notification count."""
-        count = self.get_queryset().filter(is_read=False).count()
+        """Get unread notification count - optimized with direct query."""
+        # Use values().count() for maximum performance with index
+        count = (
+            Notification.objects.filter(
+                recipient_id=self.request.user.id,  # Use recipient_id to avoid JOIN
+                is_read=False
+            )
+            .values("id")  # Force index-only scan
+            .count()
+        )
         return Response({"unread_count": count}, status=status.HTTP_200_OK)
 
     @extend_schema(

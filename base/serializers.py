@@ -5,7 +5,12 @@ from rest_framework import serializers
 
 
 class UserBasicSerializer(serializers.ModelSerializer):
-    """Basic user info for nested representation across all apps."""
+    """
+    Basic user info for nested representation across all apps.
+    
+    CRITICAL: Must include user_uuid for frontend assignment functionality.
+    Frontend expects user_uuid (UUID string) for assignee/reporter fields.
+    """
 
     full_name = serializers.ReadOnlyField()
 
@@ -13,9 +18,18 @@ class UserBasicSerializer(serializers.ModelSerializer):
         from apps.authentication.models import User
 
         model = User
-        fields = ["id", "email", "username", "first_name", "last_name", "full_name"]
+        fields = [
+            "id",           # Integer ID (for backward compatibility)
+            "user_uuid",    # UUID string (REQUIRED for frontend assignments)
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+            "full_name"
+        ]
         read_only_fields = [
             "id",
+            "user_uuid",
             "email",
             "username",
             "first_name",

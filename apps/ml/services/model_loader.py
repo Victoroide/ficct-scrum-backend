@@ -70,6 +70,19 @@ class ModelLoader:
                 is_active=True,
             )
 
+            logger.info(
+                f"Searching for model: type={model_type}, project_id={project_id}"
+            )
+
+            # Debug: Show all available models
+            all_models = MLModel.objects.filter(model_type=model_type)
+            logger.info(f"Total {model_type} models in database: {all_models.count()}")
+            for m in all_models:
+                logger.debug(
+                    f"  - Model {m.id}: status={m.status}, is_active={m.is_active}, "
+                    f"metadata_project_id={m.metadata.get('project_id')}"
+                )
+
             if project_id:
                 # Try project-specific model first
                 ml_model = (
@@ -78,20 +91,30 @@ class ModelLoader:
                     .first()
                 )
 
-                if not ml_model:
-                    # Fallback to global model
-                    ml_model = (
-                        queryset.filter(metadata__project_id__isnull=True)
-                        .order_by("-training_date")
-                        .first()
+                if ml_model:
+                    logger.info(f"Found project-specific model: {ml_model.id}")
+                else:
+                    logger.info(
+                        f"No project-specific model found for project {project_id}, "
+                        f"trying global model"
                     )
+                    # Fallback to global model (project_id not in metadata or is None)
+                    ml_model = queryset.order_by("-training_date").first()
+                    if ml_model:
+                        logger.info(f"Using global/fallback model: {ml_model.id}")
             else:
                 ml_model = queryset.order_by("-training_date").first()
+                if ml_model:
+                    logger.info(f"Using global model: {ml_model.id}")
 
             if not ml_model:
                 logger.warning(
                     f"No active model found: type={model_type}, "
                     f"project_id={project_id}"
+                )
+                logger.warning(
+                    f"Available {model_type} models: {queryset.count()} active, "
+                    f"{all_models.count()} total"
                 )
                 return None
 

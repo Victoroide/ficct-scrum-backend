@@ -112,16 +112,19 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class ProjectTeamMemberSerializer(serializers.ModelSerializer):
-    """Serializer for ProjectTeamMember model."""
+    """
+    Optimized serializer for ProjectTeamMember model.
+    
+    Note: Does NOT include full project data to avoid N+1 queries.
+    Client already knows project ID from URL path.
+    """
 
     user = UserBasicSerializer(read_only=True)
-    project = ProjectSerializer(read_only=True)
 
     class Meta:
         model = ProjectTeamMember
         fields = [
             "id",
-            "project",
             "user",
             "role",
             "permissions",
@@ -130,7 +133,7 @@ class ProjectTeamMemberSerializer(serializers.ModelSerializer):
             "joined_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "project", "user", "joined_at", "updated_at"]
+        read_only_fields = ["id", "user", "joined_at", "updated_at"]
 
 
 class AddTeamMemberSerializer(serializers.Serializer):
