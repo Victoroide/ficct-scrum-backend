@@ -1,12 +1,14 @@
 """
-Unit tests for ModelLoader with caching and S3 integration.
+Unit tests for ModelLoader with caching and S3
+Test suite for ModelLoader service.
 
-Tests model loading, caching, and error handling.
+Tests model loading from S3, caching, and error handling.
 """
 
+import pickle
+import time
 from unittest.mock import MagicMock, patch
 
-import joblib
 import pytest
 
 from apps.ml.models import MLModel
@@ -46,7 +48,7 @@ class TestModelLoader:
             "feature_names": ["f1", "f2", "f3"],
             "trained_at": "2024-01-01",
         }
-        mock_storage.download_model.return_value = joblib.dumps(mock_model_bundle)
+        mock_storage.download_model.return_value = pickle.dumps(mock_model_bundle)
         mock_s3_service.return_value = mock_storage
 
         # Load model
@@ -79,7 +81,7 @@ class TestModelLoader:
 
         mock_storage = MagicMock()
         mock_model_bundle = {"model": "test"}
-        mock_storage.download_model.return_value = joblib.dumps(mock_model_bundle)
+        mock_storage.download_model.return_value = pickle.dumps(mock_model_bundle)
         mock_s3_service.return_value = mock_storage
 
         # First load - should hit S3

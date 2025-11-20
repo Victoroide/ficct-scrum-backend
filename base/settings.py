@@ -60,6 +60,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    "apps.core",
     "apps.authentication",
     "apps.organizations",
     "apps.workspaces",

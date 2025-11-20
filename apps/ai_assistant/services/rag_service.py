@@ -6,6 +6,7 @@ Handles indexing issues in Pinecone and semantic search operations.
 
 import hashlib
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
@@ -396,47 +397,64 @@ class RAGService:
                 f"[RAG] Query embedding generated: {len(query_vector)} dimensions"
             )
 
-            # Query Pinecone with generous top_k (filter in Python later)
-            # This prevents empty results due to overly restrictive filters
-            pinecone_top_k = top_k * 3  # Get 3x, filter later
+            # 🔒 SECURITY: Build Pinecone filter for project isolation
+            pinecone_filter = None
+            if project_id:
+                pinecone_filter = {"project_id": {"$eq": project_id}}
+                logger.info(f"[RAG] Applying Pinecone project filter: {project_id}")
+            
+            # Apply additional custom filters
+            if filters:
+                if pinecone_filter:
+                    # Combine project filter with custom filters
+                    pinecone_filter = {
+                        "$and": [
+                            pinecone_filter,
+                            {k: {"$eq": v} for k, v in filters.items()}
+                        ]
+                    }
+                else:
+                    pinecone_filter = {k: {"$eq": v} for k, v in filters.items()}
 
             logger.info(
-                f"[RAG] Querying Pinecone: namespace='issues', top_k={pinecone_top_k}"
+                f"[RAG] Querying Pinecone: namespace='issues', top_k={top_k}, "
+                f"filter={'enabled' if pinecone_filter else 'none'}"
             )
 
-            # Query WITHOUT Pinecone filter (more robust)
+            # Query WITH Pinecone filter (database-level isolation)
             results = self.pinecone.query(
                 vector=query_vector,
-                top_k=pinecone_top_k,
-                filter_dict=None,  # Don't filter at Pinecone level
+                top_k=top_k,
+                filter_dict=pinecone_filter,  # 🔒 Filter at Pinecone level
                 namespace="issues",
                 include_metadata=True,
             )
 
-            logger.info(f"[RAG] Pinecone returned {len(results)} raw results")
+            logger.info(f"[RAG] Pinecone returned {len(results)} filtered results")
 
-            # Filter by project_id in Python
-            filtered_results = []
+            # ✅ SECURITY: Additional validation layer (defense in depth)
+            validated_results = []
             for result in results:
                 metadata = result.get("metadata", {})
                 result_project_id = metadata.get("project_id")
 
-                # Apply project filter
+                # Double-check project_id matches (should already be filtered)
                 if project_id and result_project_id != project_id:
-                    logger.debug(
-                        f"[RAG] Skipping result: project mismatch ({result_project_id} != {project_id})"
+                    logger.error(
+                        f"SECURITY VIOLATION: Vector {result['id']} returned for wrong project. "
+                        f"Expected {project_id}, got {result_project_id}"
                     )
                     continue
 
-                # Apply custom filters
-                if filters:
-                    match = all(metadata.get(k) == v for k, v in filters.items())
-                    if not match:
-                        continue
+                validated_results.append(result)
 
-                filtered_results.append(result)
+            if len(validated_results) != len(results):
+                logger.warning(
+                    f"[RAG] Validation removed {len(results) - len(validated_results)} results "
+                    f"(Pinecone filter may not be working correctly)"
+                )
 
-            logger.info(f"[RAG] After project filter: {len(filtered_results)} results")
+            filtered_results = validated_results
 
             # Enrich results with full issue data
             enriched_results = []
@@ -628,10 +646,10 @@ class RAGService:
 
     def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Sanitize metadata for Pinecone compatibility.
+        Sanitize metadata for Pinecone compatibility with robust error handling.
 
         Pinecone REJECTS null values in metadata fields.
-        This method converts null → appropriate default values.
+        This method converts null → appropriate default values with proper type checking.
 
         Args:
             metadata: Raw metadata dictionary
@@ -654,17 +672,45 @@ class RAGService:
 
         sanitized = {}
         for key, value in metadata.items():
-            if value is None:
-                # Use intelligent default or empty string
+            try:
+                # Handle None first
+                if value is None:
+                    sanitized[key] = defaults.get(key, "")
+                    logger.debug(f"[SANITIZE] Converted null to default: {key} = '{sanitized[key]}'")
+                
+                # Handle lists and tuples with proper None filtering
+                elif isinstance(value, (list, tuple)):
+                    if value:  # Check if not empty
+                        # Filter out None values and convert to strings
+                        str_values = [str(v) for v in value if v is not None]
+                        sanitized[key] = ", ".join(str_values) if str_values else ""
+                    else:
+                        sanitized[key] = ""
+                
+                # Handle datetime objects
+                elif isinstance(value, (datetime, date)):
+                    sanitized[key] = value.isoformat()
+                
+                # Handle dictionaries
+                elif isinstance(value, dict):
+                    sanitized[key] = str(value) if value else ""
+                
+                # Handle already valid types (str, int, float, bool)
+                elif isinstance(value, (str, int, float, bool)):
+                    sanitized[key] = value
+                
+                # Convert everything else to string safely
+                else:
+                    try:
+                        sanitized[key] = str(value)
+                    except Exception:
+                        sanitized[key] = ""
+                        logger.warning(f"[SANITIZE] Could not convert {key} to string, using empty string")
+            
+            except Exception as e:
+                # If anything fails, use empty string and log warning
                 sanitized[key] = defaults.get(key, "")
-                logger.debug(
-                    f"[SANITIZE] Converted null to default: {key} = '{sanitized[key]}'"
-                )
-            elif isinstance(value, (list, dict)):
-                # Convert complex types to string if not empty
-                sanitized[key] = str(value) if value else ""
-            else:
-                sanitized[key] = value
+                logger.warning(f"[SANITIZE] Error processing {key}: {str(e)}, using default")
 
         return sanitized
 

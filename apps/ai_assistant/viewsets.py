@@ -138,7 +138,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="search-issues")
     @handle_ai_service_unavailable
     def search_issues(self, request):
-        """Semantic search across issues."""
+        """Semantic search across issues with PROJECT ACCESS CONTROL."""
         query = request.data.get("query")
         if not query:
             return Response(
@@ -147,11 +147,42 @@ class AIAssistantViewSet(viewsets.ViewSet):
             )
 
         project_id = request.data.get("project_id")
+        
+        # 🔒 SECURITY: Validate user has access to requested project
+        if project_id:
+            try:
+                from apps.projects.models import Project
+                project = Project.objects.get(id=project_id)
+                
+                # Check if user has access using existing permission class
+                permission = CanAccessProject()
+                if not permission.has_object_permission(request, self, project):
+                    logger.warning(
+                        f"SECURITY: User {request.user.id} ({request.user.username}) "
+                        f"attempted to access project {project_id} without permission"
+                    )
+                    return Response(
+                        {"error": "You do not have access to this project"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except Project.DoesNotExist:
+                return Response(
+                    {"error": "Project not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        
         top_k = request.data.get("top_k", 10)
         filters = request.data.get("filters", {})
 
+        # ✅ Now safe to search with validated project_id
         results = self.rag_service.semantic_search(
             query=query, project_id=project_id, top_k=top_k, filters=filters
+        )
+        
+        # 📊 Security audit log
+        logger.info(
+            f"AI search: user={request.user.id}, project={project_id}, "
+            f"query_len={len(query)}, results={len(results)}"
         )
 
         return Response({"results": results}, status=status.HTTP_200_OK)
@@ -375,7 +406,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="query")
     @handle_ai_service_unavailable
     def assistant_query(self, request):
-        """Answer question using RAG."""
+        """Answer question using RAG with PROJECT ACCESS CONTROL."""
         question = request.data.get("question")
         if not question:
             return Response(
@@ -384,12 +415,43 @@ class AIAssistantViewSet(viewsets.ViewSet):
             )
 
         project_id = request.data.get("project_id")
+        
+        # 🔒 SECURITY: Validate user has access to requested project
+        if project_id:
+            try:
+                from apps.projects.models import Project
+                project = Project.objects.get(id=project_id)
+                
+                # Check if user has access using existing permission class
+                permission = CanAccessProject()
+                if not permission.has_object_permission(request, self, project):
+                    logger.warning(
+                        f"SECURITY: User {request.user.id} ({request.user.username}) "
+                        f"attempted AI query on project {project_id} without permission"
+                    )
+                    return Response(
+                        {"error": "You do not have access to this project"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except Project.DoesNotExist:
+                return Response(
+                    {"error": "Project not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        
         conversation_history = request.data.get("conversation_history", [])
 
+        # ✅ Safe to proceed with validated project_id
         response = self.assistant_service.answer_question(
             question=question,
             project_id=project_id,
             conversation_history=conversation_history,
+        )
+        
+        # 📊 Security audit log
+        logger.info(
+            f"AI query: user={request.user.id}, project={project_id}, "
+            f"question_len={len(question)}, sources={len(response.get('sources', []))}"
         )
 
         return Response(response, status=status.HTTP_200_OK)
@@ -444,7 +506,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="suggest-solutions")
     @handle_ai_service_unavailable
     def suggest_solutions(self, request):
-        """Suggest solutions based on history."""
+        """Suggest solutions based on history with PROJECT ACCESS CONTROL."""
         issue_description = request.data.get("issue_description")
         project_id = request.data.get("project_id")
 
@@ -453,9 +515,37 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 {"error": "issue_description and project_id are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        # 🔒 SECURITY: Validate user has access to requested project
+        try:
+            from apps.projects.models import Project
+            project = Project.objects.get(id=project_id)
+            
+            # Check if user has access using existing permission class
+            permission = CanAccessProject()
+            if not permission.has_object_permission(request, self, project):
+                logger.warning(
+                    f"SECURITY: User {request.user.id} ({request.user.username}) "
+                    f"attempted solution suggestions for project {project_id} without permission"
+                )
+                return Response(
+                    {"error": "You do not have access to this project"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
+        # ✅ Safe to proceed
         suggestions = self.assistant_service.suggest_solutions(
             issue_description=issue_description, project_id=project_id
+        )
+        
+        # 📊 Security audit log
+        logger.info(
+            f"AI suggestions: user={request.user.id}, project={project_id}"
         )
 
         return Response(suggestions, status=status.HTTP_200_OK)
