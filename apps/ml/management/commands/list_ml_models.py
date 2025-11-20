@@ -56,7 +56,9 @@ class Command(BaseCommand):
         queryset = queryset.order_by("-training_date")
 
         # Display results
-        self.stdout.write(self.style.WARNING(f"\nML Models ({queryset.count()} found):"))
+        self.stdout.write(
+            self.style.WARNING(f"\nML Models ({queryset.count()} found):")
+        )
         self.stdout.write("-" * 100)
 
         if not queryset.exists():
@@ -88,9 +90,13 @@ class Command(BaseCommand):
             self.stdout.write(f"  Training Samples: {model.training_samples}")
 
             # Project scope
-            project_id_from_metadata = model.metadata.get("project_id") if model.metadata else None
+            project_id_from_metadata = (
+                model.metadata.get("project_id") if model.metadata else None
+            )
             if project_id_from_metadata:
-                self.stdout.write(f"  Scope: Project-specific ({project_id_from_metadata})")
+                self.stdout.write(
+                    f"  Scope: Project-specific ({project_id_from_metadata})"
+                )
             else:
                 self.stdout.write("  Scope: Global")
 
@@ -113,8 +119,4 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write("\n" + "-" * 100)
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"\nTotal: {queryset.count()} model(s)"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"\nTotal: {queryset.count()} model(s)"))

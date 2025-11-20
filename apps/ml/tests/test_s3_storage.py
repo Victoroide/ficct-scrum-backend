@@ -238,7 +238,9 @@ class TestS3ModelStorageService:
 
         service = S3ModelStorageService()
 
-        with pytest.raises(RuntimeError, match="AWS_STORAGE_BUCKET_NAME not configured"):
+        with pytest.raises(
+            RuntimeError, match="AWS_STORAGE_BUCKET_NAME not configured"
+        ):
             service.upload_model(
                 model_data=b"test",
                 model_type="effort_prediction",

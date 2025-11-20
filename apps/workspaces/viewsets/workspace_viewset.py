@@ -64,6 +64,13 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Workspace.objects.filter(
             members__user=self.request.user, members__is_active=True
+        ).select_related(
+            'organization',
+            'created_by'
+        ).prefetch_related(
+            'members',
+            'members__user',
+            'projects'
         ).distinct()
 
     @transaction.atomic

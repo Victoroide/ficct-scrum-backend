@@ -46,9 +46,7 @@ class Command(BaseCommand):
         analyze_all = options.get("all", False)
 
         if not any([project_id, sprint_id, analyze_all]):
-            raise CommandError(
-                "Please specify --project, --sprint, or --all"
-            )
+            raise CommandError("Please specify --project, --sprint, or --all")
 
         anomaly_service = AnomalyDetectionService()
 
@@ -73,23 +71,15 @@ class Command(BaseCommand):
         except Sprint.DoesNotExist:
             raise CommandError(f"Sprint {sprint_id} not found")
 
-        self.stdout.write(
-            self.style.WARNING(f"\nAnalyzing Sprint: {sprint.name}\n")
-        )
+        self.stdout.write(self.style.WARNING(f"\nAnalyzing Sprint: {sprint.name}\n"))
 
         risks = service.detect_sprint_risks(sprint_id)
 
         if not risks:
-            self.stdout.write(
-                self.style.SUCCESS("  ✓ No risks detected")
-            )
+            self.stdout.write(self.style.SUCCESS("  ✓ No risks detected"))
             return
 
-        self.stdout.write(
-            self.style.WARNING(
-                f"  Found {len(risks)} risk(s):\n"
-            )
-        )
+        self.stdout.write(self.style.WARNING(f"  Found {len(risks)} risk(s):\n"))
 
         for i, risk in enumerate(risks, 1):
             severity = risk["severity"].upper()
@@ -101,8 +91,7 @@ class Command(BaseCommand):
                 severity_style = self.style.NOTICE
 
             self.stdout.write(
-                f"\n  {i}. {risk['risk_type']} "
-                f"[{severity_style(severity)}]"
+                f"\n  {i}. {risk['risk_type']} " f"[{severity_style(severity)}]"
             )
             self.stdout.write(f"     {risk['description']}")
 
@@ -127,15 +116,11 @@ class Command(BaseCommand):
         anomalies = service.detect_project_anomalies(project_id)
 
         if not anomalies:
-            self.stdout.write(
-                self.style.SUCCESS("  ✓ No anomalies detected")
-            )
+            self.stdout.write(self.style.SUCCESS("  ✓ No anomalies detected"))
             return
 
         self.stdout.write(
-            self.style.WARNING(
-                f"  Found {len(anomalies)} anomaly/anomalies:\n"
-            )
+            self.style.WARNING(f"  Found {len(anomalies)} anomaly/anomalies:\n")
         )
 
         for i, anomaly in enumerate(anomalies, 1):
@@ -148,8 +133,7 @@ class Command(BaseCommand):
                 severity_style = self.style.NOTICE
 
             self.stdout.write(
-                f"\n  {i}. {anomaly['anomaly_type']} "
-                f"[{severity_style(severity)}]"
+                f"\n  {i}. {anomaly['anomaly_type']} " f"[{severity_style(severity)}]"
             )
             self.stdout.write(f"     {anomaly['description']}")
 
@@ -176,9 +160,7 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(
-            self.style.WARNING(
-                f"\nAnalyzing {projects.count()} active project(s)...\n"
-            )
+            self.style.WARNING(f"\nAnalyzing {projects.count()} active project(s)...\n")
         )
 
         total_anomalies = 0
@@ -190,9 +172,7 @@ class Command(BaseCommand):
                 anomalies = service.detect_project_anomalies(str(project.id))
 
                 if not anomalies:
-                    self.stdout.write(
-                        self.style.SUCCESS("  ✓ No anomalies")
-                    )
+                    self.stdout.write(self.style.SUCCESS("  ✓ No anomalies"))
                 else:
                     self.stdout.write(
                         self.style.WARNING(
@@ -206,15 +186,9 @@ class Command(BaseCommand):
                     total_anomalies += len(anomalies)
 
             except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f"  ✗ Error: {str(e)}")
-                )
+                self.stdout.write(self.style.ERROR(f"  ✗ Error: {str(e)}"))
 
+        self.stdout.write(f"\n{'-' * 60}\n")
         self.stdout.write(
-            f"\n{'-' * 60}\n"
-        )
-        self.stdout.write(
-            self.style.WARNING(
-                f"Total anomalies detected: {total_anomalies}"
-            )
+            self.style.WARNING(f"Total anomalies detected: {total_anomalies}")
         )

@@ -51,9 +51,7 @@ class Command(BaseCommand):
         force = options.get("force", False)
 
         self.stdout.write(
-            self.style.WARNING(
-                f"\nStarting training for {model_type} model..."
-            )
+            self.style.WARNING(f"\nStarting training for {model_type} model...")
         )
 
         if project_id:
@@ -95,34 +93,22 @@ class Command(BaseCommand):
                     user=None,
                 )
             else:
-                raise CommandError(
-                    f"Training for {model_type} not yet implemented"
-                )
+                raise CommandError(f"Training for {model_type} not yet implemented")
 
             if ml_model:
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        f"\n✓ Successfully trained {ml_model.name}:"
-                    )
+                    self.style.SUCCESS(f"\n✓ Successfully trained {ml_model.name}:")
                 )
                 self.stdout.write(f"  Model ID: {ml_model.id}")
                 self.stdout.write(f"  Version: {ml_model.version}")
-                self.stdout.write(
-                    f"  Training samples: {ml_model.training_samples}"
-                )
+                self.stdout.write(f"  Training samples: {ml_model.training_samples}")
 
                 if ml_model.mae:
-                    self.stdout.write(
-                        f"  MAE: {ml_model.mae:.2f}"
-                    )
+                    self.stdout.write(f"  MAE: {ml_model.mae:.2f}")
                 if ml_model.rmse:
-                    self.stdout.write(
-                        f"  RMSE: {ml_model.rmse:.2f}"
-                    )
+                    self.stdout.write(f"  RMSE: {ml_model.rmse:.2f}")
                 if ml_model.r2_score:
-                    self.stdout.write(
-                        f"  R² Score: {ml_model.r2_score:.3f}"
-                    )
+                    self.stdout.write(f"  R² Score: {ml_model.r2_score:.3f}")
 
                 self.stdout.write(
                     f"  S3 Path: s3://{ml_model.s3_bucket}/{ml_model.s3_key}"
@@ -132,13 +118,10 @@ class Command(BaseCommand):
                 )
             else:
                 self.stdout.write(
-                    self.style.ERROR(
-                        "\n✗ Training failed: Insufficient training data"
-                    )
+                    self.style.ERROR("\n✗ Training failed: Insufficient training data")
                 )
                 self.stdout.write(
-                    "  Minimum required samples: "
-                    f"{trainer.min_samples}"
+                    "  Minimum required samples: " f"{trainer.min_samples}"
                 )
 
         except Exception as e:

@@ -142,7 +142,7 @@ class PredictionService:
             # Calculate confidence based on training metrics
             ml_model = model_data["ml_model"]
             base_confidence = ml_model.r2_score or 0.7
-            
+
             # Adjust confidence based on uncertainty
             confidence = base_confidence * 0.9  # Slight reduction for production
 
@@ -196,7 +196,9 @@ class PredictionService:
         # Issue type encoding
         issue_type_lower = issue_type.lower()
         is_bug = 1 if "bug" in issue_type_lower else 0
-        is_story = 1 if "story" in issue_type_lower or "feature" in issue_type_lower else 0
+        is_story = (
+            1 if "story" in issue_type_lower or "feature" in issue_type_lower else 0
+        )
         is_task = 1 if "task" in issue_type_lower else 0
 
         # Default priority
@@ -241,9 +243,7 @@ class PredictionService:
 
         # Calculate weighted prediction
         similar_efforts = [
-            issue["actual_hours"]
-            for issue in similar_issues
-            if issue["actual_hours"]
+            issue["actual_hours"] for issue in similar_issues if issue["actual_hours"]
         ]
 
         if similar_efforts:
@@ -345,6 +345,7 @@ class PredictionService:
 
             if total_points and total_points > 0:
                 from datetime import timedelta
+
                 past_sprints = Sprint.objects.filter(
                     project=sprint.project,
                     status="completed",
@@ -514,7 +515,9 @@ class PredictionService:
                     {
                         "id": str(issue.id),
                         "title": issue.title,
-                        "issue_type": issue.issue_type.name if issue.issue_type else "task",
+                        "issue_type": issue.issue_type.name
+                        if issue.issue_type
+                        else "task",
                         "actual_hours": issue.actual_hours,
                         "story_points": issue.story_points,
                         "similarity": similarity,

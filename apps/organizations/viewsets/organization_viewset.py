@@ -74,6 +74,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Organization.objects.filter(
             memberships__user=self.request.user, memberships__is_active=True
+        ).select_related(
+            'created_by'
+        ).prefetch_related(
+            'memberships',
+            'memberships__user',
+            'workspaces'
         ).distinct()
 
     def get_object(self):

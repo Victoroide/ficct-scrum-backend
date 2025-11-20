@@ -254,6 +254,10 @@ class AuthViewSet(viewsets.GenericViewSet):
             if serializer.is_valid():
                 user = serializer.validated_data["user"]
 
+                # Reload user with profile to avoid N+1 query
+                from apps.authentication.models import User
+                user = User.objects.select_related('profile').get(pk=user.pk)
+
                 # Create JWT tokens
                 refresh = RefreshToken.for_user(user)
                 access = refresh.access_token

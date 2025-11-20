@@ -29,7 +29,7 @@ class S3ModelStorageService:
         """Initialize S3 client with configuration."""
         self.bucket_name = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
         self.region = getattr(settings, "AWS_S3_REGION_NAME", "us-east-1")
-        
+
         # S3 configuration with retry logic
         config = Config(
             region_name=self.region,
@@ -37,11 +37,11 @@ class S3ModelStorageService:
             connect_timeout=5,
             read_timeout=30,
         )
-        
+
         # Initialize S3 client
         aws_access_key = getattr(settings, "AWS_ACCESS_KEY_ID", None)
         aws_secret_key = getattr(settings, "AWS_SECRET_ACCESS_KEY", None)
-        
+
         if aws_access_key and aws_secret_key:
             self.s3_client = boto3.client(
                 "s3",
@@ -52,7 +52,7 @@ class S3ModelStorageService:
         else:
             # Use IAM role or environment credentials
             self.s3_client = boto3.client("s3", config=config)
-        
+
         self.model_prefix = "ml_models/"
         self.dataset_prefix = "ml_datasets/"
 
@@ -84,11 +84,13 @@ class S3ModelStorageService:
 
             # Generate S3 key with timestamp for versioning
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            s3_key = f"{self.model_prefix}{model_type}/{version}/{timestamp}/model.joblib"
-            
+            s3_key = (
+                f"{self.model_prefix}{model_type}/{version}/{timestamp}/model.joblib"
+            )
+
             # Calculate MD5 checksum for data integrity
             md5_hash = hashlib.md5(model_data).hexdigest()
-            
+
             # Prepare metadata
             upload_metadata = {
                 "model_type": model_type,
@@ -96,16 +98,16 @@ class S3ModelStorageService:
                 "uploaded_at": timestamp,
                 "md5_checksum": md5_hash,
             }
-            
+
             if metadata:
                 for key, value in metadata.items():
                     upload_metadata[f"custom_{key}"] = str(value)
-            
+
             logger.info(
                 f"Uploading model to S3: bucket={self.bucket_name}, "
                 f"key={s3_key}, size={len(model_data)} bytes"
             )
-            
+
             # Upload to S3 with metadata
             response = self.s3_client.put_object(
                 Bucket=self.bucket_name,
@@ -114,11 +116,11 @@ class S3ModelStorageService:
                 Metadata=upload_metadata,
                 ContentType="application/octet-stream",
             )
-            
+
             etag = response.get("ETag", "").strip('"')
-            
+
             logger.info(f"Model uploaded successfully: {s3_key} (ETag: {etag})")
-            
+
             return s3_key, etag
 
         except (BotoCoreError, ClientError) as e:
@@ -145,20 +147,20 @@ class S3ModelStorageService:
             logger.info(
                 f"Downloading model from S3: bucket={self.bucket_name}, key={s3_key}"
             )
-            
+
             # Download from S3
             response = self.s3_client.get_object(
                 Bucket=self.bucket_name,
                 Key=s3_key,
             )
-            
+
             model_data = response["Body"].read()
-            
+
             logger.info(
                 f"Model downloaded successfully: {s3_key}, "
                 f"size={len(model_data)} bytes"
             )
-            
+
             return model_data
 
         except self.s3_client.exceptions.NoSuchKey:
@@ -187,13 +189,13 @@ class S3ModelStorageService:
                 f"Downloading model to file: s3://{self.bucket_name}/{s3_key} "
                 f"-> {local_path}"
             )
-            
+
             self.s3_client.download_file(
                 self.bucket_name,
                 s3_key,
                 str(local_path),
             )
-            
+
             logger.info(f"Model saved to: {local_path}")
 
         except (BotoCoreError, ClientError) as e:
@@ -226,7 +228,7 @@ class S3ModelStorageService:
 
             # Generate S3 key
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            
+
             if project_id:
                 s3_key = (
                     f"{self.dataset_prefix}{project_id}/"
@@ -234,11 +236,11 @@ class S3ModelStorageService:
                 )
             else:
                 s3_key = f"{self.dataset_prefix}{dataset_name}_{timestamp}.pkl"
-            
+
             logger.info(
                 f"Uploading dataset to S3: bucket={self.bucket_name}, key={s3_key}"
             )
-            
+
             # Upload to S3
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
@@ -250,9 +252,9 @@ class S3ModelStorageService:
                     "uploaded_at": timestamp,
                 },
             )
-            
+
             logger.info(f"Dataset uploaded successfully: {s3_key}")
-            
+
             return s3_key
 
         except (BotoCoreError, ClientError) as e:
@@ -279,16 +281,16 @@ class S3ModelStorageService:
             logger.info(
                 f"Downloading dataset from S3: bucket={self.bucket_name}, key={s3_key}"
             )
-            
+
             response = self.s3_client.get_object(
                 Bucket=self.bucket_name,
                 Key=s3_key,
             )
-            
+
             dataset_data = response["Body"].read()
-            
+
             logger.info(f"Dataset downloaded successfully: {s3_key}")
-            
+
             return dataset_data
 
         except (BotoCoreError, ClientError) as e:
@@ -321,18 +323,18 @@ class S3ModelStorageService:
                 prefix += f"{model_type}/"
                 if version:
                     prefix += f"{version}/"
-            
+
             logger.info(
                 f"Listing models in S3: bucket={self.bucket_name}, prefix={prefix}"
             )
-            
+
             models = []
             paginator = self.s3_client.get_paginator("list_objects_v2")
-            
+
             for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
                 if "Contents" not in page:
                     continue
-                
+
                 for obj in page["Contents"]:
                     models.append(
                         {
@@ -342,9 +344,9 @@ class S3ModelStorageService:
                             "etag": obj.get("ETag", "").strip('"'),
                         }
                     )
-            
+
             logger.info(f"Found {len(models)} models in S3")
-            
+
             return models
 
         except (BotoCoreError, ClientError) as e:
@@ -368,12 +370,12 @@ class S3ModelStorageService:
             logger.info(
                 f"Deleting model from S3: bucket={self.bucket_name}, key={s3_key}"
             )
-            
+
             self.s3_client.delete_object(
                 Bucket=self.bucket_name,
                 Key=s3_key,
             )
-            
+
             logger.info(f"Model deleted successfully: {s3_key}")
 
         except (BotoCoreError, ClientError) as e:
@@ -398,7 +400,7 @@ class S3ModelStorageService:
                 Bucket=self.bucket_name,
                 Key=s3_key,
             )
-            
+
             return True
 
         except self.s3_client.exceptions.ClientError as e:
@@ -428,7 +430,7 @@ class S3ModelStorageService:
                 Bucket=self.bucket_name,
                 Key=s3_key,
             )
-            
+
             return {
                 "size": response.get("ContentLength", 0),
                 "last_modified": response.get("LastModified"),

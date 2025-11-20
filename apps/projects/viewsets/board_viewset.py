@@ -372,15 +372,32 @@ class BoardViewSet(viewsets.ModelViewSet):
                 {"error": "column_id is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Optimize queries with select_related to load related objects in one query
         try:
-            issue = Issue.objects.get(id=issue_id, project=board.project)
+            issue = Issue.objects.select_related(
+                'project',
+                'issue_type',
+                'status',
+                'parent_issue',
+                'sprint',
+                'assignee',
+                'reporter'
+            ).prefetch_related(
+                'comments',
+                'attachments',
+                'source_links',
+                'target_links'
+            ).get(id=issue_id, project=board.project)
         except Issue.DoesNotExist:
             return Response(
                 {"error": "Issue not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         try:
-            column = BoardColumn.objects.get(id=column_id, board=board)
+            column = BoardColumn.objects.select_related(
+                'workflow_status',
+                'board'
+            ).get(id=column_id, board=board)
         except BoardColumn.DoesNotExist:
             return Response(
                 {"error": "Column not found"}, status=status.HTTP_404_NOT_FOUND
@@ -410,7 +427,8 @@ class BoardViewSet(viewsets.ModelViewSet):
 
             issue.resolved_at = datetime.now()
 
-        issue.save()
+        # Save only - signal will trigger reindexing
+        issue.save(update_fields=['status', 'resolved_at', 'updated_at'])
 
         LoggerService.log_info(
             action="issue_moved_in_board",
@@ -428,6 +446,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
         from apps.projects.serializers import IssueDetailSerializer
 
+        # Issue already has all relations loaded via select_related/prefetch_related
         serializer = IssueDetailSerializer(issue)
 
         BoardWebSocketNotifier.send_issue_moved(

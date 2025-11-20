@@ -35,13 +35,13 @@ class TestPredictionServiceWithMLModel:
         # Mock ML model
         mock_model = MagicMock()
         mock_model.predict.return_value = [10.5]
-        
+
         mock_ml_model = MLModelFactory.build(
             model_type="effort_prediction",
             version="1.0.0",
             r2_score=0.85,
         )
-        
+
         mock_model_data = {
             "model": mock_model,
             "model_id": str(mock_ml_model.id),
@@ -49,7 +49,7 @@ class TestPredictionServiceWithMLModel:
             "ml_model": mock_ml_model,
             "feature_names": ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"],
         }
-        
+
         mock_loader_instance = MagicMock()
         mock_loader_instance.load_active_model.return_value = mock_model_data
         mock_loader.return_value = mock_loader_instance
@@ -112,9 +112,17 @@ class TestPredictionServiceWithMLModel:
 
     def test_extract_features_for_model(self):
         """Test feature extraction for ML model."""
-        feature_names = ["title_length", "description_length", "text_length",
-                        "is_bug", "is_story", "is_task", "priority_score", "story_points"]
-        
+        feature_names = [
+            "title_length",
+            "description_length",
+            "text_length",
+            "is_bug",
+            "is_story",
+            "is_task",
+            "priority_score",
+            "story_points",
+        ]
+
         features = self.service._extract_features_for_model(
             title="Fix authentication bug",
             description="Users cannot login to the system",
@@ -133,7 +141,7 @@ class TestPredictionServiceWithMLModel:
     def test_store_prediction_history(self, mock_loader):
         """Test prediction history is stored."""
         ml_model = MLModelFactory()
-        
+
         self.service._store_prediction_history(
             model_id=str(ml_model.id),
             input_data={"title": "Test", "issue_type": "task"},
@@ -179,7 +187,10 @@ class TestPredictionServiceWithMLModel:
         # Verify results
         assert len(similar) > 0
         # Most similar should be first
-        assert "authentication" in similar[0]["title"].lower() or "login" in similar[0]["title"].lower()
+        assert (
+            "authentication" in similar[0]["title"].lower()
+            or "login" in similar[0]["title"].lower()
+        )
 
     def test_get_average_effort_by_type(self):
         """Test getting average effort by issue type."""

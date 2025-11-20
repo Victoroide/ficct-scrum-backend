@@ -27,7 +27,7 @@ class ModelLoader:
     # Class-level cache with thread safety
     _model_cache: Dict[str, Dict[str, Any]] = {}
     _cache_lock = threading.Lock()
-    
+
     # Cache TTL in seconds
     CACHE_TTL = 3600  # 1 hour
 
@@ -72,15 +72,19 @@ class ModelLoader:
 
             if project_id:
                 # Try project-specific model first
-                ml_model = queryset.filter(
-                    metadata__project_id=project_id
-                ).order_by("-training_date").first()
-                
+                ml_model = (
+                    queryset.filter(metadata__project_id=project_id)
+                    .order_by("-training_date")
+                    .first()
+                )
+
                 if not ml_model:
                     # Fallback to global model
-                    ml_model = queryset.filter(
-                        metadata__project_id__isnull=True
-                    ).order_by("-training_date").first()
+                    ml_model = (
+                        queryset.filter(metadata__project_id__isnull=True)
+                        .order_by("-training_date")
+                        .first()
+                    )
             else:
                 ml_model = queryset.order_by("-training_date").first()
 
@@ -110,8 +114,7 @@ class ModelLoader:
             self._put_in_cache(cache_key, model_data)
 
             logger.info(
-                f"Model loaded successfully: {ml_model.name} "
-                f"(v{ml_model.version})"
+                f"Model loaded successfully: {ml_model.name} " f"(v{ml_model.version})"
             )
 
             return model_data

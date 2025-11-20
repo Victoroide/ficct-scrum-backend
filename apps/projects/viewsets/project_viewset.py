@@ -105,6 +105,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
         queryset = Project.objects.filter(
             workspace__members__user=self.request.user,
             workspace__members__is_active=True,
+        ).select_related(
+            'workspace',
+            'workspace__organization',
+            'lead',
+            'created_by'
+        ).prefetch_related(
+            'team_members',
+            'team_members__user'
         ).distinct()
 
         # Filter by workspace if provided

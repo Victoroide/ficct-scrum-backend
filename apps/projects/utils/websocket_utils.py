@@ -1,7 +1,28 @@
 from datetime import datetime
+from uuid import UUID
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+
+def convert_uuids_to_strings(obj):
+    """
+    Recursively convert UUID objects to strings for msgpack serialization.
+    
+    Args:
+        obj: Object to convert (dict, list, or primitive)
+        
+    Returns:
+        Object with all UUIDs converted to strings
+    """
+    if isinstance(obj, UUID):
+        return str(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_uuids_to_strings(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_uuids_to_strings(item) for item in obj]
+    else:
+        return obj
 
 
 class BoardWebSocketNotifier:
@@ -21,21 +42,26 @@ class BoardWebSocketNotifier:
         """
         channel_layer = get_channel_layer()
 
-        async_to_sync(channel_layer.group_send)(
-            f"board_{board_id}",
-            {
-                "type": "issue_moved",
-                "data": {
-                    "issue": issue_data,
-                    "from_status": str(old_status_id),
-                    "to_status": str(new_status_id),
-                    "timestamp": datetime.now().isoformat(),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.get_full_name() or user.username,
-                    },
+        message = {
+            "type": "issue_moved",
+            "data": {
+                "issue": issue_data,
+                "from_status": str(old_status_id),
+                "to_status": str(new_status_id),
+                "timestamp": datetime.now().isoformat(),
+                "user": {
+                    "id": str(user.id),
+                    "name": user.get_full_name() or user.username,
                 },
             },
+        }
+        
+        # Convert all UUIDs to strings for msgpack
+        message = convert_uuids_to_strings(message)
+        
+        async_to_sync(channel_layer.group_send)(
+            f"board_{board_id}",
+            message,
         )
 
     @staticmethod
@@ -50,19 +76,24 @@ class BoardWebSocketNotifier:
         """
         channel_layer = get_channel_layer()
 
-        async_to_sync(channel_layer.group_send)(
-            f"board_{board_id}",
-            {
-                "type": "issue_created",
-                "data": {
-                    "issue": issue_data,
-                    "timestamp": datetime.now().isoformat(),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.get_full_name() or user.username,
-                    },
+        message = {
+            "type": "issue_created",
+            "data": {
+                "issue": issue_data,
+                "timestamp": datetime.now().isoformat(),
+                "user": {
+                    "id": str(user.id),
+                    "name": user.get_full_name() or user.username,
                 },
             },
+        }
+        
+        # Convert all UUIDs to strings for msgpack
+        message = convert_uuids_to_strings(message)
+        
+        async_to_sync(channel_layer.group_send)(
+            f"board_{board_id}",
+            message,
         )
 
     @staticmethod
@@ -78,20 +109,25 @@ class BoardWebSocketNotifier:
         """
         channel_layer = get_channel_layer()
 
-        async_to_sync(channel_layer.group_send)(
-            f"board_{board_id}",
-            {
-                "type": "issue_updated",
-                "data": {
-                    "issue": issue_data,
-                    "fields_changed": fields_changed or [],
-                    "timestamp": datetime.now().isoformat(),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.get_full_name() or user.username,
-                    },
+        message = {
+            "type": "issue_updated",
+            "data": {
+                "issue": issue_data,
+                "fields_changed": fields_changed or [],
+                "timestamp": datetime.now().isoformat(),
+                "user": {
+                    "id": str(user.id),
+                    "name": user.get_full_name() or user.username,
                 },
             },
+        }
+        
+        # Convert all UUIDs to strings for msgpack
+        message = convert_uuids_to_strings(message)
+        
+        async_to_sync(channel_layer.group_send)(
+            f"board_{board_id}",
+            message,
         )
 
     @staticmethod
@@ -135,19 +171,24 @@ class BoardWebSocketNotifier:
         """
         channel_layer = get_channel_layer()
 
-        async_to_sync(channel_layer.group_send)(
-            f"board_{board_id}",
-            {
-                "type": "column_created",
-                "data": {
-                    "column": column_data,
-                    "timestamp": datetime.now().isoformat(),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.get_full_name() or user.username,
-                    },
+        message = {
+            "type": "column_created",
+            "data": {
+                "column": column_data,
+                "timestamp": datetime.now().isoformat(),
+                "user": {
+                    "id": str(user.id),
+                    "name": user.get_full_name() or user.username,
                 },
             },
+        }
+        
+        # Convert all UUIDs to strings for msgpack
+        message = convert_uuids_to_strings(message)
+        
+        async_to_sync(channel_layer.group_send)(
+            f"board_{board_id}",
+            message,
         )
 
     @staticmethod
@@ -162,19 +203,24 @@ class BoardWebSocketNotifier:
         """
         channel_layer = get_channel_layer()
 
-        async_to_sync(channel_layer.group_send)(
-            f"board_{board_id}",
-            {
-                "type": "column_updated",
-                "data": {
-                    "column": column_data,
-                    "timestamp": datetime.now().isoformat(),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.get_full_name() or user.username,
-                    },
+        message = {
+            "type": "column_updated",
+            "data": {
+                "column": column_data,
+                "timestamp": datetime.now().isoformat(),
+                "user": {
+                    "id": str(user.id),
+                    "name": user.get_full_name() or user.username,
                 },
             },
+        }
+        
+        # Convert all UUIDs to strings for msgpack
+        message = convert_uuids_to_strings(message)
+        
+        async_to_sync(channel_layer.group_send)(
+            f"board_{board_id}",
+            message,
         )
 
     @staticmethod
