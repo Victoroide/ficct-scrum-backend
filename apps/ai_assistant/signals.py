@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 ISSUE_SEMANTIC_FIELDS = {
     "title",
     "description",
-    "labels",
-    "acceptance_criteria",
     "status_id",
     "priority",
     "assignee_id",
@@ -47,8 +45,6 @@ def store_issue_old_values(sender, instance, **kwargs):
             instance._old_values = {
                 "title": old_instance.title,
                 "description": old_instance.description,
-                "labels": old_instance.labels,
-                "acceptance_criteria": old_instance.acceptance_criteria,
                 "status_id": old_instance.status_id,
                 "priority": old_instance.priority,
                 "assignee_id": old_instance.assignee_id,
