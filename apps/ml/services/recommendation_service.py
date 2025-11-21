@@ -89,9 +89,10 @@ class RecommendationService:
         # Get all users with their stats in ONE query
         user_stats_qs = (
             User.objects.filter(
-                projectteammember__project_id=project_id,
-                projectteammember__is_active=True,
+                project_memberships__project_id=project_id,
+                project_memberships__is_active=True,
             )
+            .distinct()
             .annotate(
                 # Skill scores
                 same_type_completed=Count(
@@ -101,6 +102,7 @@ class RecommendationService:
                         assigned_issues__issue_type=issue.issue_type,
                         assigned_issues__status__is_final=True,
                     ),
+                    distinct=True,
                 ),
                 total_completed=Count(
                     "assigned_issues",
@@ -108,6 +110,7 @@ class RecommendationService:
                         assigned_issues__project_id=project_id,
                         assigned_issues__status__is_final=True,
                     ),
+                    distinct=True,
                 ),
                 # Workload
                 active_issues_count=Count(
@@ -117,11 +120,13 @@ class RecommendationService:
                         assigned_issues__status__is_final=False,
                         assigned_issues__is_active=True,
                     ),
+                    distinct=True,
                 ),
                 # Performance
                 total_assigned=Count(
                     "assigned_issues",
                     filter=Q(assigned_issues__project_id=project_id),
+                    distinct=True,
                 ),
                 completed_count=Count(
                     "assigned_issues",
@@ -129,6 +134,7 @@ class RecommendationService:
                         assigned_issues__project_id=project_id,
                         assigned_issues__status__is_final=True,
                     ),
+                    distinct=True,
                 ),
                 # Availability
                 recent_updates=Count(
@@ -136,6 +142,7 @@ class RecommendationService:
                     filter=Q(
                         assigned_issues__updated_at__gte=seven_days_ago,
                     ),
+                    distinct=True,
                 ),
             )
             .values(
@@ -149,8 +156,8 @@ class RecommendationService:
             )
         )
 
-        # Convert to dict for fast lookup
-        stats_dict = {str(stat["id"]): stat for stat in user_stats_qs}
+        # Convert to dict for fast lookup (use UUID as key, not string)
+        stats_dict = {stat["id"]: stat for stat in user_stats_qs}
 
         # Get avg resolution time separately (more complex aggregation)
         avg_resolution_qs = (
@@ -171,7 +178,7 @@ class RecommendationService:
         )
 
         for res in avg_resolution_qs:
-            user_id = str(res["assignee_id"])
+            user_id = res["assignee_id"]
             if user_id in stats_dict:
                 stats_dict[user_id]["avg_resolution"] = res["avg_resolution"]
 
