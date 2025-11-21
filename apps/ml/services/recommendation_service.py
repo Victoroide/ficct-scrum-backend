@@ -9,7 +9,14 @@ import logging
 from typing import Any, Dict, List
 
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, DurationField, ExpressionWrapper, F
+from django.db.models import (
+    Avg,
+    Count,
+    DurationField,
+    ExpressionWrapper,
+    F,
+    Q,
+)
 from django.utils import timezone
 
 from apps.projects.models import Issue, ProjectTeamMember
@@ -36,9 +43,14 @@ class RecommendationService:
             List of user recommendations with scores and reasoning
         """
         try:
-            issue = Issue.objects.get(id=issue_id)
+            issue = Issue.objects.select_related(
+                "issue_type"
+            ).get(id=issue_id)
 
-            # Get all active team members
+            # Pre-calculate issue stats for ALL users in ONE query
+            user_stats = self._precalculate_user_stats(project_id, issue)
+
+            # Get all active team members with pre-loaded data
             team_members = ProjectTeamMember.objects.filter(
                 project_id=project_id, is_active=True
             ).select_related("user")
@@ -46,11 +58,12 @@ class RecommendationService:
             if not team_members:
                 return []
 
-            # Score each team member
+            # Score each team member using pre-calculated stats
             scored_members = []
             for member in team_members:
-                score_data = self._calculate_assignment_score(
-                    member.user, issue, project_id
+                stats = user_stats.get(member.user.id, {})
+                score_data = self._calculate_assignment_score_optimized(
+                    member.user, issue, stats
                 )
                 scored_members.append(score_data)
 
@@ -62,6 +75,205 @@ class RecommendationService:
         except Exception as e:
             logger.exception(f"Error suggesting task assignment: {str(e)}")
             raise
+
+    def _precalculate_user_stats(
+        self, project_id: str, issue: Issue
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Pre-calculate ALL user stats in ONE query to avoid N+1.
+
+        Returns dict: {user_id: {stats}}
+        """
+        seven_days_ago = timezone.now() - timezone.timedelta(days=7)
+
+        # Get all users with their stats in ONE query
+        user_stats_qs = (
+            User.objects.filter(
+                projectteammember__project_id=project_id,
+                projectteammember__is_active=True,
+            )
+            .annotate(
+                # Skill scores
+                same_type_completed=Count(
+                    "assigned_issues",
+                    filter=Q(
+                        assigned_issues__project_id=project_id,
+                        assigned_issues__issue_type=issue.issue_type,
+                        assigned_issues__status__is_final=True,
+                    ),
+                ),
+                total_completed=Count(
+                    "assigned_issues",
+                    filter=Q(
+                        assigned_issues__project_id=project_id,
+                        assigned_issues__status__is_final=True,
+                    ),
+                ),
+                # Workload
+                active_issues_count=Count(
+                    "assigned_issues",
+                    filter=Q(
+                        assigned_issues__project_id=project_id,
+                        assigned_issues__status__is_final=False,
+                        assigned_issues__is_active=True,
+                    ),
+                ),
+                # Performance
+                total_assigned=Count(
+                    "assigned_issues",
+                    filter=Q(assigned_issues__project_id=project_id),
+                ),
+                completed_count=Count(
+                    "assigned_issues",
+                    filter=Q(
+                        assigned_issues__project_id=project_id,
+                        assigned_issues__status__is_final=True,
+                    ),
+                ),
+                # Availability
+                recent_updates=Count(
+                    "assigned_issues",
+                    filter=Q(
+                        assigned_issues__updated_at__gte=seven_days_ago,
+                    ),
+                ),
+            )
+            .values(
+                "id",
+                "same_type_completed",
+                "total_completed",
+                "active_issues_count",
+                "total_assigned",
+                "completed_count",
+                "recent_updates",
+            )
+        )
+
+        # Convert to dict for fast lookup
+        stats_dict = {str(stat["id"]): stat for stat in user_stats_qs}
+
+        # Get avg resolution time separately (more complex aggregation)
+        avg_resolution_qs = (
+            Issue.objects.filter(
+                project_id=project_id,
+                status__is_final=True,
+                resolved_at__isnull=False,
+            )
+            .values("assignee_id")
+            .annotate(
+                avg_resolution=Avg(
+                    ExpressionWrapper(
+                        F("resolved_at") - F("created_at"),
+                        output_field=DurationField(),
+                    )
+                )
+            )
+        )
+
+        for res in avg_resolution_qs:
+            user_id = str(res["assignee_id"])
+            if user_id in stats_dict:
+                stats_dict[user_id]["avg_resolution"] = res["avg_resolution"]
+
+        return stats_dict
+
+    def _calculate_assignment_score_optimized(
+        self, user: User, issue: Issue, stats: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Calculate assignment score using pre-calculated stats.
+
+        NO database queries here - all data from stats dict.
+        """
+        # 1. Skill score
+        total_completed = stats.get("total_completed", 0)
+        same_type_completed = stats.get("same_type_completed", 0)
+
+        if total_completed == 0:
+            skill_score = 0.3
+        else:
+            type_ratio = same_type_completed / total_completed
+            skill_score = min(type_ratio * 2, 1.0)
+
+        # 2. Workload score
+        active_issues = stats.get("active_issues_count", 0)
+
+        if active_issues == 0:
+            workload_score = 1.0
+        elif active_issues <= 3:
+            workload_score = 0.8
+        elif active_issues <= 6:
+            workload_score = 0.5
+        elif active_issues <= 10:
+            workload_score = 0.3
+        else:
+            workload_score = 0.1
+
+        # 3. Performance score
+        total_assigned = stats.get("total_assigned", 0)
+        completed_count = stats.get("completed_count", 0)
+
+        if total_assigned == 0:
+            performance_score = 0.5
+        else:
+            completion_rate = completed_count / total_assigned
+            performance_score = completion_rate
+
+            # Bonus for fast resolution
+            avg_resolution = stats.get("avg_resolution")
+            if avg_resolution:
+                avg_days = (
+                    avg_resolution.days if avg_resolution.days > 0 else 1
+                )
+                if avg_days < 7:
+                    performance_score = min(completion_rate * 1.2, 1.0)
+
+        # 4. Availability score
+        recent_updates = stats.get("recent_updates", 0)
+
+        if recent_updates >= 5:
+            availability_score = 1.0
+        elif recent_updates >= 3:
+            availability_score = 0.8
+        elif recent_updates >= 1:
+            availability_score = 0.6
+        else:
+            availability_score = 0.4
+
+        # Weighted total
+        total_score = (
+            skill_score * 0.4
+            + workload_score * 0.3
+            + performance_score * 0.2
+            + availability_score * 0.1
+        )
+
+        # Generate reasoning
+        reasoning = []
+        if skill_score > 0.7:
+            reasoning.append(
+                f"Strong experience with {issue.issue_type.name} issues"
+            )
+        if workload_score > 0.7:
+            reasoning.append("Currently has capacity")
+        if performance_score > 0.7:
+            reasoning.append("High success rate on similar issues")
+        if skill_score < 0.3:
+            reasoning.append("Limited experience with this issue type")
+        if workload_score < 0.3:
+            reasoning.append("Currently at high workload")
+
+        return {
+            "user_id": str(user.id),
+            "user_name": user.get_full_name() or user.username,
+            "user_email": user.email,
+            "total_score": round(total_score, 2),
+            "skill_score": round(skill_score, 2),
+            "workload_score": round(workload_score, 2),
+            "performance_score": round(performance_score, 2),
+            "availability_score": round(availability_score, 2),
+            "reasoning": reasoning,
+        }
 
     def _calculate_assignment_score(
         self, user: User, issue: Issue, project_id: str
