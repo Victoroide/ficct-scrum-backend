@@ -1,5 +1,8 @@
-from django.db import transaction
+from datetime import timedelta
 
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -72,14 +75,32 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return (
-            Organization.objects.filter(
-                memberships__user=self.request.user, memberships__is_active=True
+        queryset = Organization.objects.filter(
+            memberships__user=self.request.user, memberships__is_active=True
+        ).select_related("owner").distinct()
+
+        if self.action == "list":
+            queryset = queryset.annotate(
+                active_projects_count=Count(
+                    "workspaces__projects",
+                    filter=Q(workspaces__projects__status="active"),
+                    distinct=True,
+                ),
+                team_members_count=Count(
+                    "memberships",
+                    filter=Q(memberships__is_active=True),
+                    distinct=True,
+                ),
+                total_workspaces_count=Count(
+                    "workspaces", filter=Q(workspaces__is_active=True), distinct=True
+                ),
             )
-            .select_related("owner")  # Changed from 'created_by'
-            .prefetch_related("memberships", "memberships__user", "workspaces")
-            .distinct()
-        )
+        else:
+            queryset = queryset.prefetch_related(
+                "memberships", "memberships__user", "workspaces"
+            )
+
+        return queryset
 
     def get_object(self):
         """Return organization if the requesting user is an active member.
@@ -156,3 +177,99 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             memberships, many=True, context={"request": request}
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Organizations"],
+        operation_id="organizations_dashboard_stats",
+        summary="Get Dashboard Statistics",
+        description=(
+            "Aggregated statistics across all organizations user has access to. "
+            "Includes percentage changes compared to 7 days ago. "
+            "Optimized with single query using annotations."
+        ),
+    )
+    @action(detail=False, methods=["get"], url_path="dashboard-stats")
+    def dashboard_stats(self, request):
+        """Return dashboard statistics optimized with annotations."""
+        user = request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        organizations = Organization.objects.filter(
+            memberships__user=user, memberships__is_active=True
+        ).distinct()
+
+        current_stats = organizations.aggregate(
+            total_active_projects=Count(
+                "workspaces__projects",
+                filter=Q(workspaces__projects__status="active"),
+                distinct=True,
+            ),
+            total_team_members=Count(
+                "memberships", filter=Q(memberships__is_active=True), distinct=True
+            ),
+            total_workspaces=Count(
+                "workspaces", filter=Q(workspaces__is_active=True), distinct=True
+            ),
+            total_organizations=Count("id", distinct=True),
+        )
+
+        previous_stats = organizations.aggregate(
+            prev_projects=Count(
+                "workspaces__projects",
+                filter=Q(
+                    workspaces__projects__status="active",
+                    workspaces__projects__created_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_members=Count(
+                "memberships",
+                filter=Q(
+                    memberships__is_active=True,
+                    memberships__created_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_workspaces=Count(
+                "workspaces",
+                filter=Q(
+                    workspaces__is_active=True, workspaces__created_at__lte=week_ago
+                ),
+                distinct=True,
+            ),
+            prev_organizations=Count(
+                "id", filter=Q(created_at__lte=week_ago), distinct=True
+            ),
+        )
+
+        return Response(
+            {
+                "active_projects": current_stats["total_active_projects"] or 0,
+                "active_projects_change_pct": self._calc_pct(
+                    current_stats["total_active_projects"],
+                    previous_stats["prev_projects"],
+                ),
+                "team_members": current_stats["total_team_members"] or 0,
+                "team_members_change_pct": self._calc_pct(
+                    current_stats["total_team_members"],
+                    previous_stats["prev_members"],
+                ),
+                "total_workspaces": current_stats["total_workspaces"] or 0,
+                "total_workspaces_change_pct": self._calc_pct(
+                    current_stats["total_workspaces"],
+                    previous_stats["prev_workspaces"],
+                ),
+                "organizations": current_stats["total_organizations"] or 0,
+                "organizations_change_pct": self._calc_pct(
+                    current_stats["total_organizations"],
+                    previous_stats["prev_organizations"],
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0

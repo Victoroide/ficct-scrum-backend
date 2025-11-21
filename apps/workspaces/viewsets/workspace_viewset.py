@@ -1,5 +1,8 @@
-from django.db import transaction
+from datetime import timedelta
 
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -61,14 +64,29 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return (
-            Workspace.objects.filter(
-                members__user=self.request.user, members__is_active=True
+        queryset = Workspace.objects.filter(
+            members__user=self.request.user, members__is_active=True
+        ).select_related("organization", "created_by").distinct()
+
+        if self.action == "list":
+            queryset = queryset.annotate(
+                active_projects_count=Count(
+                    "projects",
+                    filter=Q(projects__status="active"),
+                    distinct=True,
+                ),
+                team_members_count=Count(
+                    "members",
+                    filter=Q(members__is_active=True),
+                    distinct=True,
+                ),
             )
-            .select_related("organization", "created_by")
-            .prefetch_related("members", "members__user", "projects")
-            .distinct()
-        )
+        else:
+            queryset = queryset.prefetch_related(
+                "members", "members__user", "projects"
+            )
+
+        return queryset
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -153,3 +171,84 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
             members, many=True, context={"request": request}
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Workspaces"],
+        operation_id="workspaces_dashboard_stats",
+        summary="Get Dashboard Statistics",
+        description=(
+            "Aggregated statistics across all workspaces user has access to. "
+            "Includes percentage changes compared to 7 days ago. "
+            "Optimized with single query using annotations."
+        ),
+    )
+    @action(detail=False, methods=["get"], url_path="dashboard-stats")
+    def dashboard_stats(self, request):
+        """Return dashboard statistics optimized with annotations."""
+        user = request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        workspaces = Workspace.objects.filter(
+            members__user=user, members__is_active=True
+        ).distinct()
+
+        current_stats = workspaces.aggregate(
+            total_active_projects=Count(
+                "projects",
+                filter=Q(projects__status="active"),
+                distinct=True,
+            ),
+            total_team_members=Count(
+                "members", filter=Q(members__is_active=True), distinct=True
+            ),
+            total_workspaces=Count("id", distinct=True),
+        )
+
+        previous_stats = workspaces.aggregate(
+            prev_projects=Count(
+                "projects",
+                filter=Q(
+                    projects__status="active",
+                    projects__created_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_members=Count(
+                "members",
+                filter=Q(
+                    members__is_active=True,
+                    members__joined_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_workspaces=Count(
+                "id", filter=Q(created_at__lte=week_ago), distinct=True
+            ),
+        )
+
+        return Response(
+            {
+                "active_projects": current_stats["total_active_projects"] or 0,
+                "active_projects_change_pct": self._calc_pct(
+                    current_stats["total_active_projects"],
+                    previous_stats["prev_projects"],
+                ),
+                "team_members": current_stats["total_team_members"] or 0,
+                "team_members_change_pct": self._calc_pct(
+                    current_stats["total_team_members"],
+                    previous_stats["prev_members"],
+                ),
+                "total_workspaces": current_stats["total_workspaces"] or 0,
+                "total_workspaces_change_pct": self._calc_pct(
+                    current_stats["total_workspaces"],
+                    previous_stats["prev_workspaces"],
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0

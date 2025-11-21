@@ -1,8 +1,10 @@
 import logging
+from datetime import timedelta
 from uuid import UUID
 
 from django.db import transaction
-
+from django.db.models import Count, Q
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -101,17 +103,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Returns only projects where user is a workspace member.
         """
         # Base queryset: user must be a member of the workspace
-        queryset = (
-            Project.objects.filter(
-                workspace__members__user=self.request.user,
-                workspace__members__is_active=True,
+        queryset = Project.objects.filter(
+            workspace__members__user=self.request.user,
+            workspace__members__is_active=True,
+        ).select_related(
+            "workspace", "workspace__organization", "lead", "created_by"
+        ).distinct()
+
+        if self.action == "list":
+            queryset = queryset.annotate(
+                team_members_count=Count(
+                    "team_members",
+                    filter=Q(team_members__is_active=True),
+                    distinct=True,
+                ),
+                active_issues_count=Count(
+                    "issues",
+                    filter=Q(issues__is_active=True),
+                    distinct=True,
+                ),
             )
-            .select_related(
-                "workspace", "workspace__organization", "lead", "created_by"
+        else:
+            queryset = queryset.prefetch_related(
+                "team_members", "team_members__user"
             )
-            .prefetch_related("team_members", "team_members__user")
-            .distinct()
-        )
 
         # Filter by workspace if provided
         workspace_id = self.request.query_params.get("workspace")
@@ -211,3 +226,105 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        tags=["Projects"],
+        operation_id="projects_dashboard_stats",
+        summary="Get Dashboard Statistics",
+        description=(
+            "Aggregated statistics across all projects user has access to. "
+            "Includes percentage changes compared to 7 days ago. "
+            "Optimized with single query using annotations."
+        ),
+    )
+    @action(detail=False, methods=["get"], url_path="dashboard-stats")
+    def dashboard_stats(self, request):
+        """Return dashboard statistics optimized with annotations."""
+        user = request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        projects = Project.objects.filter(
+            workspace__members__user=user,
+            workspace__members__is_active=True,
+        ).distinct()
+
+        current_stats = projects.aggregate(
+            total_active_projects=Count(
+                "id",
+                filter=Q(status="active"),
+                distinct=True,
+            ),
+            total_team_members=Count(
+                "team_members",
+                filter=Q(team_members__is_active=True),
+                distinct=True,
+            ),
+            total_active_issues=Count(
+                "issues",
+                filter=Q(issues__is_active=True),
+                distinct=True,
+            ),
+            total_projects=Count("id", distinct=True),
+        )
+
+        previous_stats = projects.aggregate(
+            prev_projects=Count(
+                "id",
+                filter=Q(
+                    status="active",
+                    created_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_members=Count(
+                "team_members",
+                filter=Q(
+                    team_members__is_active=True,
+                    team_members__joined_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_issues=Count(
+                "issues",
+                filter=Q(
+                    issues__is_active=True,
+                    issues__created_at__lte=week_ago,
+                ),
+                distinct=True,
+            ),
+            prev_total_projects=Count(
+                "id", filter=Q(created_at__lte=week_ago), distinct=True
+            ),
+        )
+
+        return Response(
+            {
+                "active_projects": current_stats["total_active_projects"] or 0,
+                "active_projects_change_pct": self._calc_pct(
+                    current_stats["total_active_projects"],
+                    previous_stats["prev_projects"],
+                ),
+                "team_members": current_stats["total_team_members"] or 0,
+                "team_members_change_pct": self._calc_pct(
+                    current_stats["total_team_members"],
+                    previous_stats["prev_members"],
+                ),
+                "total_issues": current_stats["total_active_issues"] or 0,
+                "total_issues_change_pct": self._calc_pct(
+                    current_stats["total_active_issues"],
+                    previous_stats["prev_issues"],
+                ),
+                "total_projects": current_stats["total_projects"] or 0,
+                "total_projects_change_pct": self._calc_pct(
+                    current_stats["total_projects"],
+                    previous_stats["prev_total_projects"],
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0

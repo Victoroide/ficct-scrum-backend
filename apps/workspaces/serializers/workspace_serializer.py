@@ -17,6 +17,9 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     )
     created_by = UserBasicSerializer(read_only=True)
 
+    active_projects_count = serializers.IntegerField(read_only=True, required=False)
+    team_members_count = serializers.IntegerField(read_only=True, required=False)
+
     class Meta:
         model = Workspace
         fields = [
@@ -35,6 +38,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "created_by",
             "member_count",
             "project_count",
+            "active_projects_count",
+            "team_members_count",
             "created_at",
             "updated_at",
         ]

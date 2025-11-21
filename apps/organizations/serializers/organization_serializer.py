@@ -12,6 +12,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     owner = UserBasicSerializer(read_only=True)
 
+    active_projects_count = serializers.IntegerField(read_only=True, required=False)
+    team_members_count = serializers.IntegerField(read_only=True, required=False)
+    total_workspaces_count = serializers.IntegerField(read_only=True, required=False)
+
     class Meta:
         model = Organization
         fields = [
@@ -29,6 +33,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "is_active",
             "member_count",
             "workspace_count",
+            "active_projects_count",
+            "team_members_count",
+            "total_workspaces_count",
             "created_at",
             "updated_at",
         ]

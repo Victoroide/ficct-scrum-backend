@@ -21,6 +21,9 @@ class ProjectSerializer(serializers.ModelSerializer):
     attachments_url = serializers.SerializerMethodField()
     attachments = serializers.FileField(required=False, allow_null=True)
 
+    team_members_count = serializers.IntegerField(read_only=True, required=False)
+    active_issues_count = serializers.IntegerField(read_only=True, required=False)
+
     # Use PrimaryKeyRelatedField for automatic UUID to instance conversion
     workspace = serializers.PrimaryKeyRelatedField(
         queryset=Workspace.objects.all(),
@@ -55,6 +58,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "is_active",
             "created_by",
             "team_member_count",
+            "team_members_count",
+            "active_issues_count",
             "created_at",
             "updated_at",
         ]
