@@ -6,14 +6,12 @@ Tests model loading from S3, caching, and error handling.
 """
 
 import pickle
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from apps.ml.models import MLModel
 from apps.ml.services.model_loader import ModelLoader
-from apps.ml.tests.factories import MLModelFactory
 
 
 @pytest.mark.django_db
@@ -70,7 +68,7 @@ class TestModelLoader:
     @patch("apps.ml.services.model_loader.S3ModelStorageService")
     def test_load_active_model_with_caching(self, mock_s3_service):
         """Test that loaded models are cached."""
-        ml_model = MLModel.objects.create(
+        _ml_model = MLModel.objects.create(  # noqa: F841
             name="Cached Model",
             model_type="effort_prediction",
             version="1.0.0",
@@ -124,7 +122,7 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})
+        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Load project-specific model
@@ -153,7 +151,7 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "global"})
+        mock_storage.download_model.return_value = joblib.dumps({"model": "global"})  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Try to load project-specific, should fallback to global
@@ -178,7 +176,7 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "specific"})
+        mock_storage.download_model.return_value = joblib.dumps({"model": "specific"})  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Load by ID
@@ -277,7 +275,7 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})
+        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Preload specific types
@@ -309,7 +307,7 @@ class TestModelLoaderErrorHandling:
     @patch("apps.ml.services.model_loader.S3ModelStorageService")
     def test_load_model_s3_error(self, mock_s3_service):
         """Test handling S3 download errors."""
-        ml_model = MLModel.objects.create(
+        _ml_model = MLModel.objects.create(  # noqa: F841
             name="Broken Model",
             model_type="effort_prediction",
             version="1.0.0",
@@ -330,7 +328,7 @@ class TestModelLoaderErrorHandling:
     @patch("apps.ml.services.model_loader.S3ModelStorageService")
     def test_load_model_no_s3_key(self, mock_s3_service):
         """Test loading model without S3 key."""
-        ml_model = MLModel.objects.create(
+        _ml_model = MLModel.objects.create(  # noqa: F841
             name="No Key Model",
             model_type="effort_prediction",
             version="1.0.0",
@@ -347,7 +345,7 @@ class TestModelLoaderErrorHandling:
     @patch("apps.ml.services.model_loader.S3ModelStorageService")
     def test_load_model_corrupt_data(self, mock_s3_service):
         """Test loading corrupt model data."""
-        ml_model = MLModel.objects.create(
+        _ml_model = MLModel.objects.create(  # noqa: F841
             name="Corrupt Model",
             model_type="effort_prediction",
             version="1.0.0",

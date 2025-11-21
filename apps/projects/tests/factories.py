@@ -1,6 +1,7 @@
 """
 Factory classes for project models.
 """
+
 import factory
 from factory.django import DjangoModelFactory
 

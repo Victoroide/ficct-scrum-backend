@@ -99,7 +99,8 @@ class IssueDetailSerializer(serializers.ModelSerializer):
 
 class IssueCreateSerializer(serializers.ModelSerializer):
     project = serializers.UUIDField(write_only=True, required=True)
-    # Accept either UUID or category string (task, bug, epic, story, improvement, sub_task)
+    # Accept either UUID or category string (task, bug, epic, story,
+    # improvement, sub_task)
     issue_type = serializers.CharField(write_only=True, required=True)
     # assignee expects user_uuid (not integer id)
     assignee = serializers.UUIDField(write_only=True, required=False, allow_null=True)
@@ -165,7 +166,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
             uuid_obj = uuid_module.UUID(value)
             # It's a valid UUID, try to fetch by ID
             try:
-                issue_type = IssueType.objects.get(id=uuid_obj)
+                _issue_type = IssueType.objects.get(id=uuid_obj)  # noqa: F841
                 return str(uuid_obj)  # Return UUID string
             except IssueType.DoesNotExist:
                 raise serializers.ValidationError(
@@ -185,10 +186,11 @@ class IssueCreateSerializer(serializers.ModelSerializer):
 
             if value_lower not in valid_categories:
                 raise serializers.ValidationError(
-                    f"Invalid issue type. Must be a valid UUID or one of: {', '.join(valid_categories)}"
+                    f"Invalid issue type. Must be a valid UUID or one of: {', '.join(valid_categories)}"  # noqa: E501
                 )
 
-            # Return the category string, will be resolved in validate() with project context
+            # Return the category string, will be resolved in validate() with project
+            # context
             return value_lower
 
     def validate_assignee(self, value):
@@ -232,7 +234,7 @@ class IssueCreateSerializer(serializers.ModelSerializer):
             if not issue_types.exists():
                 raise serializers.ValidationError(
                     {
-                        "issue_type": f"No issue type with category '{issue_type_value}' found for this project. "
+                        "issue_type": f"No issue type with category '{issue_type_value}' found for this project. "  # noqa: E501
                         f"Please create issue types for this project first."
                     }
                 )

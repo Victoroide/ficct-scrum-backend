@@ -1,6 +1,7 @@
 """
 Tests for workspace serializers.
 """
+
 import pytest
 
 from apps.authentication.tests.factories import UserFactory

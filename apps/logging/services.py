@@ -3,7 +3,6 @@ import traceback
 from typing import Any, Dict, Optional
 
 from django.contrib.auth import get_user_model
-from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils import timezone
 
@@ -300,7 +299,7 @@ class LoggerService:
 
             message = f"Alert triggered: {rule.name}"
             if rule.condition_type == "error_count":
-                message += f" - Error threshold exceeded"
+                message += " - Error threshold exceeded"
             elif rule.condition_type == "security_event":
                 message += (
                     f" - Security event detected: {data.get('action', 'Unknown')}"

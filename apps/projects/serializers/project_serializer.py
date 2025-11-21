@@ -78,7 +78,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         Validate that the user has access to the workspace.
 
         Args:
-            value: Workspace instance (automatically converted from UUID by PrimaryKeyRelatedField)
+            value: Workspace instance (automatically converted from UUID by PrimaryKeyRelatedField)  # noqa: E501
 
         Returns:
             Validated Workspace instance
@@ -114,7 +114,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ProjectTeamMemberSerializer(serializers.ModelSerializer):
     """
     Optimized serializer for ProjectTeamMember model.
-    
+
     Note: Does NOT include full project data to avoid N+1 queries.
     Client already knows project ID from URL path.
     """
@@ -152,7 +152,7 @@ class AddTeamMemberSerializer(serializers.Serializer):
         from apps.authentication.models import User
 
         try:
-            user = User.objects.get(id=value, is_active=True)
+            _user = User.objects.get(id=value, is_active=True)  # noqa: F841
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found or inactive")
         return value

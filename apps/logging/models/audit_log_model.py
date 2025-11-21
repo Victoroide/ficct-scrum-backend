@@ -56,4 +56,4 @@ class AuditLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.email} - {self.action} - {self.resource_type} - {self.created_at}"
+        return f"{self.user.email} - {self.action} - {self.resource_type} - {self.created_at}"  # noqa: E501

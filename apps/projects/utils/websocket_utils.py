@@ -8,10 +8,10 @@ from channels.layers import get_channel_layer
 def convert_uuids_to_strings(obj):
     """
     Recursively convert UUID objects to strings for msgpack serialization.
-    
+
     Args:
         obj: Object to convert (dict, list, or primitive)
-        
+
     Returns:
         Object with all UUIDs converted to strings
     """
@@ -55,10 +55,10 @@ class BoardWebSocketNotifier:
                 },
             },
         }
-        
+
         # Convert all UUIDs to strings for msgpack
         message = convert_uuids_to_strings(message)
-        
+
         async_to_sync(channel_layer.group_send)(
             f"board_{board_id}",
             message,
@@ -87,10 +87,10 @@ class BoardWebSocketNotifier:
                 },
             },
         }
-        
+
         # Convert all UUIDs to strings for msgpack
         message = convert_uuids_to_strings(message)
-        
+
         async_to_sync(channel_layer.group_send)(
             f"board_{board_id}",
             message,
@@ -121,10 +121,10 @@ class BoardWebSocketNotifier:
                 },
             },
         }
-        
+
         # Convert all UUIDs to strings for msgpack
         message = convert_uuids_to_strings(message)
-        
+
         async_to_sync(channel_layer.group_send)(
             f"board_{board_id}",
             message,
@@ -182,10 +182,10 @@ class BoardWebSocketNotifier:
                 },
             },
         }
-        
+
         # Convert all UUIDs to strings for msgpack
         message = convert_uuids_to_strings(message)
-        
+
         async_to_sync(channel_layer.group_send)(
             f"board_{board_id}",
             message,
@@ -214,10 +214,10 @@ class BoardWebSocketNotifier:
                 },
             },
         }
-        
+
         # Convert all UUIDs to strings for msgpack
         message = convert_uuids_to_strings(message)
-        
+
         async_to_sync(channel_layer.group_send)(
             f"board_{board_id}",
             message,

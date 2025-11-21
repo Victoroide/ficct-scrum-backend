@@ -9,7 +9,7 @@ Supports:
 import json
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import boto3
 from botocore.exceptions import ClientError
@@ -25,8 +25,8 @@ class BedrockProvider(BaseLLMProvider):
 
     # Model IDs in AWS Bedrock
     MODEL_IDS = {
-        ModelType.LLAMA4_MAVERICK: "us.meta.llama4-maverick-17b-instruct-v1:0",  # Llama 4 Maverick
-        ModelType.LLAMA4_SCOUT: "us.meta.llama4-scout-17b-instruct-v1:0",  # Llama 4 Scout
+        ModelType.LLAMA4_MAVERICK: "us.meta.llama4-maverick-17b-instruct-v1:0",  # Llama 4 Maverick  # noqa: E501
+        ModelType.LLAMA4_SCOUT: "us.meta.llama4-scout-17b-instruct-v1:0",  # Llama 4 Scout  # noqa: E501
     }
 
     # Maximum tokens per model (Bedrock enforced limits)
@@ -57,7 +57,7 @@ class BedrockProvider(BaseLLMProvider):
         """
         if model_type not in self.MODEL_IDS:
             raise ValueError(
-                f"Unsupported model type: {model_type}. Must be LLAMA4_MAVERICK or LLAMA4_SCOUT"
+                f"Unsupported model type: {model_type}. Must be LLAMA4_MAVERICK or LLAMA4_SCOUT"  # noqa: E501
             )
 
         super().__init__(model_type)
@@ -105,7 +105,7 @@ class BedrockProvider(BaseLLMProvider):
 
             if not aws_access_key or not aws_secret_key:
                 raise LLMError(
-                    "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY",
+                    "AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY",  # noqa: E501
                     provider="bedrock",
                 )
 
@@ -157,13 +157,13 @@ class BedrockProvider(BaseLLMProvider):
             model_limit = self.MODEL_MAX_TOKENS[self.model_type]
             if max_tokens > model_limit:
                 logger.warning(
-                    f"[BEDROCK] Requested max_tokens={max_tokens} exceeds model limit={model_limit}. "
+                    f"[BEDROCK] Requested max_tokens={max_tokens} exceeds model limit={model_limit}. "  # noqa: E501
                     f"Clamping to {model_limit}"
                 )
                 max_tokens = model_limit
 
             logger.info(
-                f"[BEDROCK] Generating with {self.model_name}, max_tokens={max_tokens}, temp={temperature}"
+                f"[BEDROCK] Generating with {self.model_name}, max_tokens={max_tokens}, temp={temperature}"  # noqa: E501
             )
 
             # Format messages in Llama 4 chat template
@@ -175,7 +175,7 @@ class BedrockProvider(BaseLLMProvider):
                 "max_gen_len": max_tokens,
                 "temperature": temperature,
                 "top_p": kwargs.get("top_p", 0.9),
-                # NOTE: stop_sequences NOT supported by Bedrock Llama 4 - cleanup with regex instead
+                # NOTE: stop_sequences NOT supported by Bedrock Llama 4 - cleanup with regex instead  # noqa: E501
             }
 
             logger.debug(
@@ -194,7 +194,7 @@ class BedrockProvider(BaseLLMProvider):
             # Parse response
             response_body = json.loads(response["body"].read())
             logger.debug(
-                f"[BEDROCK] Response body: {json.dumps(response_body, indent=2)[:500]}..."
+                f"[BEDROCK] Response body: {json.dumps(response_body, indent=2)[:500]}..."  # noqa: E501
             )
 
             # Extract generated text
@@ -322,7 +322,7 @@ class BedrockProvider(BaseLLMProvider):
             role = message.get("role", "user")
             content = message.get("content", "")
 
-            # Map 'developer' role to 'system' for Llama (Azure uses 'developer' for o-series)
+            # Map 'developer' role to 'system' for Llama (Azure uses 'developer' for o-series)  # noqa: E501
             if role == "developer":
                 role = "system"
 

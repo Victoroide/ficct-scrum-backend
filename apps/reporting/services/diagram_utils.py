@@ -21,25 +21,10 @@ class DesignSystem:
     # ========================================================================
 
     COLORS: Dict[str, str] = {
-        # Status Colors (Primary)
-        "todo": "#6C757D",  # Neutral gray
-        "in_progress": "#0052CC",  # Professional blue
-        "done": "#00875A",  # Success green
+        # Status Colors (Primary) - definitions moved below to avoid duplicates
         "backlog": "#6C757D",  # Same as todo
-        "blocked": "#DE350B",  # Alert red
         "code_review": "#5243AA",  # Review purple
         "testing": "#FF991F",  # Testing orange
-        # Status Categories (Alternative naming)
-        "status_todo": "#6C757D",
-        "status_in_progress": "#0052CC",
-        "status_done": "#00875A",
-        "status_blocked": "#DE350B",
-        # Priority Colors
-        "priority_p0": "#DE350B",  # Highest
-        "priority_p1": "#FF991F",  # High
-        "priority_p2": "#0052CC",  # Medium
-        "priority_p3": "#6C757D",  # Low
-        "priority_p4": "#97A0AF",  # Lowest
         # UI Colors
         "bg_primary": "#FFFFFF",  # White
         "bg_secondary": "#FAFBFC",  # Off-white
@@ -632,7 +617,7 @@ class BoundingBox:
         return self.left <= x <= self.right and self.top <= y <= self.bottom
 
     def __repr__(self) -> str:
-        return f"BoundingBox({self.label}: x={self.x:.1f}, y={self.y:.1f}, w={self.width:.1f}, h={self.height:.1f})"
+        return f"BoundingBox({self.label}: x={self.x:.1f}, y={self.y:.1f}, w={self.width:.1f}, h={self.height:.1f})"  # noqa: E501
 
 
 def find_non_overlapping_position(

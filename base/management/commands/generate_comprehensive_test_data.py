@@ -42,7 +42,6 @@ from apps.projects.models import (
     Board,
     BoardColumn,
     Issue,
-    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueType,
@@ -53,7 +52,6 @@ from apps.projects.models import (
     WorkflowStatus,
     WorkflowTransition,
 )
-from apps.reporting.models import ActivityLog
 from apps.workspaces.models import Workspace, WorkspaceMember
 
 User = get_user_model()
@@ -116,7 +114,7 @@ class Command(BaseCommand):
     def create_users(self):
         """Create user accounts."""
         self.stdout.write("\nCreating users...")
-        
+
         self.owner, created = User.objects.get_or_create(
             email='owner@ficct.com',
             defaults={
@@ -162,7 +160,7 @@ class Command(BaseCommand):
     def create_organization_and_workspace(self):
         """Create organization and workspace."""
         self.stdout.write("\nSetting up organization...")
-        
+
         self.main_organization, _ = Organization.objects.get_or_create(
             slug='ficct-scrum',
             defaults={
@@ -219,7 +217,7 @@ class Command(BaseCommand):
     def create_projects(self, num_projects):
         """Generate projects."""
         self.stdout.write(f"\nCreating {num_projects} projects...")
-        
+
         selected_templates = PROJECT_TEMPLATES[:num_projects]
 
         for template in selected_templates:
@@ -244,7 +242,7 @@ class Command(BaseCommand):
             roles = ['admin', 'developer', 'developer', 'viewer']
             for user in self.team_members:
                 ProjectTeamMember.objects.create(
-                    project=project, user=user, role=random.choice(roles), is_active=True
+                    project=project, user=user, role=random.choice(roles), is_active=True  # noqa: E501
                 )
 
             # Create issue types
@@ -298,12 +296,12 @@ class Command(BaseCommand):
             self.projects.append(project)
             self.stats['projects'] += 1
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['projects']} projects"))
+        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['projects']} projects"))  # noqa: E501
 
     def create_sprints(self):
         """Generate sprints."""
         self.stdout.write("\nCreating sprints...")
-        
+
         for project in self.projects:
             if project.methodology != 'scrum':
                 continue
@@ -343,7 +341,7 @@ class Command(BaseCommand):
                     start_date=start_date,
                     end_date=end_date,
                     committed_points=Decimal(random.randint(20, 50)),
-                    completed_points=Decimal(random.randint(15, 45)) if status == 'completed' else Decimal(0),
+                    completed_points=Decimal(random.randint(15, 45)) if status == 'completed' else Decimal(0),  # noqa: E501
                     created_by=self.owner,
                     completed_at=completed_at,
                 )
@@ -352,12 +350,12 @@ class Command(BaseCommand):
                 self.stats['sprints'] += 1
                 current_date = end_date + timedelta(days=1)
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['sprints']} sprints"))
+        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['sprints']} sprints"))  # noqa: E501
 
     def create_issues(self, avg_issues):
         """Generate issues."""
         self.stdout.write(f"\nCreating issues (avg {avg_issues} per project)...")
-        
+
         for project in self.projects:
             # Vary issue count by project size
             if project.status == 'completed':
@@ -378,7 +376,7 @@ class Command(BaseCommand):
                 # Select issue type with distribution
                 type_choice = random.random()
                 if type_choice < 0.50:  # 50% stories
-                    issue_type = next((it for it in issue_types if it.category == 'story'), issue_types[0])
+                    issue_type = next((it for it in issue_types if it.category == 'story'), issue_types[0])  # noqa: E501
                     title = random.choice(STORY_TEMPLATES).format(
                         action=random.choice(ACTIONS),
                         benefit=random.choice(BENEFITS),
@@ -386,7 +384,7 @@ class Command(BaseCommand):
                         area=random.choice(AREAS),
                     )
                 elif type_choice < 0.75:  # 25% tasks
-                    issue_type = next((it for it in issue_types if it.category == 'task'), issue_types[0])
+                    issue_type = next((it for it in issue_types if it.category == 'task'), issue_types[0])  # noqa: E501
                     title = random.choice(TASK_TEMPLATES).format(
                         component=random.choice(COMPONENTS),
                         technical_item=random.choice(FEATURES),
@@ -395,7 +393,7 @@ class Command(BaseCommand):
                         performance_item=random.choice(COMPONENTS),
                     )
                 elif type_choice < 0.90:  # 15% bugs
-                    issue_type = next((it for it in issue_types if it.category == 'bug'), issue_types[0])
+                    issue_type = next((it for it in issue_types if it.category == 'bug'), issue_types[0])  # noqa: E501
                     title = random.choice(BUG_TEMPLATES).format(
                         problem=random.choice(PROBLEMS),
                         area=random.choice(AREAS),
@@ -408,11 +406,11 @@ class Command(BaseCommand):
                     )
                 else:  # 10% epics/improvements
                     if random.random() < 0.5:
-                        issue_type = next((it for it in issue_types if it.category == 'epic'), issue_types[0])
-                        title = random.choice(EPIC_TEMPLATES).format(feature=random.choice(FEATURES).capitalize())
+                        issue_type = next((it for it in issue_types if it.category == 'epic'), issue_types[0])  # noqa: E501
+                        title = random.choice(EPIC_TEMPLATES).format(feature=random.choice(FEATURES).capitalize())  # noqa: E501
                     else:
-                        issue_type = next((it for it in issue_types if it.category == 'improvement'), issue_types[0])
-                        title = f"Improve {random.choice(FEATURES)} {random.choice(['performance', 'usability', 'design'])}"
+                        issue_type = next((it for it in issue_types if it.category == 'improvement'), issue_types[0])  # noqa: E501
+                        title = f"Improve {random.choice(FEATURES)} {random.choice(['performance', 'usability', 'design'])}"  # noqa: E501
 
                 # Select status
                 if project.status == 'completed':
@@ -429,7 +427,7 @@ class Command(BaseCommand):
 
                 # Create issue
                 created_at = timezone.now() - timedelta(days=random.randint(1, 120))
-                
+
                 issue = Issue.objects.create(
                     project=project,
                     issue_type=issue_type,
@@ -439,26 +437,26 @@ class Command(BaseCommand):
                     title=title[:500],  # Ensure within limit
                     description=f"Detailed description for {title[:100]}...",
                     priority=random.choice(['P1', 'P2', 'P3', 'P4']),
-                    assignee=random.choice(all_users) if random.random() < 0.8 else None,
+                    assignee=random.choice(all_users) if random.random() < 0.8 else None,  # noqa: E501
                     reporter=random.choice(all_users),
-                    story_points=random.choice([1, 2, 3, 5, 8, 13]) if issue_type.category in ['story', 'task'] else None,
-                    estimated_hours=Decimal(random.randint(1, 40)) if issue_type.category == 'task' else None,
-                    actual_hours=Decimal(random.randint(1, 35)) if status.is_final else None,
+                    story_points=random.choice([1, 2, 3, 5, 8, 13]) if issue_type.category in ['story', 'task'] else None,  # noqa: E501
+                    estimated_hours=Decimal(random.randint(1, 40)) if issue_type.category == 'task' else None,  # noqa: E501
+                    actual_hours=Decimal(random.randint(1, 35)) if status.is_final else None,  # noqa: E501
                     order=issue_counter,
                     created_at=created_at,
-                    resolved_at=created_at + timedelta(days=random.randint(1, 14)) if status.is_final else None,
+                    resolved_at=created_at + timedelta(days=random.randint(1, 14)) if status.is_final else None,  # noqa: E501
                 )
 
                 self.all_issues.append(issue)
                 self.stats['issues'] += 1
                 issue_counter += 1
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['issues']} issues"))
+        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['issues']} issues"))  # noqa: E501
 
     def create_relationships_and_details(self):
         """Create comments, links, attachments."""
         self.stdout.write("\nCreating relationships...")
-        
+
         all_users = [self.owner] + self.team_members
 
         # Create comments (2-5 per active issue)
@@ -466,7 +464,7 @@ class Command(BaseCommand):
             if random.random() < 0.6:  # 60% of issues get comments
                 num_comments = random.randint(1, 5)
                 for _ in range(num_comments):
-                    comment_date = issue.created_at + timedelta(days=random.randint(0, 10))
+                    comment_date = issue.created_at + timedelta(days=random.randint(0, 10))  # noqa: E501
                     IssueComment.objects.create(
                         issue=issue,
                         author=random.choice(all_users),
@@ -480,11 +478,11 @@ class Command(BaseCommand):
         # Create issue links (10% of issues)
         link_types = ['blocks', 'is_blocked_by', 'relates_to', 'duplicates']
         potential_links = random.sample(self.all_issues, min(len(self.all_issues), 100))
-        
+
         for source_issue in potential_links:
             if random.random() < 0.3:
                 # Find a target in the same project
-                project_issues = [i for i in self.all_issues if i.project == source_issue.project and i != source_issue]
+                project_issues = [i for i in self.all_issues if i.project == source_issue.project and i != source_issue]  # noqa: E501
                 if project_issues:
                     target_issue = random.choice(project_issues)
                     IssueLink.objects.create(
@@ -495,67 +493,67 @@ class Command(BaseCommand):
                     self.stats['links'] += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"✓ Created {self.stats['comments']} comments and {self.stats['links']} links"
+            f"✓ Created {self.stats['comments']} comments and {self.stats['links']} links"  # noqa: E501
         ))
 
     def export_to_csv(self):
         """Export data to CSV files."""
         self.stdout.write("\nExporting to CSV...")
-        
+
         csv_files = {}
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         # Export organizations
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'slug', 'owner_email', 'organization_type', 'subscription_plan', 'created_at'])
+        writer.writerow(['id', 'name', 'slug', 'owner_email', 'organization_type', 'subscription_plan', 'created_at'])  # noqa: E501
         for org in Organization.objects.all():
-            writer.writerow([str(org.id), org.name, org.slug, org.owner.email, org.organization_type, org.subscription_plan, org.created_at])
+            writer.writerow([str(org.id), org.name, org.slug, org.owner.email, org.organization_type, org.subscription_plan, org.created_at])  # noqa: E501
         csv_files['organizations.csv'] = output.getvalue()
         output.close()
 
         # Export workspaces
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'slug', 'organization_id', 'workspace_type', 'visibility', 'created_at'])
+        writer.writerow(['id', 'name', 'slug', 'organization_id', 'workspace_type', 'visibility', 'created_at'])  # noqa: E501
         for ws in Workspace.objects.all():
-            writer.writerow([str(ws.id), ws.name, ws.slug, str(ws.organization_id), ws.workspace_type, ws.visibility, ws.created_at])
+            writer.writerow([str(ws.id), ws.name, ws.slug, str(ws.organization_id), ws.workspace_type, ws.visibility, ws.created_at])  # noqa: E501
         csv_files['workspaces.csv'] = output.getvalue()
         output.close()
 
         # Export users
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'email', 'username', 'first_name', 'last_name', 'is_active', 'is_verified', 'created_at'])
+        writer.writerow(['id', 'email', 'username', 'first_name', 'last_name', 'is_active', 'is_verified', 'created_at'])  # noqa: E501
         for user in User.objects.all():
-            writer.writerow([str(user.id), user.email, user.username, user.first_name, user.last_name, user.is_active, user.is_verified, user.created_at])
+            writer.writerow([str(user.id), user.email, user.username, user.first_name, user.last_name, user.is_active, user.is_verified, user.created_at])  # noqa: E501
         csv_files['users.csv'] = output.getvalue()
         output.close()
 
         # Export projects
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'key', 'workspace_id', 'methodology', 'status', 'priority', 'lead_email', 'start_date', 'created_at'])
+        writer.writerow(['id', 'name', 'key', 'workspace_id', 'methodology', 'status', 'priority', 'lead_email', 'start_date', 'created_at'])  # noqa: E501
         for project in Project.objects.all():
-            writer.writerow([str(project.id), project.name, project.key, str(project.workspace_id), project.methodology, project.status, project.priority, project.lead.email if project.lead else '', project.start_date, project.created_at])
+            writer.writerow([str(project.id), project.name, project.key, str(project.workspace_id), project.methodology, project.status, project.priority, project.lead.email if project.lead else '', project.start_date, project.created_at])  # noqa: E501
         csv_files['projects.csv'] = output.getvalue()
         output.close()
 
         # Export sprints
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'project_key', 'name', 'status', 'start_date', 'end_date', 'committed_points', 'completed_points', 'created_at'])
+        writer.writerow(['id', 'project_key', 'name', 'status', 'start_date', 'end_date', 'committed_points', 'completed_points', 'created_at'])  # noqa: E501
         for sprint in Sprint.objects.all():
-            writer.writerow([str(sprint.id), sprint.project.key, sprint.name, sprint.status, sprint.start_date, sprint.end_date, sprint.committed_points, sprint.completed_points, sprint.created_at])
+            writer.writerow([str(sprint.id), sprint.project.key, sprint.name, sprint.status, sprint.start_date, sprint.end_date, sprint.committed_points, sprint.completed_points, sprint.created_at])  # noqa: E501
         csv_files['sprints.csv'] = output.getvalue()
         output.close()
 
         # Export issues
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'project_key', 'key', 'title', 'issue_type', 'status', 'priority', 'assignee_email', 'reporter_email', 'story_points', 'estimated_hours', 'actual_hours', 'sprint_name', 'created_at', 'resolved_at'])
-        for issue in Issue.objects.select_related('project', 'issue_type', 'status', 'assignee', 'reporter', 'sprint').all():
-            writer.writerow([str(issue.id), issue.project.key, issue.key, issue.title, issue.issue_type.name, issue.status.name, issue.priority, issue.assignee.email if issue.assignee else '', issue.reporter.email, issue.story_points, issue.estimated_hours, issue.actual_hours, issue.sprint.name if issue.sprint else '', issue.created_at, issue.resolved_at])
+        writer.writerow(['id', 'project_key', 'key', 'title', 'issue_type', 'status', 'priority', 'assignee_email', 'reporter_email', 'story_points', 'estimated_hours', 'actual_hours', 'sprint_name', 'created_at', 'resolved_at'])  # noqa: E501
+        for issue in Issue.objects.select_related('project', 'issue_type', 'status', 'assignee', 'reporter', 'sprint').all():  # noqa: E501
+            writer.writerow([str(issue.id), issue.project.key, issue.key, issue.title, issue.issue_type.name, issue.status.name, issue.priority, issue.assignee.email if issue.assignee else '', issue.reporter.email, issue.story_points, issue.estimated_hours, issue.actual_hours, issue.sprint.name if issue.sprint else '', issue.created_at, issue.resolved_at])  # noqa: E501
         csv_files['issues.csv'] = output.getvalue()
         output.close()
 
@@ -564,24 +562,24 @@ class Command(BaseCommand):
         writer = csv.writer(output)
         writer.writerow(['id', 'issue_key', 'author_email', 'content', 'created_at'])
         for comment in IssueComment.objects.select_related('issue', 'author').all():
-            writer.writerow([str(comment.id), f"{comment.issue.project.key}-{comment.issue.key}", comment.author.email, comment.content, comment.created_at])
+            writer.writerow([str(comment.id), f"{comment.issue.project.key}-{comment.issue.key}", comment.author.email, comment.content, comment.created_at])  # noqa: E501
         csv_files['comments.csv'] = output.getvalue()
         output.close()
 
         # Export issue links
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'source_issue_key', 'target_issue_key', 'link_type', 'created_at'])
-        for link in IssueLink.objects.select_related('source_issue', 'target_issue').all():
-            writer.writerow([str(link.id), f"{link.source_issue.project.key}-{link.source_issue.key}", f"{link.target_issue.project.key}-{link.target_issue.key}", link.link_type, link.created_at])
+        writer.writerow(['id', 'source_issue_key', 'target_issue_key', 'link_type', 'created_at'])  # noqa: E501
+        for link in IssueLink.objects.select_related('source_issue', 'target_issue').all():  # noqa: E501
+            writer.writerow([str(link.id), f"{link.source_issue.project.key}-{link.source_issue.key}", f"{link.target_issue.project.key}-{link.target_issue.key}", link.link_type, link.created_at])  # noqa: E501
         csv_files['issue_links.csv'] = output.getvalue()
         output.close()
 
         # Export metadata
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['generated_at', 'total_users', 'total_organizations', 'total_workspaces', 'total_projects', 'total_sprints', 'total_issues', 'total_comments', 'total_links'])
-        writer.writerow([timestamp, self.stats['users'], self.stats['organizations'], self.stats['workspaces'], self.stats['projects'], self.stats['sprints'], self.stats['issues'], self.stats['comments'], self.stats['links']])
+        writer.writerow(['generated_at', 'total_users', 'total_organizations', 'total_workspaces', 'total_projects', 'total_sprints', 'total_issues', 'total_comments', 'total_links'])  # noqa: E501
+        writer.writerow([timestamp, self.stats['users'], self.stats['organizations'], self.stats['workspaces'], self.stats['projects'], self.stats['sprints'], self.stats['issues'], self.stats['comments'], self.stats['links']])  # noqa: E501
         csv_files['metadata.csv'] = output.getvalue()
         output.close()
 
@@ -591,7 +589,7 @@ class Command(BaseCommand):
     def upload_to_s3(self, csv_files):
         """Upload CSV files to S3."""
         self.stdout.write("\nUploading to S3...")
-        
+
         if not settings.USE_S3:
             self.stdout.write(self.style.WARNING("  ! S3 is disabled, skipping upload"))
             return
@@ -612,7 +610,7 @@ class Command(BaseCommand):
 
             for filename, content in csv_files.items():
                 s3_key = s3_folder + filename
-                
+
                 s3_client.put_object(
                     Bucket=bucket_name,
                     Key=s3_key,
@@ -624,7 +622,7 @@ class Command(BaseCommand):
                 uploaded_urls.append(url)
                 self.stdout.write(f"  ✓ Uploaded {filename}")
 
-            self.stdout.write(self.style.SUCCESS(f"\n✓ Uploaded {len(csv_files)} files to S3"))
+            self.stdout.write(self.style.SUCCESS(f"\n✓ Uploaded {len(csv_files)} files to S3"))  # noqa: E501
             self.stdout.write(f"  S3 Location: s3://{bucket_name}/{s3_folder}")
 
         except Exception as e:
@@ -633,27 +631,27 @@ class Command(BaseCommand):
     def sync_to_pinecone(self):
         """Sync vectors to Pinecone."""
         self.stdout.write("\nSyncing to Pinecone...")
-        
+
         try:
             from django.core.management import call_command
-            
+
             self.stdout.write("  Syncing projects...")
-            call_command('sync_pinecone_vectors', '--namespace=projects', '--batch-size=100')
-            
+            call_command('sync_pinecone_vectors', '--namespace=projects', '--batch-size=100')  # noqa: E501
+
             self.stdout.write("  Syncing issues...")
-            call_command('sync_pinecone_vectors', '--namespace=issues', '--batch-size=100')
-            
+            call_command('sync_pinecone_vectors', '--namespace=issues', '--batch-size=100')  # noqa: E501
+
             self.stdout.write("  Syncing sprints...")
-            call_command('sync_pinecone_vectors', '--namespace=sprints', '--batch-size=100')
-            
+            call_command('sync_pinecone_vectors', '--namespace=sprints', '--batch-size=100')  # noqa: E501
+
             self.stdout.write("  Syncing users...")
-            call_command('sync_pinecone_vectors', '--namespace=users', '--batch-size=100')
-            
+            call_command('sync_pinecone_vectors', '--namespace=users', '--batch-size=100')  # noqa: E501
+
             self.stdout.write(self.style.SUCCESS("✓ Pinecone sync complete"))
-            
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ✗ Pinecone sync failed: {str(e)}"))
-            self.stdout.write("  Note: Make sure Pinecone is configured and sync command exists")
+            self.stdout.write("  Note: Make sure Pinecone is configured and sync command exists")  # noqa: E501
 
     def print_summary(self):
         """Print generation summary."""

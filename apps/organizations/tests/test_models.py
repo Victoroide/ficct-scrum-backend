@@ -1,12 +1,12 @@
 """
 Tests for organization models.
 """
+
 from django.db import IntegrityError
 
 import pytest
 
 from apps.authentication.tests.factories import UserFactory
-from apps.organizations.models import Organization, OrganizationMembership
 from apps.organizations.tests.factories import (
     OrganizationFactory,
     OrganizationMembershipFactory,

@@ -7,19 +7,20 @@ This module contains the complete implementation of all 7 data generation steps.
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List
-from django.utils import timezone
+from typing import Any, Dict
+
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from apps.projects.models import (
-    Project,
-    Sprint,
     Issue,
+    IssueLink,
     IssueType,
+    Project,
+    ProjectTeamMember,
+    Sprint,
     WorkflowStatus,
     WorkflowTransition,
-    ProjectTeamMember,
-    IssueLink,
 )
 
 User = get_user_model()
@@ -496,7 +497,7 @@ def generate_issues_impl(command, plan: Dict[str, Any]) -> None:
                 title = f"{title} #{issue_counter[project.key]}"
 
                 # Generate description
-                description = f"Detailed implementation of {title.lower()}. This involves several technical components and requires careful consideration of architecture, performance, and user experience."
+                description = f"Detailed implementation of {title.lower()}. This involves several technical components and requires careful consideration of architecture, performance, and user experience."  # noqa: E501
 
                 # Assign story points from Fibonacci
                 if issue_type == "epic":
@@ -697,7 +698,7 @@ def inject_anomalies_impl(command) -> None:
                 sprint=sprint,
                 key=str(Issue.objects.filter(project=project).count() + 1),
                 title=f"Unplanned task added mid-sprint #{i+1}",
-                description="This was added after sprint planning due to urgent client request",
+                description="This was added after sprint planning due to urgent client request",  # noqa: E501
                 priority="P1",  # High priority
                 assignee=None,  # Unassigned
                 reporter=command.user,
@@ -741,24 +742,26 @@ def inject_anomalies_impl(command) -> None:
     # Create epic with very wrong estimates
     if len(command.generated_projects) >= 4:
         project = command.generated_projects[3]
-        epic = Issue.objects.create(
+        _epic = Issue.objects.create(  # noqa: F841
             project=project,
             issue_type=command.issue_types[project.key]["epic"],
             status=command.workflow_statuses[project.key]["Done"],
-            sprint=[
-                s
-                for s in command.generated_sprints
-                if s.project == project and s.status == "completed"
-            ][0]
-            if [
-                s
-                for s in command.generated_sprints
-                if s.project == project and s.status == "completed"
-            ]
-            else None,
+            sprint=(
+                [
+                    s
+                    for s in command.generated_sprints
+                    if s.project == project and s.status == "completed"
+                ][0]
+                if [
+                    s
+                    for s in command.generated_sprints
+                    if s.project == project and s.status == "completed"
+                ]
+                else None
+            ),
             key=str(Issue.objects.filter(project=project).count() + 1),
             title="Grossly underestimated major feature",
-            description="This epic was estimated at 13 points but actually took 5x longer",
+            description="This epic was estimated at 13 points but actually took 5x longer",  # noqa: E501
             priority="P1",
             assignee=command.user,
             reporter=command.user,

@@ -19,8 +19,7 @@ Diagram Types:
 """
 
 import logging
-from datetime import timedelta
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -276,9 +275,11 @@ class DiagramDataService:
                 "key": issue.key,
                 "summary": issue.title,
                 "status": issue.status.name if issue.status else "Unknown",
-                "status_color": self._get_status_color(issue.status.category)
-                if issue.status
-                else "#5E6C84",
+                "status_color": (
+                    self._get_status_color(issue.status.category)
+                    if issue.status
+                    else "#5E6C84"
+                ),
                 "priority": issue.priority or "none",
                 "priority_color": self._get_priority_color(issue.priority),
                 "assignee": assignee,
@@ -301,7 +302,7 @@ class DiagramDataService:
         issue_uuid_list = [issue.id for issue in issues]
 
         logger.debug(
-            f"Querying IssueLinks where source or target in {len(issue_uuid_list)} issues"
+            f"Querying IssueLinks where source or target in {len(issue_uuid_list)} issues"  # noqa: E501
         )
 
         links = IssueLink.objects.filter(
@@ -320,7 +321,7 @@ class DiagramDataService:
                 Q(source_issue__project=project) | Q(target_issue__project=project)
             ).count()
             logger.warning(
-                f"No links found for filtered issues. Total links in project: {total_links}"
+                f"No links found for filtered issues. Total links in project: {total_links}"  # noqa: E501
             )
 
         for link in links:
@@ -328,7 +329,7 @@ class DiagramDataService:
             target_id = str(link.target_issue.id)
 
             logger.debug(
-                f"Processing link: {link.source_issue.key} {link.link_type} {link.target_issue.key}"
+                f"Processing link: {link.source_issue.key} {link.link_type} {link.target_issue.key}"  # noqa: E501
             )
 
             # Only include if both nodes are in the filtered set
@@ -374,7 +375,7 @@ class DiagramDataService:
                 )
             else:
                 logger.debug(
-                    f"Skipped link (nodes not in filtered set): {source_id} -> {target_id}"
+                    f"Skipped link (nodes not in filtered set): {source_id} -> {target_id}"  # noqa: E501
                 )
 
         logger.info(f"Built {len(edges)} edges from {link_count} links")
@@ -396,9 +397,11 @@ class DiagramDataService:
             ).count()
             metadata["debug"] = {
                 "total_links_in_project": total_project_links,
-                "message": "No dependencies found between filtered issues"
-                if total_project_links > 0
-                else "No issue links exist in this project yet",
+                "message": (
+                    "No dependencies found between filtered issues"
+                    if total_project_links > 0
+                    else "No issue links exist in this project yet"
+                ),
             }
 
         return {

@@ -22,6 +22,7 @@ class LoginView(APIView):
     )
     def post(self, request, *args, **kwargs):
         from django.contrib.auth import authenticate
+
         from rest_framework.authtoken.models import Token
 
         email = request.data.get("email")

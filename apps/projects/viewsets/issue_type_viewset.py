@@ -17,7 +17,7 @@ from apps.projects.serializers.issue_type_serializer import (
         tags=["Issues"],
         operation_id="issue_types_list",
         summary="List Issue Types",
-        description="List available issue types for projects user has access to. Filter by project UUID.",
+        description="List available issue types for projects user has access to. Filter by project UUID.",  # noqa: E501
     ),
     retrieve=extend_schema(
         tags=["Issues"],
@@ -58,8 +58,6 @@ class IssueTypeViewSet(viewsets.ReadOnlyModelViewSet):
 
         # User can see issue types from projects they have access to
         # Through project membership OR workspace membership
-        from apps.projects.models import ProjectTeamMember
-        from apps.workspaces.models import WorkspaceMember
 
         accessible_projects = Q(
             project__team_members__user=user, project__team_members__is_active=True

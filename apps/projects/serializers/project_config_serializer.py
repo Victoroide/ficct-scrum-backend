@@ -8,7 +8,7 @@ class ProjectConfigSerializer(serializers.ModelSerializer):
     """
     Serializer for ProjectConfiguration model.
 
-    Handles both creation (accepts project UUID) and retrieval (returns nested project details).
+    Handles both creation (accepts project UUID) and retrieval (returns nested project details).  # noqa: E501
     The slack_webhook_url field is completely optional.
     """
 

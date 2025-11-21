@@ -6,7 +6,7 @@ NO real API calls are made during tests.
 """
 
 import hashlib
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -89,7 +89,7 @@ class TestRAGService:
         )
 
         # Try to reindex (should skip)
-        result = self.service.index_issue(str(issue.id), force_reindex=False)
+        self.service.index_issue(str(issue.id), force_reindex=False)
 
         # Should not call OpenAI or Pinecone since content unchanged
         mock_openai.generate_embedding.assert_not_called()

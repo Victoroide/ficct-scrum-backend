@@ -28,7 +28,6 @@ def reindex_stale_issues(self):
     try:
         from apps.ai_assistant.models import IssueEmbedding
         from apps.ai_assistant.services import RAGService
-        from apps.projects.models import Issue
 
         logger.info("Starting stale issues reindexing task")
 

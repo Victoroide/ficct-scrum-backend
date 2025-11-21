@@ -1,13 +1,20 @@
+import itertools
+import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
 from django.utils import timezone
 
-from github import Github, GithubException
+from github import BadCredentialsException, Github, GithubException
+
+if TYPE_CHECKING:
+    from apps.integrations.models import GitHubCommit, GitHubIntegration, GitHubPullRequest  # noqa: E501
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubService:
@@ -88,7 +95,7 @@ class GitHubService:
         if not repository.repository_owner or not repository.repository_name:
             raise ValueError(
                 f"Repository owner/name not properly configured. "
-                f"Owner: {repository.repository_owner}, Name: {repository.repository_name}. "
+                f"Owner: {repository.repository_owner}, Name: {repository.repository_name}. "  # noqa: E501
                 f"Please reconnect the integration."
             )
 
@@ -105,10 +112,6 @@ class GitHubService:
             g = Github(access_token)
             repo_full_name = repository.repository_full_name
 
-            # Log what we're trying to sync
-            import logging
-
-            logger = logging.getLogger(__name__)
             logger.info(f"[Sync Commits] Attempting to sync: {repo_full_name}")
 
             repo = g.get_repo(repo_full_name)
@@ -116,8 +119,27 @@ class GitHubService:
             since_date = since or (timezone.now() - timedelta(days=30))
             commits = repo.get_commits(since=since_date)
 
+            # Check if repository has any commits
+            total_commits = commits.totalCount
+            logger.info(
+                f"[Sync Commits] Repository {repo_full_name} has "
+                f"{total_commits} commits since {since_date}"
+            )
+
+            if total_commits == 0:
+                logger.info(
+                    f"[Sync Commits] No commits found in {repo_full_name} "
+                    f"since {since_date}. Repository may be empty or newly created."
+                )
+                repository.sync_status = "idle"
+                repository.last_sync_at = timezone.now()
+                repository.save()
+                return 0
+
             synced_count = 0
-            for commit in commits[:100]:
+            # Use itertools.islice for safe iteration of PaginatedList
+            # Limit to 100 commits to avoid excessive processing
+            for commit in itertools.islice(commits, 100):
                 commit_obj, created = GitHubCommit.objects.get_or_create(
                     repository=repository,
                     sha=commit.sha,
@@ -143,7 +165,22 @@ class GitHubService:
             repository.last_sync_at = timezone.now()
             repository.save()
 
+            logger.info(
+                f"[Sync Commits] Successfully synced {synced_count} commits "
+                f"for {repo_full_name}"
+            )
             return synced_count
+
+        except BadCredentialsException as e:
+            repository.sync_status = "error"
+            repository.save()
+            logger.error(
+                f"[Sync Commits] Bad credentials for {repo_full_name}: {str(e)}"
+            )
+            raise ValueError(
+                "GitHub authentication failed. Token is invalid or expired. "
+                "Please reconnect the integration."
+            )
 
         except GithubException as e:
             repository.sync_status = "error"
@@ -162,23 +199,67 @@ class GitHubService:
                 )
             elif e.status == 403:
                 raise ValueError(
-                    "GitHub access forbidden. Your token may lack required permissions (repo scope). "
+                    "GitHub access forbidden. Your token may lack required permissions (repo scope). "  # noqa: E501
                     "Please reconnect with proper permissions."
                 )
             else:
+                logger.error(
+                    f"[Sync Commits] GitHub API error for {repo_full_name}: "
+                    f"Status {e.status}, Message: {str(e)}"
+                )
                 raise Exception(f"GitHub API error ({e.status}): {str(e)}")
+
+        except IndexError as e:
+            # Fallback handler for any slicing/indexing issues
+            repository.sync_status = "error"
+            repository.save()
+            logger.error(
+                f"[Sync Commits] IndexError accessing commits for "
+                f"{repo_full_name}: {str(e)}. Repository may be empty."
+            )
+            raise ValueError(
+                f"Unable to access commits for repository '{repo_full_name}'. "
+                "The repository may be empty or have access restrictions."
+            )
+
+        except Exception as e:  # noqa: F841
+            # Catch-all for unexpected errors
+            repository.sync_status = "error"
+            repository.save()
+            logger.exception(
+                f"[Sync Commits] Unexpected error syncing {repo_full_name}"
+            )
+            raise
 
     def sync_pull_requests(self, repository: "GitHubIntegration") -> int:
         from apps.integrations.models import GitHubPullRequest
 
+        repo_full_name = repository.repository_full_name
+
         try:
+            logger.info(f"[Sync PRs] Attempting to sync: {repo_full_name}")
+
             g = Github(repository.get_access_token())
-            repo = g.get_repo(repository.repository_full_name)
+            repo = g.get_repo(repo_full_name)
 
             pulls = repo.get_pulls(state="all", sort="updated", direction="desc")
 
+            # Check if repository has any pull requests
+            total_pulls = pulls.totalCount
+            logger.info(
+                f"[Sync PRs] Repository {repo_full_name} has {total_pulls} "
+                f"pull requests"
+            )
+
+            if total_pulls == 0:
+                logger.info(
+                    f"[Sync PRs] No pull requests found in {repo_full_name}"
+                )
+                return 0
+
             synced_count = 0
-            for pr in pulls[:50]:
+            # Use itertools.islice for safe iteration of PaginatedList
+            for pr in itertools.islice(pulls, 50):
                 state = "merged" if pr.merged else pr.state
                 pr_obj, created = GitHubPullRequest.objects.update_or_create(
                     repository=repository,
@@ -209,10 +290,42 @@ class GitHubService:
                 if issue_keys:
                     self.link_pr_to_issues(pr_obj, issue_keys)
 
+            logger.info(
+                f"[Sync PRs] Successfully synced {synced_count} pull requests "
+                f"for {repo_full_name}"
+            )
             return synced_count
 
+        except BadCredentialsException as e:
+            logger.error(
+                f"[Sync PRs] Bad credentials for {repo_full_name}: {str(e)}"
+            )
+            raise ValueError(
+                "GitHub authentication failed. Token is invalid or expired. "
+                "Please reconnect the integration."
+            )
+
         except GithubException as e:
+            logger.error(
+                f"[Sync PRs] GitHub API error for {repo_full_name}: {str(e)}"
+            )
             raise Exception(f"GitHub API error: {str(e)}")
+
+        except IndexError as e:
+            logger.error(
+                f"[Sync PRs] IndexError accessing pull requests for "
+                f"{repo_full_name}: {str(e)}. Repository may have no PRs."
+            )
+            raise ValueError(
+                f"Unable to access pull requests for repository '{repo_full_name}'. "
+                "The repository may have no pull requests."
+            )
+
+        except Exception as e:  # noqa: F841
+            logger.exception(
+                f"[Sync PRs] Unexpected error syncing {repo_full_name}"
+            )
+            raise
 
     def parse_commit_message(self, message: str) -> List[str]:
         pattern = r"\b([A-Z]+-\d+)\b"

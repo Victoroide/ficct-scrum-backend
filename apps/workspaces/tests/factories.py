@@ -1,6 +1,7 @@
 """
 Factory classes for workspace models.
 """
+
 import factory
 from factory.django import DjangoModelFactory
 

@@ -2,6 +2,7 @@
 Serializers for organization invitation system.
 Handles email-based invitations for both existing and new users.
 """
+
 import secrets
 from datetime import timedelta
 
@@ -23,7 +24,7 @@ from base.serializers import OrganizationBasicSerializer, UserBasicSerializer
 class OrganizationInvitationCreateSerializer(serializers.Serializer):
     """
     Serializer for creating invitations by email.
-    Handles both existing users (creates membership directly) and new users (creates invitation).
+    Handles both existing users (creates membership directly) and new users (creates invitation).  # noqa: E501
     """
 
     organization = serializers.UUIDField(write_only=True)
@@ -104,7 +105,7 @@ class OrganizationInvitationCreateSerializer(serializers.Serializer):
         organization = validated_data["_organization"]
         role = validated_data["role"]
         message = validated_data.get("message", "")
-        inviting_membership = validated_data["_membership"]
+        validated_data["_membership"]
         request = self.context.get("request")
 
         # Check if user exists

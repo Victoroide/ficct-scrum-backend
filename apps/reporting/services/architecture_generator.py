@@ -4,12 +4,12 @@ Architecture Generator
 Analyzes LOCAL Django application architecture by component RESPONSIBILITY.
 Uses Django introspection to classify ViewSets, Services, Models, etc.
 """
+
 import inspect
 import logging
 from typing import Dict, List
 
 from django.apps import apps
-from django.db import models as django_models
 from django.utils import timezone
 
 from rest_framework import serializers as drf_serializers
@@ -160,7 +160,7 @@ class ArchitectureGenerator:
             layers.append(
                 {
                     "name": "Presentation Layer",
-                    "description": "Handles HTTP requests, API endpoints, data serialization",
+                    "description": "Handles HTTP requests, API endpoints, data serialization",  # noqa: E501
                     "components": presentation_components,
                 }
             )
@@ -169,7 +169,7 @@ class ArchitectureGenerator:
             layers.append(
                 {
                     "name": "Business Logic Layer",
-                    "description": "Contains business rules, services, and domain logic",
+                    "description": "Contains business rules, services, and domain logic",  # noqa: E501
                     "components": business_components,
                 }
             )
@@ -187,7 +187,7 @@ class ArchitectureGenerator:
             layers.append(
                 {
                     "name": "Infrastructure Layer",
-                    "description": "Cross-cutting concerns: auth, middleware, integrations",
+                    "description": "Cross-cutting concerns: auth, middleware, integrations",  # noqa: E501
                     "components": infrastructure_components,
                 }
             )
@@ -444,7 +444,7 @@ class ArchitectureGenerator:
     def _get_layer_description(self, layer_name: str) -> str:
         """Get description for a layer."""
         descriptions = {
-            "Presentation Layer": "Handles HTTP requests, API endpoints, views, and serializers",
+            "Presentation Layer": "Handles HTTP requests, API endpoints, views, and serializers",  # noqa: E501
             "Business Logic Layer": "Contains business rules, services, and use cases",
             "Data Access Layer": "Manages data persistence, models, and repositories",
             "Utilities": "Common utilities, helpers, and shared functions",

@@ -27,7 +27,7 @@ class DiagramCache(models.Model):
     diagram_type = models.CharField(max_length=20, choices=DIAGRAM_TYPE_CHOICES)
     diagram_data = models.JSONField(
         default=dict,
-        help_text="Diagram data as JSON object (for JSON format) or string (for SVG/PNG)",
+        help_text="Diagram data as JSON object (for JSON format) or string (for SVG/PNG)",  # noqa: E501
     )
     format = models.CharField(max_length=10, choices=FORMAT_CHOICES, default="svg")
     generated_by = models.ForeignKey(

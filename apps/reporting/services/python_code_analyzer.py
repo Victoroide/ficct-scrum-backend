@@ -4,9 +4,10 @@ Python Code Analyzer
 Analyzes Python source code to extract classes, methods, imports, and relationships.
 Uses regex patterns and heuristics (no full AST parsing for simplicity).
 """
+
 import logging
 import re
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -249,9 +250,11 @@ class PythonCodeAnalyzer:
                     {
                         "from_module": from_module,
                         "import_name": item.strip(),
-                        "is_relative": from_module and from_module.startswith(".")
-                        if from_module
-                        else False,
+                        "is_relative": (
+                            from_module and from_module.startswith(".")
+                            if from_module
+                            else False
+                        ),
                     }
                 )
 

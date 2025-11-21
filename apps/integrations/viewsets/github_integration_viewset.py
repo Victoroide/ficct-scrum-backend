@@ -16,45 +16,48 @@ from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
-from apps.integrations.models import GitHubIntegration
-from apps.integrations.permissions import CanManageIntegrations, CanViewIntegrations
-from apps.integrations.serializers import (
+from apps.integrations.models import GitHubIntegration  # noqa: E402
+from apps.integrations.permissions import (  # noqa: E402
+    CanManageIntegrations,
+    CanViewIntegrations,
+)
+from apps.integrations.serializers import (  # noqa: E402
     GitHubIntegrationDetailSerializer,
     GitHubIntegrationSerializer,
 )
-from apps.integrations.services.github_service import GitHubService
+from apps.integrations.services.github_service import GitHubService  # noqa: E402
 
 
 @extend_schema_view(
     list=extend_schema(
         summary="List GitHub integrations",
         tags=["Integrations"],
-        description="Returns all GitHub integrations the user has access to. Filter by project using ?project={uuid}",
+        description="Returns all GitHub integrations the user has access to. Filter by project using ?project={uuid}",  # noqa: E501
     ),
     retrieve=extend_schema(
         summary="Get GitHub integration details",
         tags=["Integrations"],
-        description="Returns detailed information about a specific GitHub integration including commit and PR counts",
+        description="Returns detailed information about a specific GitHub integration including commit and PR counts",  # noqa: E501
     ),
     create=extend_schema(
         summary="Connect GitHub repository (Direct - Use OAuth flow instead)",
         tags=["Integrations"],
         description="""
-        **IMPORTANT**: This endpoint requires a GitHub Personal Access Token. 
+        **IMPORTANT**: This endpoint requires a GitHub Personal Access Token.
         For production use, prefer the OAuth flow: POST /oauth/initiate/
-        
+
         **Required Fields**:
         - project (UUID): Project to connect integration to
         - repository_url (string): GitHub repository URL (https://github.com/owner/repo)
-        - access_token (string): GitHub Personal Access Token with 'repo' and 'read:user' scopes
-        
+        - access_token (string): GitHub Personal Access Token with 'repo' and 'read:user' scopes  # noqa: E501
+
         **Optional Fields**:
         - sync_commits (boolean): Auto-sync commits (default: true)
         - sync_pull_requests (boolean): Auto-sync pull requests (default: true)
         - auto_link_commits (boolean): Auto-link commits to issues (default: true)
-        
-        **Permissions**: User must be Project owner/admin, Workspace admin, or Organization owner/admin
-        
+
+        **Permissions**: User must be Project owner/admin, Workspace admin, or Organization owner/admin  # noqa: E501
+
         **Recommended**: Use POST /oauth/initiate/ for secure OAuth flow
         """,
         request={
@@ -89,7 +92,7 @@ from apps.integrations.services.github_service import GitHubService
                     "auto_link_commits": {
                         "type": "boolean",
                         "default": True,
-                        "description": "Auto-link commits to issues based on commit messages",
+                        "description": "Auto-link commits to issues based on commit messages",  # noqa: E501
                     },
                 },
                 "required": ["project", "repository_url", "access_token"],
@@ -103,7 +106,7 @@ from apps.integrations.services.github_service import GitHubService
                         "example": {
                             "id": "uuid-of-integration",
                             "project": "uuid-of-project",
-                            "repository_url": "https://github.com/Victoroide/ficct-scrum-backend",
+                            "repository_url": "https://github.com/Victoroide/ficct-scrum-backend",  # noqa: E501
                             "repository_owner": "Victoroide",
                             "repository_name": "ficct-scrum-backend",
                             "repository_full_name": "Victoroide/ficct-scrum-backend",
@@ -121,21 +124,21 @@ from apps.integrations.services.github_service import GitHubService
                             "missing_project": {
                                 "value": {
                                     "project": [
-                                        "Field 'project' is required to create GitHub integration"
+                                        "Field 'project' is required to create GitHub integration"  # noqa: E501
                                     ]
                                 }
                             },
                             "missing_token": {
                                 "value": {
                                     "access_token": [
-                                        "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."
+                                        "Field 'access_token' is required to create GitHub integration. Use OAuth flow (/oauth/initiate/) for automatic token handling."  # noqa: E501
                                     ]
                                 }
                             },
                             "invalid_url": {
                                 "value": {
                                     "repository_url": [
-                                        "Repository URL must be a valid GitHub repository URL"
+                                        "Repository URL must be a valid GitHub repository URL"  # noqa: E501
                                     ]
                                 }
                             },
@@ -150,12 +153,12 @@ from apps.integrations.services.github_service import GitHubService
                         "examples": {
                             "missing_project_field": {
                                 "value": {
-                                    "detail": "Missing required field 'project'. Please provide project ID in request body."
+                                    "detail": "Missing required field 'project'. Please provide project ID in request body."  # noqa: E501
                                 }
                             },
                             "no_permission": {
                                 "value": {
-                                    "detail": "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
+                                    "detail": "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."  # noqa: E501
                                 }
                             },
                         }
@@ -175,7 +178,7 @@ from apps.integrations.services.github_service import GitHubService
     destroy=extend_schema(
         summary="Disconnect GitHub repository",
         tags=["Integrations"],
-        description="Removes GitHub integration from project. Commits and PRs are preserved but no longer synced.",
+        description="Removes GitHub integration from project. Commits and PRs are preserved but no longer synced.",  # noqa: E501
     ),
 )
 class GitHubIntegrationViewSet(viewsets.ModelViewSet):
@@ -482,7 +485,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         state = request.query_params.get("state")
 
         logger.info(
-            f"[OAuth Callback] Received callback with state: {state[:10] if state else 'None'}..."
+            f"[OAuth Callback] Received callback with state: {state[:10] if state else 'None'}..."  # noqa: E501
         )
 
         if not code or not state:
@@ -506,12 +509,12 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "status": "error",
-                    "error": "Invalid or expired state parameter. Please restart the OAuth flow.",
+                    "error": "Invalid or expired state parameter. Please restart the OAuth flow.",  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        logger.info(f"[OAuth Callback] State validated successfully from cache")
+        logger.info("[OAuth Callback] State validated successfully from cache")
         logger.debug(f"[OAuth Callback] Retrieved data: {stored_data}")
 
         # Validate state age (extra security - should not exceed 15 minutes)
@@ -586,7 +589,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             if not access_token:
                 # Redirect to frontend with error
                 frontend_url = settings.FRONTEND_URL
-                error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=no_token"
+                error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=no_token"  # noqa: E501
                 return redirect(error_url)
 
             # Store access_token temporarily in Redis for repository selection
@@ -608,13 +611,14 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
 
             logger.info(
                 f"[OAuth Callback] Access token stored temporarily. "
-                f"Temp ID: {temp_token_id[:10]}..., Project: {project_id}, User: {user_id}"
+                f"Temp ID: {temp_token_id[:10]}..., Project: {project_id}, User: {user_id}"  # noqa: E501
             )
 
             # Redirect to frontend repository selection page
-            # Frontend expects: /projects/github/oauth/callback?github=select_repo&temp_token=XXX
+            # Frontend expects:
+            # /projects/github/oauth/callback?github=select_repo&temp_token=XXX
             frontend_url = settings.FRONTEND_URL
-            redirect_url = f"{frontend_url}/projects/github/oauth/callback?github=select_repo&temp_token={temp_token_id}"
+            redirect_url = f"{frontend_url}/projects/github/oauth/callback?github=select_repo&temp_token={temp_token_id}"  # noqa: E501
 
             logger.info(f"[OAuth Callback] Redirecting to frontend: {redirect_url}")
             return redirect(redirect_url)
@@ -625,7 +629,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             )
             # Redirect to frontend with error
             frontend_url = settings.FRONTEND_URL
-            error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=server_error"
+            error_url = f"{frontend_url}/projects/{project_id}/settings/integrations?github=error&message=server_error"  # noqa: E501
             return redirect(error_url)
 
     @extend_schema(
@@ -700,7 +704,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             )
             return Response(
                 {
-                    "error": "Temporary token expired or invalid. Please restart OAuth flow."
+                    "error": "Temporary token expired or invalid. Please restart OAuth flow."  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -712,7 +716,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         # Verify the requesting user is the same as the one who initiated OAuth
         if str(request.user.id) != str(user_id):
             logger.warning(
-                f"[List Repos] User mismatch. Expected: {user_id}, Got: {request.user.id}"
+                f"[List Repos] User mismatch. Expected: {user_id}, Got: {request.user.id}"  # noqa: E501
             )
             return Response(
                 {"error": "Unauthorized. Token belongs to different user."},
@@ -742,7 +746,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 )
 
             logger.info(
-                f"[List Repos] Retrieved {len(repos_data)} repositories for user {user_id}"
+                f"[List Repos] Retrieved {len(repos_data)} repositories for user {user_id}"  # noqa: E501
             )
 
             return Response(
@@ -800,7 +804,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
     )
     def complete_integration(self, request):
         """
-        Complete GitHub integration by creating GitHubIntegration with selected repository.
+        Complete GitHub integration by creating GitHubIntegration with selected repository.  # noqa: E501
         Called by frontend after user selects a repository.
         """
         temp_token = request.data.get("temp_token")
@@ -811,7 +815,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             logger.error("[Complete Integration] Missing required fields")
             return Response(
                 {
-                    "error": "Missing required fields: temp_token, repository_url, repository_name"
+                    "error": "Missing required fields: temp_token, repository_url, repository_name"  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -826,7 +830,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
             )
             return Response(
                 {
-                    "error": "Temporary token expired or invalid. Please restart OAuth flow."
+                    "error": "Temporary token expired or invalid. Please restart OAuth flow."  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -841,7 +845,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
         # Verify the requesting user is the same as the one who initiated OAuth
         if str(request.user.id) != str(user_id):
             logger.warning(
-                f"[Complete Integration] User mismatch. Expected: {user_id}, Got: {request.user.id}"
+                f"[Complete Integration] User mismatch. Expected: {user_id}, Got: {request.user.id}"  # noqa: E501
             )
             return Response(
                 {"error": "Unauthorized. Token belongs to different user."},
@@ -871,7 +875,7 @@ class GitHubIntegrationViewSet(viewsets.ModelViewSet):
                 )
 
             logger.info(
-                f"[Complete Integration] Parsed repository: owner={repository_owner}, name={repo_name_only}"
+                f"[Complete Integration] Parsed repository: owner={repository_owner}, name={repo_name_only}"  # noqa: E501
             )
 
             integration = GitHubIntegration.objects.create(

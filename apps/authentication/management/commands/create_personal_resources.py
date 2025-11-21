@@ -166,9 +166,11 @@ class Command(BaseCommand):
 
         # 1. CREATE PERSONAL ORGANIZATION
         organization = Organization.objects.create(
-            name=f"{user.full_name}'s Organization"
-            if user.full_name
-            else "Personal Organization",
+            name=(
+                f"{user.full_name}'s Organization"
+                if user.full_name
+                else "Personal Organization"
+            ),
             slug=org_slug,
             description="Personal workspace for individual projects",
             organization_type="other",

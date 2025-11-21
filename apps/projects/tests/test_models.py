@@ -1,12 +1,13 @@
 """
 Tests for project models.
 """
+
 from django.db import IntegrityError
 
 import pytest
 
 from apps.authentication.tests.factories import UserFactory
-from apps.projects.models import Project, ProjectTeamMember, WorkflowStatus
+from apps.projects.models import WorkflowStatus
 from apps.projects.tests.factories import (
     ProjectFactory,
     ProjectTeamMemberFactory,

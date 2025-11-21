@@ -45,7 +45,7 @@ class Command(BaseCommand):
             {
                 "name": "Epic",
                 "category": "epic",
-                "description": "A large user story that can be broken down into smaller stories",
+                "description": "A large user story that can be broken down into smaller stories",  # noqa: E501
                 "icon": "epic",
                 "color": "#904EE2",
                 "is_default": True,
@@ -173,7 +173,7 @@ class Command(BaseCommand):
                     if force:
                         self.stdout.write(
                             self.style.WARNING(
-                                f"   🔄 Updated: {issue_type.name} ({issue_type.category})"
+                                f"   🔄 Updated: {issue_type.name} ({issue_type.category})"  # noqa: E501
                             )
                         )
                         updated_count += 1

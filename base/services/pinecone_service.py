@@ -283,7 +283,7 @@ class PineconeService:
         """
         try:
             logger.warning(
-                f"[PINECONE] Clearing namespace '{namespace}' - ALL VECTORS WILL BE DELETED"
+                f"[PINECONE] Clearing namespace '{namespace}' - ALL VECTORS WILL BE DELETED"  # noqa: E501
             )
             self.index.delete(delete_all=True, namespace=namespace)
             logger.info(f"[PINECONE] Namespace '{namespace}' cleared successfully")

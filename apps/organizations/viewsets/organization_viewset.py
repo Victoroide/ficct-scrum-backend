@@ -72,15 +72,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return Organization.objects.filter(
-            memberships__user=self.request.user, memberships__is_active=True
-        ).select_related(
-            'owner'  # Changed from 'created_by'
-        ).prefetch_related(
-            'memberships',
-            'memberships__user',
-            'workspaces'
-        ).distinct()
+        return (
+            Organization.objects.filter(
+                memberships__user=self.request.user, memberships__is_active=True
+            )
+            .select_related("owner")  # Changed from 'created_by'
+            .prefetch_related("memberships", "memberships__user", "workspaces")
+            .distinct()
+        )
 
     def get_object(self):
         """Return organization if the requesting user is an active member.

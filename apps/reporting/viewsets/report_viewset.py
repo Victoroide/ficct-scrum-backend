@@ -110,7 +110,7 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate velocity chart",
         tags=["Reporting"],
-        description="Generates velocity chart showing team velocity over the last N sprints. Helps track team consistency and predict future capacity.",
+        description="Generates velocity chart showing team velocity over the last N sprints. Helps track team consistency and predict future capacity.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project",
@@ -165,9 +165,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -180,7 +182,7 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate sprint report",
         tags=["Reporting"],
-        description="Generates comprehensive sprint report including burndown chart, velocity, completion metrics, and team performance analysis.",
+        description="Generates comprehensive sprint report including burndown chart, velocity, completion metrics, and team performance analysis.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="sprint",
@@ -215,9 +217,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -238,7 +242,7 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate team metrics",
         tags=["Reporting"],
-        description="Generates team performance metrics including task completion rates, average cycle time, and individual contributor statistics.",
+        description="Generates team performance metrics including task completion rates, average cycle time, and individual contributor statistics.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project",
@@ -293,9 +297,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -308,7 +314,7 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate cumulative flow diagram",
         tags=["Reporting"],
-        description="Generates cumulative flow diagram (CFD) showing work distribution across different statuses over time. Helps identify bottlenecks.",
+        description="Generates cumulative flow diagram (CFD) showing work distribution across different statuses over time. Helps identify bottlenecks.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project",
@@ -363,9 +369,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -380,18 +388,18 @@ class ReportViewSet(viewsets.ViewSet):
         tags=["Reporting"],
         description="""
         Export project data to CSV format.
-        
+
         **Supported data types:**
         - `issues`: Export project issues with filters
         - `sprints`: Export sprint summary
         - `commits`: Export GitHub commits (if integration exists)
         - `activity`: Export activity log (user actions, changes)
-        
+
         **Filters:**
         - Date range: `start_date`, `end_date`
         - Issues: `sprint_id`, `status_id`, `assignee_id`, `issue_type_id`, `priority`
         - Activity: `user_id`, `action_type`
-        
+
         **Example request:**
         ```json
         {
@@ -498,7 +506,7 @@ class ReportViewSet(viewsets.ViewSet):
 
         return Response(
             {
-                "message": f"Export completed successfully. {rows_exported} rows exported.",
+                "message": f"Export completed successfully. {rows_exported} rows exported.",  # noqa: E501
                 "download_url": snapshot.download_url,
                 "snapshot_id": str(snapshot.id),
                 "rows_exported": rows_exported,
@@ -510,7 +518,7 @@ class ReportViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Get project dashboard",
         tags=["Reporting"],
-        description="Generates comprehensive project dashboard with key metrics, active sprints, recent activity, and health indicators.",
+        description="Generates comprehensive project dashboard with key metrics, active sprints, recent activity, and health indicators.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project",
@@ -545,9 +553,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -574,9 +584,11 @@ class ReportViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)

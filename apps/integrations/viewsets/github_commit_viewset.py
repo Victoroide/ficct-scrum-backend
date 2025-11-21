@@ -1,4 +1,5 @@
 from django.db.models import Q
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -48,7 +49,7 @@ from apps.integrations.serializers import (
                 name="search",
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Search in commit message, author name, author email, or SHA. Example: 'Raul', 'fix bug', 'abc123'",
+                description="Search in commit message, author name, author email, or SHA. Example: 'Raul', 'fix bug', 'abc123'",  # noqa: E501
                 required=False,
             ),
         ],

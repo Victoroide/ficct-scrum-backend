@@ -11,7 +11,6 @@ from apps.workspaces.models import Workspace, WorkspaceMember
 from apps.workspaces.permissions import (
     CanAccessWorkspace,
     IsWorkspaceAdmin,
-    IsWorkspaceMember,
 )
 from apps.workspaces.serializers import WorkspaceMemberSerializer, WorkspaceSerializer
 from base.utils.file_handlers import upload_workspace_asset_to_s3
@@ -62,16 +61,14 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return Workspace.objects.filter(
-            members__user=self.request.user, members__is_active=True
-        ).select_related(
-            'organization',
-            'created_by'
-        ).prefetch_related(
-            'members',
-            'members__user',
-            'projects'
-        ).distinct()
+        return (
+            Workspace.objects.filter(
+                members__user=self.request.user, members__is_active=True
+            )
+            .select_related("organization", "created_by")
+            .prefetch_related("members", "members__user", "projects")
+            .distinct()
+        )
 
     @transaction.atomic
     def perform_create(self, serializer):

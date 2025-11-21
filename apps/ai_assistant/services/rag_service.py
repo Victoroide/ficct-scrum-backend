@@ -88,7 +88,8 @@ class RAGService:
             if existing_embedding and not force_reindex:
                 if existing_embedding.content_hash == content_hash:
                     logger.debug(
-                        f"[INDEX] Issue {issue_id} already indexed with same content, skipping"
+                        f"[INDEX] Issue {issue_id} already indexed with same "
+                        f"content, skipping"
                     )
                     return True, "Already indexed"
 
@@ -104,7 +105,9 @@ class RAGService:
             metadata = self._prepare_metadata(issue)
             logger.debug(f"[INDEX] Metadata prepared: {len(metadata)} fields")
             logger.debug(
-                f"[INDEX] Metadata sample: assignee_id={metadata.get('assignee_id')}, reporter_id={metadata.get('reporter_id')}"
+                f"[INDEX] Metadata sample: assignee_id="
+                f"{metadata.get('assignee_id')}, "
+                f"reporter_id={metadata.get('reporter_id')}"
             )
 
             # Upsert to Pinecone
@@ -195,7 +198,8 @@ class RAGService:
                         }
                         errors.append(error_detail)
                         logger.warning(
-                            f"[BATCH INDEX] FAILED: Issue {i}/{total} failed: {error_msg}"
+                            f"[BATCH INDEX] FAILED: Issue {i}/{total} "
+                            f"failed: {error_msg}"
                         )
 
                 except Exception as e:
@@ -208,12 +212,14 @@ class RAGService:
                     }
                     errors.append(error_detail)
                     logger.error(
-                        f"[BATCH INDEX] EXCEPTION: Issue {i}/{total}: {error_type}: {str(e)}"
+                        f"[BATCH INDEX] EXCEPTION: Issue {i}/{total}: "
+                        f"{error_type}: {str(e)}"
                     )
 
                 if i % batch_size == 0:
                     logger.info(
-                        f"[BATCH INDEX] Progress: {i}/{total} processed, {indexed} indexed, {failed} failed"
+                        f"[BATCH INDEX] Progress: {i}/{total} processed, "
+                        f"{indexed} indexed, {failed} failed"
                     )
 
             success_rate = round((indexed / total * 100), 1) if total > 0 else 0
@@ -240,12 +246,14 @@ class RAGService:
         Full synchronization: Clear Pinecone and reindex ALL active issues from DB.
 
         This is a DESTRUCTIVE operation that:
-        1. Clears all vectors in the 'issues' namespace (if clear_existing=True)
+        1. Clears all vectors in the 'issues' namespace
+           (if clear_existing=True)
         2. Reindexes ALL active issues from ALL projects
         3. Updates IssueEmbedding records in DB
 
         Args:
-            clear_existing: Whether to clear existing vectors before sync (default: True)
+            clear_existing: Whether to clear existing vectors before sync
+                (default: True)
 
         Returns:
             Dictionary with sync statistics:
@@ -271,7 +279,7 @@ class RAGService:
             # Step 1: Clear existing vectors if requested
             if clear_existing:
                 logger.warning(
-                    "[FULL SYNC] Step 1/3: Clearing existing vectors in 'issues' namespace"
+                    "[FULL SYNC] Step 1/3: Clearing existing vectors in 'issues' namespace"  # noqa: E501
                 )
                 self.pinecone.clear_namespace(namespace="issues")
                 logger.info("[FULL SYNC] Namespace cleared")
@@ -402,7 +410,7 @@ class RAGService:
             if project_id:
                 pinecone_filter = {"project_id": {"$eq": project_id}}
                 logger.info(f"[RAG] Applying Pinecone project filter: {project_id}")
-            
+
             # Apply additional custom filters
             if filters:
                 if pinecone_filter:
@@ -410,7 +418,7 @@ class RAGService:
                     pinecone_filter = {
                         "$and": [
                             pinecone_filter,
-                            {k: {"$eq": v} for k, v in filters.items()}
+                            {k: {"$eq": v} for k, v in filters.items()},
                         ]
                     }
                 else:
@@ -441,7 +449,7 @@ class RAGService:
                 # Double-check project_id matches (should already be filtered)
                 if project_id and result_project_id != project_id:
                     logger.error(
-                        f"SECURITY VIOLATION: Vector {result['id']} returned for wrong project. "
+                        f"SECURITY VIOLATION: Vector {result['id']} returned for wrong project. "  # noqa: E501
                         f"Expected {project_id}, got {result_project_id}"
                     )
                     continue
@@ -450,7 +458,7 @@ class RAGService:
 
             if len(validated_results) != len(results):
                 logger.warning(
-                    f"[RAG] Validation removed {len(results) - len(validated_results)} results "
+                    f"[RAG] Validation removed {len(results) - len(validated_results)} results "  # noqa: E501
                     f"(Pinecone filter may not be working correctly)"
                 )
 
@@ -474,9 +482,11 @@ class RAGService:
                                 "issue_type": issue.issue_type.name,
                                 "status": issue.status.name,
                                 "priority": issue.priority,
-                                "assignee": issue.assignee.get_full_name()
-                                if issue.assignee
-                                else None,
+                                "assignee": (
+                                    issue.assignee.get_full_name()
+                                    if issue.assignee
+                                    else None
+                                ),
                                 "project_key": issue.project.key,
                                 "similarity_score": round(result["score"], 3),
                                 "metadata": result["metadata"],
@@ -649,7 +659,7 @@ class RAGService:
         Sanitize metadata for Pinecone compatibility with robust error handling.
 
         Pinecone REJECTS null values in metadata fields.
-        This method converts null → appropriate default values with proper type checking.
+        This method converts null → appropriate default values with proper type checking.  # noqa: E501
 
         Args:
             metadata: Raw metadata dictionary
@@ -676,8 +686,10 @@ class RAGService:
                 # Handle None first
                 if value is None:
                     sanitized[key] = defaults.get(key, "")
-                    logger.debug(f"[SANITIZE] Converted null to default: {key} = '{sanitized[key]}'")
-                
+                    logger.debug(
+                        f"[SANITIZE] Converted null to default: {key} = '{sanitized[key]}'"  # noqa: E501
+                    )
+
                 # Handle lists and tuples with proper None filtering
                 elif isinstance(value, (list, tuple)):
                     if value:  # Check if not empty
@@ -686,31 +698,35 @@ class RAGService:
                         sanitized[key] = ", ".join(str_values) if str_values else ""
                     else:
                         sanitized[key] = ""
-                
+
                 # Handle datetime objects
                 elif isinstance(value, (datetime, date)):
                     sanitized[key] = value.isoformat()
-                
+
                 # Handle dictionaries
                 elif isinstance(value, dict):
                     sanitized[key] = str(value) if value else ""
-                
+
                 # Handle already valid types (str, int, float, bool)
                 elif isinstance(value, (str, int, float, bool)):
                     sanitized[key] = value
-                
+
                 # Convert everything else to string safely
                 else:
                     try:
                         sanitized[key] = str(value)
                     except Exception:
                         sanitized[key] = ""
-                        logger.warning(f"[SANITIZE] Could not convert {key} to string, using empty string")
-            
+                        logger.warning(
+                            f"[SANITIZE] Could not convert {key} to string, using empty string"  # noqa: E501
+                        )
+
             except Exception as e:
                 # If anything fails, use empty string and log warning
                 sanitized[key] = defaults.get(key, "")
-                logger.warning(f"[SANITIZE] Error processing {key}: {str(e)}, using default")
+                logger.warning(
+                    f"[SANITIZE] Error processing {key}: {str(e)}, using default"
+                )
 
         return sanitized
 
@@ -734,13 +750,15 @@ class RAGService:
             "title": issue.title[:200],  # Truncate for Pinecone limits
             # Classification
             "issue_type": issue.issue_type.name,
-            "issue_type_category": issue.issue_type.category
-            if hasattr(issue.issue_type, "category")
-            else None,
+            "issue_type_category": (
+                issue.issue_type.category
+                if hasattr(issue.issue_type, "category")
+                else None
+            ),
             "status": issue.status.name,
-            "status_category": issue.status.category
-            if hasattr(issue.status, "category")
-            else None,
+            "status_category": (
+                issue.status.category if hasattr(issue.status, "category") else None
+            ),
             "priority": issue.priority,
             # Assignment context
             "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
@@ -755,9 +773,9 @@ class RAGService:
             "sprint_status": issue.sprint.status if issue.sprint else None,
             # Estimation
             "story_points": issue.story_points if issue.story_points else None,
-            "estimated_hours": float(issue.estimated_hours)
-            if issue.estimated_hours
-            else None,
+            "estimated_hours": (
+                float(issue.estimated_hours) if issue.estimated_hours else None
+            ),
             # Temporal
             "created_at": issue.created_at.isoformat(),
             "updated_at": issue.updated_at.isoformat(),
@@ -811,7 +829,7 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Sprint embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Sprint embedding generated, dimension: {len(embedding_vector)}"  # noqa: E501
             )
 
             # Prepare metadata
@@ -879,7 +897,7 @@ class RAGService:
                             }
                         )
                         logger.warning(
-                            f"[BATCH INDEX SPRINTS] FAILED: Sprint {i}/{total} failed: {error_msg}"
+                            f"[BATCH INDEX SPRINTS] FAILED: Sprint {i}/{total} failed: {error_msg}"  # noqa: E501
                         )
 
                 except Exception as e:
@@ -895,7 +913,7 @@ class RAGService:
             success_rate = round((indexed / total * 100), 1) if total > 0 else 0
 
             logger.info(
-                f"[BATCH INDEX SPRINTS] Complete: {indexed}/{total} indexed ({success_rate}%), "
+                f"[BATCH INDEX SPRINTS] Complete: {indexed}/{total} indexed ({success_rate}%), "  # noqa: E501
                 f"{failed} failed"
             )
 
@@ -931,7 +949,7 @@ class RAGService:
             User = get_user_model()
 
             logger.info(
-                f"[INDEX MEMBER] Starting index for user {user_id} in project {project_id}"
+                f"[INDEX MEMBER] Starting index for user {user_id} in project {project_id}"  # noqa: E501
             )
 
             project = Project.objects.get(id=project_id)
@@ -946,7 +964,7 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Team member embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Team member embedding generated, dimension: {len(embedding_vector)}"  # noqa: E501
             )
 
             # Prepare metadata
@@ -999,7 +1017,7 @@ class RAGService:
             # Generate embedding
             embedding_vector = self.openai.generate_embedding(text_content)
             logger.info(
-                f"[OPENAI] Project embedding generated, dimension: {len(embedding_vector)}"
+                f"[OPENAI] Project embedding generated, dimension: {len(embedding_vector)}"  # noqa: E501
             )
 
             # Prepare metadata
@@ -1034,8 +1052,6 @@ class RAGService:
         Returns:
             Rich text context for embedding
         """
-        from apps.projects.models import Sprint
-
         parts = [
             f"Sprint: {sprint.name}",
             f"Status: {sprint.status}",
@@ -1047,7 +1063,7 @@ class RAGService:
 
         if sprint.start_date and sprint.end_date:
             parts.append(
-                f"Duration: {sprint.start_date} to {sprint.end_date} ({sprint.duration_days} days)"
+                f"Duration: {sprint.start_date} to {sprint.end_date} ({sprint.duration_days} days)"  # noqa: E501
             )
 
         # Add sprint statistics
@@ -1082,22 +1098,26 @@ class RAGService:
             "start_date": sprint.start_date.isoformat() if sprint.start_date else None,
             "end_date": sprint.end_date.isoformat() if sprint.end_date else None,
             "duration_days": int(sprint.duration_days) if sprint.duration_days else 0,
-            "remaining_days": int(sprint.remaining_days)
-            if sprint.is_active and sprint.remaining_days
-            else None,
+            "remaining_days": (
+                int(sprint.remaining_days)
+                if sprint.is_active and sprint.remaining_days
+                else None
+            ),
             "committed_points": float(sprint.committed_points),
             "completed_points": float(sprint.completed_points),
-            "progress_percentage": float(sprint.progress_percentage)
-            if sprint.progress_percentage is not None
-            else 0.0,
+            "progress_percentage": (
+                float(sprint.progress_percentage)
+                if sprint.progress_percentage is not None
+                else 0.0
+            ),
             "issue_count": int(sprint.issue_count) if sprint.issue_count else 0,
-            "completed_issue_count": int(sprint.completed_issue_count)
-            if sprint.completed_issue_count
-            else 0,
+            "completed_issue_count": (
+                int(sprint.completed_issue_count) if sprint.completed_issue_count else 0
+            ),
             "created_at": sprint.created_at.isoformat(),
-            "completed_at": sprint.completed_at.isoformat()
-            if sprint.completed_at
-            else None,
+            "completed_at": (
+                sprint.completed_at.isoformat() if sprint.completed_at else None
+            ),
             "entity_type": "sprint",
         }
 
@@ -1133,7 +1153,7 @@ class RAGService:
             ).count()
 
             parts.append(
-                f"Assigned Issues: {assigned_count} total, {completed_count} completed, {in_progress_count} in progress"
+                f"Assigned Issues: {assigned_count} total, {completed_count} completed, {in_progress_count} in progress"  # noqa: E501
             )
 
             # Calculate story points
@@ -1196,9 +1216,9 @@ class RAGService:
             "reported_issues_count": Issue.objects.filter(
                 project=project, reporter=user, is_active=True
             ).count(),
-            "last_activity": recent_updated.updated_at.isoformat()
-            if recent_updated
-            else None,
+            "last_activity": (
+                recent_updated.updated_at.isoformat() if recent_updated else None
+            ),
             "entity_type": "team_member",
         }
 
@@ -1216,7 +1236,7 @@ class RAGService:
         """
         parts = [
             f"Project: {project.name} ({project.key})",
-            f"Description: {project.description if project.description else 'No description'}",
+            f"Description: {project.description if project.description else 'No description'}",  # noqa: E501
         ]
 
         # Workspace and organization context
@@ -1263,19 +1283,25 @@ class RAGService:
             "description": project.description[:1000] if project.description else None,
             "workspace_id": str(project.workspace_id) if project.workspace_id else None,
             "workspace_name": project.workspace.name if project.workspace else None,
-            "organization_id": str(project.workspace.organization_id)
-            if project.workspace and project.workspace.organization
-            else None,
-            "organization_name": project.workspace.organization.name
-            if project.workspace and project.workspace.organization
-            else None,
+            "organization_id": (
+                str(project.workspace.organization_id)
+                if project.workspace and project.workspace.organization
+                else None
+            ),
+            "organization_name": (
+                project.workspace.organization.name
+                if project.workspace and project.workspace.organization
+                else None
+            ),
             "total_issues": total_issues,
             "total_sprints": total_sprints,
             "active_sprints": active_sprints,
             "team_size": team_size,
-            "created_at": project.created_at.isoformat()
-            if hasattr(project, "created_at")
-            else None,
+            "created_at": (
+                project.created_at.isoformat()
+                if hasattr(project, "created_at")
+                else None
+            ),
             "entity_type": "project",
         }
 

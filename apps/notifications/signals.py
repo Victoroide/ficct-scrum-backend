@@ -67,13 +67,15 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
 
         # Skip if no authenticated user (e.g., management commands, migrations)
         if not current_user or not current_user.is_authenticated:
-            logger.debug(f"Skipping notification for issue {instance.id} - no authenticated user")
+            logger.debug(
+                f"Skipping notification for issue {instance.id} - no authenticated user"
+            )
             return
 
         # =====================================================================
         # 1. ASSIGNMENT NOTIFICATIONS
         # =====================================================================
-        
+
         if created:
             # New issue created with assignee
             if instance.assignee and instance.assignee != current_user:
@@ -82,17 +84,19 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
                     assignee_id=str(instance.assignee_id),
                     assigner_id=str(current_user.id),
                 )
-                logger.info(f"[NOTIFICATION] Sent assignment notification for new issue {instance.full_key}")
+                logger.info(
+                    f"[NOTIFICATION] Sent assignment notification for new issue {instance.full_key}"  # noqa: E501
+                )
         else:
             # Check if assignee changed on existing issue
-            old_assignee_id = getattr(instance, '_old_assignee_id', None)
+            old_assignee_id = getattr(instance, "_old_assignee_id", None)
             new_assignee_id = instance.assignee_id
-            
+
             # Convert to strings for comparison (UUIDs)
             old_id_str = str(old_assignee_id) if old_assignee_id else None
             new_id_str = str(new_assignee_id) if new_assignee_id else None
             current_user_id_str = str(current_user.id)
-            
+
             if old_id_str != new_id_str:
                 # Assignee changed
                 if new_assignee_id and new_id_str != current_user_id_str:
@@ -103,30 +107,30 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
                         assigner_id=current_user_id_str,
                     )
                     logger.info(
-                        f"[NOTIFICATION] Sent assignment change notification for issue {instance.full_key} "
+                        f"[NOTIFICATION] Sent assignment change notification for issue {instance.full_key} "  # noqa: E501
                         f"(old: {old_id_str}, new: {new_id_str})"
                     )
 
         # =====================================================================
         # 2. STATUS CHANGE NOTIFICATIONS
         # =====================================================================
-        
+
         if not created:
-            old_status_id = getattr(instance, '_old_status_id', None)
+            old_status_id = getattr(instance, "_old_status_id", None)
             new_status_id = instance.status_id
-            
+
             # Convert to strings for comparison (UUIDs)
             old_status_str = str(old_status_id) if old_status_id else None
             new_status_str = str(new_status_id) if new_status_id else None
-            
+
             if old_status_str and old_status_str != new_status_str:
                 # Status changed - get status names
                 try:
                     from apps.projects.models import WorkflowStatus
-                    
+
                     old_status = WorkflowStatus.objects.get(id=old_status_id)
                     new_status = WorkflowStatus.objects.get(id=new_status_id)
-                    
+
                     notification_service.notify_status_change(
                         issue_id=str(instance.id),
                         old_status=old_status.name,
@@ -134,7 +138,7 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
                         changed_by_id=str(current_user.id),
                     )
                     logger.info(
-                        f"[NOTIFICATION] Sent status change notification for issue {instance.full_key} "
+                        f"[NOTIFICATION] Sent status change notification for issue {instance.full_key} "  # noqa: E501
                         f"({old_status.name} -> {new_status.name})"
                     )
                 except Exception as e:
@@ -143,7 +147,7 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
         # =====================================================================
         # 3. PRIORITY CHANGE NOTIFICATIONS (Optional - can be enabled)
         # =====================================================================
-        
+
         # Uncomment if you want priority change notifications:
         # if not created:
         #     old_priority = getattr(instance, '_old_priority', None)
@@ -153,7 +157,7 @@ def notify_on_issue_change(sender, instance, created, **kwargs):
 
     except Exception as e:
         logger.exception(
-            f"[NOTIFICATION ERROR] Failed to create notification for issue {instance.id}: {str(e)}"
+            f"[NOTIFICATION ERROR] Failed to create notification for issue {instance.id}: {str(e)}"  # noqa: E501
         )
 
 
@@ -189,25 +193,29 @@ def notify_on_comment(sender, instance, created, **kwargs):
 
         # Skip if no authenticated user
         if not current_user or not current_user.is_authenticated:
-            logger.debug(f"Skipping comment notification - no authenticated user")
+            logger.debug("Skipping comment notification - no authenticated user")
             return
 
         issue = instance.issue
         commenter = instance.author
-        
+
         # Determine recipients (assignee and reporter, excluding commenter)
         recipients = []
-        
+
         if issue.assignee and issue.assignee != commenter:
             recipients.append(issue.assignee)
-        
-        if issue.reporter and issue.reporter != commenter and issue.reporter not in recipients:
+
+        if (
+            issue.reporter
+            and issue.reporter != commenter
+            and issue.reporter not in recipients
+        ):
             recipients.append(issue.reporter)
 
         # Create notification for each recipient
         for recipient in recipients:
             title = f"New comment on {issue.full_key}: {issue.title}"
-            message = f"{commenter.get_full_name()} commented: {instance.content[:100]}{'...' if len(instance.content) > 100 else ''}"
+            message = f"{commenter.get_full_name()} commented: {instance.content[:100]}{'...' if len(instance.content) > 100 else ''}"  # noqa: E501
             link = f"/projects/{issue.project.key}/issues/{issue.id}"
 
             notification_service.create_notification(
@@ -224,7 +232,7 @@ def notify_on_comment(sender, instance, created, **kwargs):
                 send_email=True,
             )
             logger.info(
-                f"[NOTIFICATION] Sent comment notification to {recipient.email} for issue {issue.full_key}"
+                f"[NOTIFICATION] Sent comment notification to {recipient.email} for issue {issue.full_key}"  # noqa: E501
             )
 
     except Exception as e:

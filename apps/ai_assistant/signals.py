@@ -88,7 +88,7 @@ def auto_index_issue(sender, instance, created, **kwargs):
             new_val = getattr(instance, field, None)
             if old_val != new_val:
                 logger.debug(
-                    f"Issue {instance.id} field '{field}' changed: {old_val} -> {new_val}"
+                    f"Issue {instance.id} field '{field}' changed: {old_val} -> {new_val}"  # noqa: E501
                 )
                 should_reindex = True
                 break
@@ -194,7 +194,7 @@ def auto_index_sprint(sender, instance, created, **kwargs):
             new_val = getattr(instance, field, None)
             if old_val != new_val:
                 logger.debug(
-                    f"Sprint {instance.id} field '{field}' changed: {old_val} -> {new_val}"
+                    f"Sprint {instance.id} field '{field}' changed: {old_val} -> {new_val}"  # noqa: E501
                 )
                 should_reindex = True
                 break

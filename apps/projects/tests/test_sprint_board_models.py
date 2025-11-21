@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
-from apps.projects.models import BoardColumn, Sprint
+from apps.projects.models import BoardColumn
 from apps.projects.tests.factories import (
     BoardColumnFactory,
     BoardFactory,

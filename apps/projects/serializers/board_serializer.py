@@ -50,7 +50,7 @@ class BoardColumnSerializer(serializers.ModelSerializer):
                 if workflow_status.project != board.project:
                     raise serializers.ValidationError(
                         {
-                            "workflow_status_id": "Workflow status must belong to the same project as the board"
+                            "workflow_status_id": "Workflow status must belong to the same project as the board"  # noqa: E501
                         }
                     )
 

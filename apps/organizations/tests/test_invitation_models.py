@@ -1,6 +1,7 @@
 """
 Tests for OrganizationInvitation model.
 """
+
 import secrets
 from datetime import timedelta
 
@@ -9,7 +10,6 @@ from django.utils import timezone
 
 from apps.authentication.tests.factories import UserFactory
 from apps.organizations.models import (
-    Organization,
     OrganizationInvitation,
     OrganizationMembership,
 )

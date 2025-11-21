@@ -4,6 +4,7 @@ Comprehensive tests for reporting endpoints.
 Tests parameter validation, permission checks, and error handling
 for all report and diagram endpoints.
 """
+
 import uuid
 
 from django.test import TestCase
@@ -11,7 +12,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.organizations.models import Organization, OrganizationMembership
+from apps.organizations.models import Organization
 from apps.projects.models import Project, ProjectTeamMember, Sprint
 from apps.users.models import User
 from apps.workspaces.models import Workspace, WorkspaceMember
@@ -120,13 +121,13 @@ class ReportEndpointTestCase(TestCase):
 
         # Test non-integer
         response = self.client.get(
-            f"/api/v1/reporting/reports/velocity/?project={self.project.id}&num_sprints=abc"
+            f"/api/v1/reporting/reports/velocity/?project={self.project.id}&num_sprints=abc"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Test out of range
         response = self.client.get(
-            f"/api/v1/reporting/reports/velocity/?project={self.project.id}&num_sprints=100"
+            f"/api/v1/reporting/reports/velocity/?project={self.project.id}&num_sprints=100"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -212,13 +213,13 @@ class ReportEndpointTestCase(TestCase):
 
         # Test non-integer
         response = self.client.get(
-            f"/api/v1/reporting/reports/team-metrics/?project={self.project.id}&period=abc"
+            f"/api/v1/reporting/reports/team-metrics/?project={self.project.id}&period=abc"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Test out of range
         response = self.client.get(
-            f"/api/v1/reporting/reports/team-metrics/?project={self.project.id}&period=500"
+            f"/api/v1/reporting/reports/team-metrics/?project={self.project.id}&period=500"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -249,13 +250,13 @@ class ReportEndpointTestCase(TestCase):
 
         # Test non-integer
         response = self.client.get(
-            f"/api/v1/reporting/reports/cumulative-flow/?project={self.project.id}&days=abc"
+            f"/api/v1/reporting/reports/cumulative-flow/?project={self.project.id}&days=abc"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Test out of range
         response = self.client.get(
-            f"/api/v1/reporting/reports/cumulative-flow/?project={self.project.id}&days=200"
+            f"/api/v1/reporting/reports/cumulative-flow/?project={self.project.id}&days=200"  # noqa: E501
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

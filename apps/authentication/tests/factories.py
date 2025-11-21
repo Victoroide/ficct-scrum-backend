@@ -1,6 +1,7 @@
 """
 Factory classes for authentication models.
 """
+
 import factory
 from factory.django import DjangoModelFactory
 

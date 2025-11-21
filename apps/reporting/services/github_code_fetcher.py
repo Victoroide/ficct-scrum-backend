@@ -4,13 +4,12 @@ GitHub Code Fetcher Service
 Fetches repository tree and file contents from GitHub API.
 Handles authentication, rate limiting, and caching.
 """
+
 import base64
 import logging
-from datetime import timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from django.core.cache import cache
-from django.utils import timezone
 
 import requests
 
@@ -81,12 +80,12 @@ class GitHubCodeFetcher:
 
             if response.status_code == 401:
                 raise ValueError(
-                    "GitHub access token is invalid or expired. Please reconnect the integration."
+                    "GitHub access token is invalid or expired. Please reconnect the integration."  # noqa: E501
                 )
 
             if response.status_code == 404:
                 raise ValueError(
-                    f"Repository '{self.integration.repository_owner}/{self.integration.repository_name}' "
+                    f"Repository '{self.integration.repository_owner}/{self.integration.repository_name}' "  # noqa: E501
                     f"not found or not accessible."
                 )
 
@@ -113,7 +112,7 @@ class GitHubCodeFetcher:
             cached = cache.get(cache_key)
             if cached:
                 logger.info(
-                    f"Using cached repository tree for {self.integration.repository_name}"
+                    f"Using cached repository tree for {self.integration.repository_name}"  # noqa: E501
                 )
                 return cached
 

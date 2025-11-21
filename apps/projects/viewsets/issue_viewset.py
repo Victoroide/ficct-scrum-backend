@@ -2,15 +2,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from django_filters import rest_framework as filters
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.logging.services import LoggerService
-from apps.projects.models import Issue, WorkflowStatus
+from apps.projects.models import Issue
 from apps.projects.permissions import (
     CanAccessProject,
     CanDeleteIssue,
@@ -24,7 +23,6 @@ from apps.projects.serializers import (
     IssueTransitionSerializer,
     IssueUpdateSerializer,
 )
-from apps.projects.services import WorkflowValidator
 
 
 class IssueFilter(filters.FilterSet):
@@ -189,7 +187,8 @@ class IssueFilter(filters.FilterSet):
 
         try:
             board = Board.objects.get(id=value)
-            # Return ALL active issues from the board's project (Board as a View, not a container)
+            # Return ALL active issues from the board's project (Board as a View, not
+            # a container)
             filtered_queryset = queryset.filter(project=board.project, is_active=True)
 
             # Apply saved_filter from board if exists
@@ -219,21 +218,21 @@ class IssueFilter(filters.FilterSet):
         operation_id="issues_list",
         summary="List Issues",
         description=(
-            "Get all issues with flexible filtering options. Supports both UUID-based and user-friendly filters.\n\n"
+            "Get all issues with flexible filtering options. Supports both UUID-based and user-friendly filters.\n\n"  # noqa: E501
             "**Filter Examples:**\n"
             "- By project key: `?project_key=FICCT`\n"
             "- By workspace: `?workspace_key=SCRUM`\n"
-            "- By status: `?status_name=In Progress` or `?status_category=in_progress`\n"
+            "- By status: `?status_name=In Progress` or `?status_category=in_progress`\n"  # noqa: E501
             "- By assignee: `?assignee_email=user@example.com`\n"
             "- By issue type: `?issue_type_category=bug`\n"
             "- Search: `?search=login bug`\n"
-            "- Combine filters: `?project_key=FICCT&status_category=in_progress&priority=P1`\n\n"
+            "- Combine filters: `?project_key=FICCT&status_category=in_progress&priority=P1`\n\n"  # noqa: E501
             "**Available Filters:**\n"
             "- `project` (UUID) or `project_key` (string)\n"
             "- `workspace` (UUID) or `workspace_key` (string)\n"
             "- `organization` (UUID)\n"
-            "- `status` (UUID), `status_name` (string), or `status_category` (to_do|in_progress|done)\n"
-            "- `issue_type` (UUID) or `issue_type_category` (epic|story|task|bug|improvement|sub_task)\n"
+            "- `status` (UUID), `status_name` (string), or `status_category` (to_do|in_progress|done)\n"  # noqa: E501
+            "- `issue_type` (UUID) or `issue_type_category` (epic|story|task|bug|improvement|sub_task)\n"  # noqa: E501
             "- `assignee` (UUID) or `assignee_email` (string)\n"
             "- `reporter` (UUID) or `reporter_email` (string)\n"
             "- `priority` (P0|P1|P2|P3|P4)\n"
@@ -251,7 +250,7 @@ class IssueFilter(filters.FilterSet):
         tags=["Issues"],
         operation_id="issues_create",
         summary="Create Issue",
-        description="Create Epic, User Story, Task, or Bug. Issue key is auto-generated. Initial status is set to project's default.",
+        description="Create Epic, User Story, Task, or Bug. Issue key is auto-generated. Initial status is set to project's default.",  # noqa: E501
     ),
     update=extend_schema(
         tags=["Issues"],
@@ -277,9 +276,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        from django.db.models import Q
-
-        from django.db.models import Count
+        from django.db.models import Count, Q
 
         return (
             Issue.objects.filter(
@@ -338,7 +335,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Create a new issue and return full details including story_points.
-        Uses IssueCreateSerializer for input validation and IssueDetailSerializer for response.
+        Uses IssueCreateSerializer for input validation and IssueDetailSerializer for response.  # noqa: E501
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -380,7 +377,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """
         Override update to return detailed serializer with expanded relations.
-        Uses IssueUpdateSerializer for validation but IssueDetailSerializer for response.
+        Uses IssueUpdateSerializer for validation but IssueDetailSerializer for response.  # noqa: E501
         """
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -464,7 +461,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         tags=["Issues"],
         operation_id="issues_transition",
         summary="Change Issue Status",
-        description="Transition issue to a new workflow status. Validates workflow transitions and updates resolved_at timestamp for final statuses. Accepts both 'status' and 'status_uuid' field names.",
+        description="Transition issue to a new workflow status. Validates workflow transitions and updates resolved_at timestamp for final statuses. Accepts both 'status' and 'status_uuid' field names.",  # noqa: E501
         request=IssueTransitionSerializer,
         responses={
             200: IssueDetailSerializer,
@@ -572,7 +569,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         if priority not in valid_priorities:
             return Response(
                 {
-                    "error": f"Invalid priority. Must be one of: {', '.join(valid_priorities)}"
+                    "error": f"Invalid priority. Must be one of: {', '.join(valid_priorities)}"  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

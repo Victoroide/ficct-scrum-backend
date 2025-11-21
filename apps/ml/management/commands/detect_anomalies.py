@@ -149,8 +149,10 @@ class Command(BaseCommand):
 
     def _analyze_all_projects(self, service):
         """Analyze all active projects."""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
+
         from apps.projects.models import Project
 
         thirty_days_ago = timezone.now() - timedelta(days=30)

@@ -17,7 +17,7 @@ from apps.projects.serializers.workflow_status_serializer import (
         tags=["Workflow"],
         operation_id="workflow_statuses_list",
         summary="List Workflow Statuses",
-        description="List available workflow statuses for projects user has access to. Filter by project UUID to get statuses for issue dropdowns and board columns.",
+        description="List available workflow statuses for projects user has access to. Filter by project UUID to get statuses for issue dropdowns and board columns.",  # noqa: E501
     ),
     retrieve=extend_schema(
         tags=["Workflow"],
@@ -30,14 +30,14 @@ class WorkflowStatusViewSet(viewsets.ReadOnlyModelViewSet):
     ViewSet for WorkflowStatus model.
 
     Provides list and retrieve actions for workflow statuses.
-    Workflow statuses define the possible states an issue can be in (e.g., To Do, In Progress, Done).
+    Workflow statuses define the possible states an issue can be in (e.g., To Do, In Progress, Done).  # noqa: E501
 
     Filters:
     - By default, returns workflow statuses for projects the user has access to
-    - Use ?project=<project_id> to filter by specific project (required for most use cases)
+    - Use ?project=<project_id> to filter by specific project (required for most use cases)  # noqa: E501
 
     Usage:
-    - GET /api/v1/projects/workflow-statuses/?project={uuid} - Get statuses for a specific project
+    - GET /api/v1/projects/workflow-statuses/?project={uuid} - Get statuses for a specific project  # noqa: E501
     - Used to populate issue status dropdowns and board columns
     """
 
@@ -63,8 +63,6 @@ class WorkflowStatusViewSet(viewsets.ReadOnlyModelViewSet):
 
         # User can see workflow statuses from projects they have access to
         # Through project membership OR workspace membership
-        from apps.projects.models import ProjectTeamMember
-        from apps.workspaces.models import WorkspaceMember
 
         accessible_projects = Q(
             project__team_members__user=user, project__team_members__is_active=True

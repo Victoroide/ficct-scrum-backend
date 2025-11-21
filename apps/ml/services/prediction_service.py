@@ -161,7 +161,7 @@ class PredictionService:
                 "method": "ml_model",
                 "model_id": model_data["model_id"],
                 "model_version": model_data["version"],
-                "reasoning": f"Prediction from trained ML model (v{model_data['version']})",
+                "reasoning": f"Prediction from trained ML model (v{model_data['version']})",  # noqa: E501
                 "similar_issues": [],
             }
 
@@ -259,7 +259,7 @@ class PredictionService:
                 },
                 "similar_issues": similar_issues,
                 "method": "similarity",
-                "reasoning": f"Based on {len(similar_efforts)} similar completed issues",
+                "reasoning": f"Based on {len(similar_efforts)} similar completed issues",  # noqa: E501
             }
 
         return {
@@ -292,7 +292,7 @@ class PredictionService:
         """
         Predict actual sprint completion time.
 
-        Uses Sprint model fields: start_date, end_date, committed_points, completed_points.
+        Uses Sprint model fields: start_date, end_date, committed_points, completed_points.  # noqa: E501
 
         Args:
             sprint_id: Sprint UUID
@@ -344,7 +344,7 @@ class PredictionService:
             ).aggregate(total=Sum("story_points"))["total"]
 
             if total_points and total_points > 0:
-                from datetime import timedelta
+                pass
 
                 past_sprints = Sprint.objects.filter(
                     project=sprint.project,
@@ -376,7 +376,7 @@ class PredictionService:
                     }
 
             # Method 4: Default fallback
-            logger.info(f"[ML] Using default duration: 14 days")
+            logger.info("[ML] Using default duration: 14 days")
             return {
                 "estimated_days": 14,
                 "planned_days": 14,
@@ -515,9 +515,9 @@ class PredictionService:
                     {
                         "id": str(issue.id),
                         "title": issue.title,
-                        "issue_type": issue.issue_type.name
-                        if issue.issue_type
-                        else "task",
+                        "issue_type": (
+                            issue.issue_type.name if issue.issue_type else "task"
+                        ),
                         "actual_hours": issue.actual_hours,
                         "story_points": issue.story_points,
                         "similarity": similarity,

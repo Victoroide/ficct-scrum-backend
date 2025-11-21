@@ -18,7 +18,6 @@ def clear_cache_before_migration(apps, schema_editor):
 
 def restore_dummy_data(apps, schema_editor):
     """Reverse migration: No-op, cache was cleared."""
-    pass
 
 
 class Migration(migrations.Migration):

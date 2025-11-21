@@ -28,7 +28,7 @@ def save_user_profile(sender, instance, **kwargs):
     """
     try:
         # Try to access and save the profile if it exists
-        if hasattr(instance, 'profile'):
+        if hasattr(instance, "profile"):
             profile = instance.profile
             profile.save()
     except UserProfile.DoesNotExist:
@@ -38,8 +38,7 @@ def save_user_profile(sender, instance, **kwargs):
     except Exception as e:
         # Log other errors but don't break the user save
         logger.error(
-            f"Error saving profile for user {instance.email}: {str(e)}",
-            exc_info=True
+            f"Error saving profile for user {instance.email}: {str(e)}", exc_info=True
         )
 
 
@@ -53,7 +52,7 @@ def create_personal_resources(sender, instance, created, **kwargs):
 
     This ensures new users have a starting point and can immediately
     begin using the application.
-    
+
     NOTE: Removed @transaction.atomic decorator to prevent signal from
     blocking user creation if personal resources fail to create.
     """
@@ -108,9 +107,11 @@ def create_personal_resources(sender, instance, created, **kwargs):
 
         # 1. CREATE PERSONAL ORGANIZATION
         organization = Organization.objects.create(
-            name=f"{user.full_name}'s Organization"
-            if user.full_name
-            else "Personal Organization",
+            name=(
+                f"{user.full_name}'s Organization"
+                if user.full_name
+                else "Personal Organization"
+            ),
             slug=org_slug,
             description="Personal workspace for individual projects",
             organization_type="other",
@@ -152,7 +153,7 @@ def create_personal_resources(sender, instance, created, **kwargs):
         )
 
         logger.info(
-            f"[SUCCESS] Created personal workspace '{workspace.name}' for user: {user.email}"
+            f"[SUCCESS] Created personal workspace '{workspace.name}' for user: {user.email}"  # noqa: E501
         )
 
         # 3. CREATE PERSONAL PROJECT
@@ -190,7 +191,7 @@ def create_personal_resources(sender, instance, created, **kwargs):
 
         # Log summary of created resources
         logger.info(
-            f"[COMPLETE] Successfully created complete personal workspace for {user.email}:\n"
+            f"[COMPLETE] Successfully created complete personal workspace for {user.email}:\n"  # noqa: E501
             f"  - Organization: {organization.name} (slug: {org_slug})\n"
             f"  - Workspace: {workspace.name}\n"
             f"  - Project: {project.key} - {project.name}\n"
@@ -200,7 +201,7 @@ def create_personal_resources(sender, instance, created, **kwargs):
     except Exception as e:
         # Log the error but don't break user creation
         logger.error(
-            f"[ERROR] Failed to create personal resources for user {user.email}: {str(e)}",
+            f"[ERROR] Failed to create personal resources for user {user.email}: {str(e)}",  # noqa: E501
             exc_info=True,
         )
         # Don't re-raise - user creation should succeed even if personal resources fail

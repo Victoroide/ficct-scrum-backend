@@ -6,7 +6,7 @@ Wraps existing AzureOpenAIService to conform to BaseLLMProvider interface.
 
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from openai import OpenAIError
 
@@ -87,7 +87,7 @@ class AzureProvider(BaseLLMProvider):
 
         try:
             logger.info(
-                f"[AZURE] Generating with {self.model_name}, max_tokens={max_tokens}, temp={temperature}"
+                f"[AZURE] Generating with {self.model_name}, max_tokens={max_tokens}, temp={temperature}"  # noqa: E501
             )
 
             # Format messages (pass through, Azure service handles it)

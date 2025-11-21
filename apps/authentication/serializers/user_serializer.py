@@ -133,20 +133,23 @@ class UserSerializer(serializers.ModelSerializer):
         Creates profile if missing to ensure all users have profiles.
         """
         try:
-            if hasattr(obj, 'profile'):
+            if hasattr(obj, "profile"):
                 return UserProfileNestedSerializer(obj.profile).data
             else:
                 # Profile doesn't exist, create it
                 from apps.authentication.models import UserProfile
+
                 profile, created = UserProfile.objects.get_or_create(user=obj)
                 if created:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     logger.warning(f"Created missing profile for user: {obj.email}")
                 return UserProfileNestedSerializer(profile).data
         except Exception as e:
             # Log error but don't break serialization
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error getting profile for user {obj.email}: {str(e)}")
             return None

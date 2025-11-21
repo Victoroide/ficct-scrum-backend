@@ -24,7 +24,7 @@ from apps.reporting.services.diagram_service import DiagramService
     list=extend_schema(
         summary="List cached diagrams",
         tags=["Reporting"],
-        description="Returns list of previously generated diagrams for a project with cache status and access count.",
+        description="Returns list of previously generated diagrams for a project with cache status and access count.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project",
@@ -97,11 +97,11 @@ class DiagramViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="Generate diagram",
         tags=["Reporting"],
-        description="Generate diagram data in JSON format. Returns structured data for frontend rendering with D3.js, Cytoscape.js, or similar libraries. Supports workflow, dependency, roadmap, UML, architecture, and Angular diagrams.",
+        description="Generate diagram data in JSON format. Returns structured data for frontend rendering with D3.js, Cytoscape.js, or similar libraries. Supports workflow, dependency, roadmap, UML, architecture, and Angular diagrams.",  # noqa: E501
         request=DiagramRequestSerializer,
         responses={
             200: OpenApiResponse(
-                description="Diagram data generated successfully. Returns JSON data structure with nodes, edges, metadata, and layout hints.",
+                description="Diagram data generated successfully. Returns JSON data structure with nodes, edges, metadata, and layout hints.",  # noqa: E501
                 response=DiagramResponseSerializer,
             ),
             400: OpenApiResponse(
@@ -132,7 +132,7 @@ class DiagramViewSet(viewsets.ViewSet):
                 return Response(
                     {
                         "status": "error",
-                        "error": f"Invalid UML diagram type: '{uml_type}'. Valid options: {VALID_UML_TYPES}",
+                        "error": f"Invalid UML diagram type: '{uml_type}'. Valid options: {VALID_UML_TYPES}",  # noqa: E501
                         "code": "INVALID_OPTIONS",
                         "valid_options": VALID_UML_TYPES,
                     },
@@ -160,7 +160,7 @@ class DiagramViewSet(viewsets.ViewSet):
             force_refresh = parameters.get("force_refresh", False)
             if force_refresh:
                 logger.info(
-                    f"Force refresh requested for {diagram_type} diagram (project {project.id})"
+                    f"Force refresh requested for {diagram_type} diagram (project {project.id})"  # noqa: E501
                 )
             else:
                 logger.info(
@@ -266,7 +266,8 @@ class DiagramViewSet(viewsets.ViewSet):
             return response
 
         except ValueError as e:
-            # ValueError = user-facing errors (missing GitHub integration, no Python files, etc.)
+            # ValueError = user-facing errors (missing GitHub integration, no Python
+            # files, etc.)
             return Response(
                 {"status": "error", "error": str(e), "code": "CONFIGURATION_ERROR"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -293,7 +294,7 @@ class DiagramViewSet(viewsets.ViewSet):
                 return Response(
                     {
                         "status": "error",
-                        "error": "Database query configuration error. Please check system configuration.",
+                        "error": "Database query configuration error. Please check system configuration.",  # noqa: E501
                         "detail": str(e),
                         "code": "QUERY_ERROR",
                     },
@@ -306,7 +307,7 @@ class DiagramViewSet(viewsets.ViewSet):
                     {
                         "status": "error",
                         "error": f"Diagram generation error: {str(e)}",
-                        "detail": "A required field or method is missing. This may be a data integrity issue.",
+                        "detail": "A required field or method is missing. This may be a data integrity issue.",  # noqa: E501
                         "code": "ATTRIBUTE_ERROR",
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -318,7 +319,7 @@ class DiagramViewSet(viewsets.ViewSet):
                     {
                         "status": "error",
                         "error": f"Data type error: {str(e)}",
-                        "detail": "Invalid data type encountered during diagram generation.",
+                        "detail": "Invalid data type encountered during diagram generation.",  # noqa: E501
                         "code": "TYPE_ERROR",
                     },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -328,7 +329,7 @@ class DiagramViewSet(viewsets.ViewSet):
             return Response(
                 {
                     "status": "error",
-                    "error": "An unexpected error occurred while generating the diagram",
+                    "error": "An unexpected error occurred while generating the diagram",  # noqa: E501
                     "detail": str(e),
                     "error_type": type(e).__name__,
                     "code": "INTERNAL_ERROR",
@@ -341,16 +342,16 @@ class DiagramViewSet(viewsets.ViewSet):
         tags=["Reporting"],
         description="""
         Export a diagram in SVG or PNG format for download.
-        
+
         **Supported formats:**
         - `svg`: Vector graphic (scalable, best quality)
         - `png`: Raster image (requires cairosvg library)
-        
+
         **Supported diagram types:**
         - `workflow`: Workflow status diagram
         - `dependency`: Issue dependency graph
         - `roadmap`: Project roadmap timeline
-        
+
         **Response:**
         - SVG: Returns SVG XML as text/xml
         - PNG: Returns PNG image as image/png (base64 or binary)
@@ -423,7 +424,7 @@ class DiagramViewSet(viewsets.ViewSet):
             )
 
             logger.info(
-                f"Exporting {diagram_type} diagram as {export_format} for project {project.key}"
+                f"Exporting {diagram_type} diagram as {export_format} for project {project.key}"  # noqa: E501
             )
 
             # Generate SVG based on diagram type
@@ -456,9 +457,9 @@ class DiagramViewSet(viewsets.ViewSet):
                 from django.http import HttpResponse
 
                 response = HttpResponse(svg_content, content_type="image/svg+xml")
-                response[
-                    "Content-Disposition"
-                ] = f'attachment; filename="{project.key}_{diagram_type}.svg"'
+                response["Content-Disposition"] = (
+                    f'attachment; filename="{project.key}_{diagram_type}.svg"'
+                )
                 response["X-Diagram-Type"] = diagram_type
                 response["X-Export-Format"] = "svg"
 
@@ -468,7 +469,7 @@ class DiagramViewSet(viewsets.ViewSet):
             # Convert SVG to PNG
             elif export_format == "png":
                 try:
-                    import io
+                    pass
 
                     import cairosvg
 
@@ -478,9 +479,9 @@ class DiagramViewSet(viewsets.ViewSet):
                     from django.http import HttpResponse
 
                     response = HttpResponse(png_data, content_type="image/png")
-                    response[
-                        "Content-Disposition"
-                    ] = f'attachment; filename="{project.key}_{diagram_type}.png"'
+                    response["Content-Disposition"] = (
+                        f'attachment; filename="{project.key}_{diagram_type}.png"'
+                    )
                     response["X-Diagram-Type"] = diagram_type
                     response["X-Export-Format"] = "png"
 
@@ -491,7 +492,7 @@ class DiagramViewSet(viewsets.ViewSet):
                     return Response(
                         {
                             "error": "PNG export not available",
-                            "detail": "cairosvg library is not installed. Install it with: pip install cairosvg",
+                            "detail": "cairosvg library is not installed. Install it with: pip install cairosvg",  # noqa: E501
                             "code": "PNG_NOT_SUPPORTED",
                             "alternatives": [
                                 "Use SVG format instead",
@@ -537,9 +538,11 @@ class DiagramViewSet(viewsets.ViewSet):
         except ValidationError as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-                if "format" in str(e)
-                else status.HTTP_404_NOT_FOUND,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                    if "format" in str(e)
+                    else status.HTTP_404_NOT_FOUND
+                ),
             )
         except PermissionDenied as e:
             return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -630,6 +633,6 @@ class DiagramViewSet(viewsets.ViewSet):
                 )
 
         logger.info(
-            f"Normalized {len(status_ids)} status filters to {len(normalized_ids)} UUIDs"
+            f"Normalized {len(status_ids)} status filters to {len(normalized_ids)} UUIDs"  # noqa: E501
         )
         return normalized_ids

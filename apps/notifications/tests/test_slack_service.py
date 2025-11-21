@@ -6,7 +6,6 @@ All Slack API calls are mocked - no real webhook requests.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from apps.notifications.services import SlackService

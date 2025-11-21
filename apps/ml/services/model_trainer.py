@@ -6,22 +6,16 @@ Trains ML models using scikit-learn and stores them in S3.
 
 import io
 import logging
-import pickle
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.conf import settings
-from django.db.models import Avg, Count, Q
 from django.utils import timezone
 
 import joblib
 import numpy as np
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import Ridge
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
 from apps.ml.models import MLModel, PredictionHistory
 from apps.ml.services.s3_model_storage import S3ModelStorageService

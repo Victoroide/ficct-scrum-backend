@@ -3,6 +3,7 @@ UML Generator
 
 Generates UML Class Diagrams from analyzed Python code.
 """
+
 import logging
 from typing import Dict, List
 
@@ -83,7 +84,7 @@ class UMLGenerator:
                 "filter_applied": "django_orm_models_only",
                 "classes_before_filter": len(analysis["classes"]),
                 "classes_after_filter": len(filtered_classes),
-                "filter_description": "Only Django ORM models (excludes middlewares, tests, serializers, viewsets, etc.)",
+                "filter_description": "Only Django ORM models (excludes middlewares, tests, serializers, viewsets, etc.)",  # noqa: E501
             },
         }
 
@@ -164,7 +165,8 @@ class UMLGenerator:
             # If no Model inheritance detected, likely not a Django model
             if not model_inheritance:
                 # Exception: Could be inheriting from another model in the same app
-                # We'll allow classes without explicit Model parent if they're in models.py
+                # We'll allow classes without explicit Model parent if they're in
+                # models.py
                 pass
 
         # FILTER 5: Common Django model naming patterns
@@ -251,7 +253,7 @@ class UMLGenerator:
                         "from": class_info["name"],
                         "to": attr_type,
                         "type": "has_a",
-                        "description": f"{class_info['name']} has {attr['name']} of type {attr_type}",
+                        "description": f"{class_info['name']} has {attr['name']} of type {attr_type}",  # noqa: E501
                     }
                 )
 
@@ -304,7 +306,7 @@ class UMLGenerator:
                                     "from": source_class,
                                     "to": target_class,
                                     "type": "uses",
-                                    "description": f"{source_class} uses {target_class}",
+                                    "description": f"{source_class} uses {target_class}",  # noqa: E501
                                 }
                             )
 

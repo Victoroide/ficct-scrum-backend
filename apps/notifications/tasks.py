@@ -83,7 +83,7 @@ def check_upcoming_deadlines(self):
 
                     results["notifications_created"] += 1
                     logger.info(
-                        f"Sent deadline notification for issue {issue.key} (due in {days_until} day(s))"
+                        f"Sent deadline notification for issue {issue.key} (due in {days_until} day(s))"  # noqa: E501
                     )
 
                 except Exception as e:
@@ -131,12 +131,10 @@ def check_upcoming_deadlines(self):
                         urgency = (
                             "critical"
                             if days_until == 0
-                            else "high"
-                            if days_until == 1
-                            else "medium"
+                            else "high" if days_until == 1 else "medium"
                         )
-                        title = f"Sprint deadline {'today' if days_until == 0 else f'in {days_until} day(s)'}"
-                        message = f"Sprint '{sprint.name}' ends on {sprint.end_date.strftime('%Y-%m-%d')}"
+                        title = f"Sprint deadline {'today' if days_until == 0 else f'in {days_until} day(s)'}"  # noqa: E501
+                        message = f"Sprint '{sprint.name}' ends on {sprint.end_date.strftime('%Y-%m-%d')}"  # noqa: E501
 
                         notification_service.create_notification(
                             recipient=team_member.user,
@@ -154,7 +152,7 @@ def check_upcoming_deadlines(self):
 
                         results["notifications_created"] += 1
                         logger.info(
-                            f"Sent sprint deadline notification for {sprint.name} to {team_member.user.email}"
+                            f"Sent sprint deadline notification for {sprint.name} to {team_member.user.email}"  # noqa: E501
                         )
 
                 except Exception as e:
@@ -181,7 +179,6 @@ def send_notification_digests(self):
         dict: Digest sending results
     """
     try:
-        from apps.authentication.models import User
         from apps.notifications.models import Notification, NotificationPreference
 
         logger.info("Starting notification digest task")
@@ -221,19 +218,20 @@ def send_notification_digests(self):
                         notification_groups[notif.notification_type] = []
                     notification_groups[notif.notification_type].append(notif)
 
-                # Build digest email (simplified - would use email template in production)
+                # Build digest email (simplified - would use email template in
+                # production)
                 digest_summary = (
                     f"You have {unread_notifications.count()} unread notifications:\n\n"
                 )
                 for notif_type, notifs in notification_groups.items():
-                    digest_summary += f"- {len(notifs)} {notif_type.replace('_', ' ')} notifications\n"
+                    digest_summary += f"- {len(notifs)} {notif_type.replace('_', ' ')} notifications\n"  # noqa: E501
 
                 # Send digest email (placeholder - would use EmailService in production)
-                # notification_service.email_service.send_digest_email(user.email, digest_summary)
+                # notification_service.email_service.send_digest_email(user.email, digest_summary)  # noqa: E501
 
                 results["digests_sent"] += 1
                 logger.info(
-                    f"Sent digest to {user.email} with {unread_notifications.count()} notifications"
+                    f"Sent digest to {user.email} with {unread_notifications.count()} notifications"  # noqa: E501
                 )
 
             except Exception as e:

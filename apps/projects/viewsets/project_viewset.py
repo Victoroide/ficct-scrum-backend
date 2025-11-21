@@ -11,11 +11,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.logging.services import LoggerService
-from apps.projects.models import Project, WorkflowStatus
+from apps.projects.models import Project
 from apps.projects.permissions import (
     CanAccessProject,
     IsProjectLeadOrAdmin,
-    IsProjectMember,
 )
 from apps.projects.serializers import ProjectSerializer
 from base.utils.file_handlers import upload_project_file_to_s3
@@ -102,18 +101,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Returns only projects where user is a workspace member.
         """
         # Base queryset: user must be a member of the workspace
-        queryset = Project.objects.filter(
-            workspace__members__user=self.request.user,
-            workspace__members__is_active=True,
-        ).select_related(
-            'workspace',
-            'workspace__organization',
-            'lead',
-            'created_by'
-        ).prefetch_related(
-            'team_members',
-            'team_members__user'
-        ).distinct()
+        queryset = (
+            Project.objects.filter(
+                workspace__members__user=self.request.user,
+                workspace__members__is_active=True,
+            )
+            .select_related(
+                "workspace", "workspace__organization", "lead", "created_by"
+            )
+            .prefetch_related("team_members", "team_members__user")
+            .distinct()
+        )
 
         # Filter by workspace if provided
         workspace_id = self.request.query_params.get("workspace")
@@ -126,7 +124,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(workspace_id=workspace_id)
 
                 logger.info(
-                    f"[PROJECT FILTER] User {self.request.user.email} filtering by workspace: {workspace_id}, "
+                    f"[PROJECT FILTER] User {self.request.user.email} filtering by workspace: {workspace_id}, "  # noqa: E501
                     f"Result count: {queryset.count()}"
                 )
 
@@ -150,18 +148,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(workspace__organization_id=organization_id)
 
                 logger.info(
-                    f"[PROJECT FILTER] User {self.request.user.email} filtering by organization: {organization_id}, "
+                    f"[PROJECT FILTER] User {self.request.user.email} filtering by organization: {organization_id}, "  # noqa: E501
                     f"Result count: {queryset.count()}"
                 )
 
             except ValueError:
                 logger.warning(
-                    f"[PROJECT FILTER] Invalid organization UUID format: {organization_id} "
+                    f"[PROJECT FILTER] Invalid organization UUID format: {organization_id} "  # noqa: E501
                     f"from user {self.request.user.email}"
                 )
                 raise ValidationError(
                     {
-                        "organization": "Invalid organization ID format. Must be a valid UUID."
+                        "organization": "Invalid organization ID format. Must be a valid UUID."  # noqa: E501
                     }
                 )
 
@@ -185,7 +183,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "project_key": project.key,
                 "project_name": project.name,
                 "workspace_id": str(project.workspace.id),
-                "workflow_statuses_created": len(default_statuses),
+                "workflow_statuses_created": len(default_statuses),  # noqa: F821
             },
         )
 

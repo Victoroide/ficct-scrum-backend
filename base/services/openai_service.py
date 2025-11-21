@@ -112,7 +112,7 @@ class AzureOpenAIService:
             embeddings = [item.embedding for item in response.data]
 
             logger.debug(
-                f"Generated {len(embeddings)} embeddings, each with {len(embeddings[0]) if embeddings else 0} dimensions"
+                f"Generated {len(embeddings)} embeddings, each with {len(embeddings[0]) if embeddings else 0} dimensions"  # noqa: E501
             )
             return embeddings
 
@@ -139,9 +139,9 @@ class AzureOpenAIService:
             messages: List of message dictionaries with 'role' and 'content'
             temperature: Sampling temperature (0-2) - ignored for o-series models
             max_tokens: Maximum tokens in response
-            functions: Optional function definitions for function calling - ignored for o-series
+            functions: Optional function definitions for function calling - ignored for o-series  # noqa: E501
             function_call: Optional function call directive - ignored for o-series
-            reasoning_effort: Reasoning depth for o-series models ("low"|"medium"|"high")
+            reasoning_effort: Reasoning depth for o-series models ("low"|"medium"|"high")  # noqa: E501
 
         Returns:
             Dictionary containing response message and metadata
@@ -178,7 +178,7 @@ class AzureOpenAIService:
                     for msg in messages
                 ]
                 logger.debug(
-                    f"[OPENAI] Converted system roles to developer for o-series model"
+                    "[OPENAI] Converted system roles to developer for o-series model"
                 )
 
             # Build base parameters
@@ -190,18 +190,18 @@ class AzureOpenAIService:
             # O-SERIES MODELS: Use restricted parameter set
             if is_o_series:
                 logger.info(
-                    f"[OPENAI] Detected o-series model: {self.chat_deployment}, using restricted parameters"
+                    f"[OPENAI] Detected o-series model: {self.chat_deployment}, using restricted parameters"  # noqa: E501
                 )
 
                 # REQUIRED: max_completion_tokens (not max_tokens)
-                # Default: 16000 for o-series (increased from 4096 to prevent token exhaustion)
+                # Default: 16000 for o-series (increased from 4096 to prevent token exhaustion)  # noqa: E501
                 # Reasoning models need high budgets: reasoning + output tokens
                 token_limit = max_tokens if max_tokens else 16000
                 params["max_completion_tokens"] = token_limit
                 logger.debug(f"[OPENAI] max_completion_tokens={token_limit}")
 
                 # OPTIONAL: reasoning_effort controls reasoning depth and token usage
-                # Values: "low" (faster, less reasoning), "medium" (balanced), "high" (thorough)
+                # Values: "low" (faster, less reasoning), "medium" (balanced), "high" (thorough)  # noqa: E501
                 # Default: "low" for RAG queries to maximize output space
                 effort = reasoning_effort if reasoning_effort else "low"
                 params["reasoning_effort"] = effort
@@ -212,13 +212,13 @@ class AzureOpenAIService:
                 # - functions, function_call
                 # - logprobs, top_logprobs, logit_bias
                 logger.debug(
-                    f"[OPENAI] Excluded unsupported params: temperature, functions, penalties"
+                    "[OPENAI] Excluded unsupported params: temperature, functions, penalties"  # noqa: E501
                 )
 
             # TRADITIONAL MODELS: Use standard parameters
             else:
                 logger.debug(
-                    f"[OPENAI] Traditional model: {self.chat_deployment}, using standard parameters"
+                    f"[OPENAI] Traditional model: {self.chat_deployment}, using standard parameters"  # noqa: E501
                 )
 
                 # Include temperature for traditional models
@@ -243,7 +243,7 @@ class AzureOpenAIService:
 
             # Log final request
             logger.info(
-                f"[OPENAI] Calling chat completion with {len(processed_messages)} messages"
+                f"[OPENAI] Calling chat completion with {len(processed_messages)} messages"  # noqa: E501
             )
 
             response = self.client.chat.completions.create(**params)
@@ -252,7 +252,7 @@ class AzureOpenAIService:
             finish_reason = response.choices[0].finish_reason
             usage = response.usage
             logger.info(
-                f"[OPENAI] Completion finished: reason={finish_reason}, tokens={usage.total_tokens}"
+                f"[OPENAI] Completion finished: reason={finish_reason}, tokens={usage.total_tokens}"  # noqa: E501
             )
 
             # For o-series models, log reasoning/output token breakdown
@@ -262,14 +262,14 @@ class AzureOpenAIService:
                     logger.debug(
                         f"[OPENAI] Token breakdown: "
                         f"reasoning={details.reasoning_tokens}, "
-                        f"output={getattr(details, 'accepted_prediction_tokens', 0) or usage.completion_tokens - details.reasoning_tokens}"
+                        f"output={getattr(details, 'accepted_prediction_tokens', 0) or usage.completion_tokens - details.reasoning_tokens}"  # noqa: E501
                     )
 
             # Warning if budget exhausted (empty response likely)
             if finish_reason == "length":
                 logger.warning(
-                    f"[OPENAI] Token budget exhausted (finish_reason='length'). "
-                    f"Response may be truncated or empty. Consider increasing max_completion_tokens."
+                    "[OPENAI] Token budget exhausted (finish_reason='length'). "
+                    "Response may be truncated or empty. Consider increasing max_completion_tokens."  # noqa: E501
                 )
 
             return {
@@ -351,7 +351,7 @@ class AzureOpenAIService:
         messages = [
             {
                 "role": "system",
-                "content": "You are a data extraction assistant. Extract the requested information from the text.",
+                "content": "You are a data extraction assistant. Extract the requested information from the text.",  # noqa: E501
             },
             {"role": "user", "content": text},
         ]

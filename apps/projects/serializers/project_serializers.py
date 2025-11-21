@@ -1,8 +1,5 @@
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.authentication.serializers import UserSerializer
@@ -298,7 +295,7 @@ class AddTeamMemberSerializer(serializers.Serializer):
         from apps.authentication.models import User
 
         try:
-            user = User.objects.get(id=value, is_active=True)
+            _user = User.objects.get(id=value, is_active=True)  # noqa: F841
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found")
         return value

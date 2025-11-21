@@ -4,7 +4,7 @@ Unit tests for admin tools tasks.
 All external calls (subprocess, S3) are mocked.
 """
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from django.utils import timezone
 
@@ -164,15 +164,12 @@ class TestBackupRetentionPolicy:
         """Test retention keeps last 7 daily backups."""
         # This would test the retention logic
         # Keeping 7 daily, 4 weekly, 12 monthly
-        pass
 
     def test_retention_keeps_weekly_backups(self):
         """Test retention keeps 4 weekly backups."""
-        pass
 
     def test_retention_keeps_monthly_backups(self):
         """Test retention keeps 12 monthly backups."""
-        pass
 
 
 class TestBackupFilenameGeneration:
@@ -180,12 +177,9 @@ class TestBackupFilenameGeneration:
 
     def test_backup_filename_includes_timestamp(self):
         """Test backup filename includes timestamp."""
-        from apps.admin_tools.tasks import backup_database
 
         # Mock to get filename without executing backup
-        pass
 
     def test_backup_filename_format(self):
         """Test backup filename follows expected format."""
         # Format: backup_YYYYMMDD_HHMMSS.sql.gz
-        pass

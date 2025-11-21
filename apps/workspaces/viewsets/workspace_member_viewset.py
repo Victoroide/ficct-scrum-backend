@@ -1,6 +1,5 @@
 import logging
 
-from django.db import transaction
 from django.db.models import Prefetch
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
         tags=["Workspaces"],
         operation_id="workspace_members_list",
         summary="List Workspace Members",
-        description="List workspace members. Filter by workspace using ?workspace={uuid} query parameter.",
+        description="List workspace members. Filter by workspace using ?workspace={uuid} query parameter.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="workspace",

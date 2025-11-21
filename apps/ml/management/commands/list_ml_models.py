@@ -64,7 +64,7 @@ class Command(BaseCommand):
         if not queryset.exists():
             self.stdout.write(self.style.WARNING("  No models found."))
             self.stdout.write(
-                "\n  Train a model with: python manage.py train_ml_model effort_prediction"
+                "\n  Train a model with: python manage.py train_ml_model effort_prediction"  # noqa: E501
             )
             return
 
@@ -115,7 +115,7 @@ class Command(BaseCommand):
             # Trained by
             if model.trained_by:
                 self.stdout.write(
-                    f"  Trained By: {model.trained_by.get_full_name() or model.trained_by.username}"
+                    f"  Trained By: {model.trained_by.get_full_name() or model.trained_by.username}"  # noqa: E501
                 )
 
         self.stdout.write("\n" + "-" * 100)

@@ -6,7 +6,6 @@ Tests model training, evaluation, and S3 integration.
 
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
 from moto import mock_s3
 

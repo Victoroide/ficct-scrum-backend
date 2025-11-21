@@ -2,6 +2,7 @@
 API tests for organization invitation system.
 Tests the complete invitation workflow including email-based invitations.
 """
+
 import secrets
 from datetime import timedelta
 from unittest.mock import patch
@@ -15,7 +16,6 @@ from rest_framework.test import APIClient
 from apps.authentication.models import User
 from apps.authentication.tests.factories import UserFactory
 from apps.organizations.models import (
-    Organization,
     OrganizationInvitation,
     OrganizationMembership,
 )
@@ -401,7 +401,7 @@ class OrganizationInvitationAPITest(TestCase):
         self.client.force_authenticate(user=self.owner)
 
         response = self.client.get(
-            f"/api/v1/orgs/invitations/?organization={self.organization.id}&status=pending"
+            f"/api/v1/orgs/invitations/?organization={self.organization.id}&status=pending"  # noqa: E501
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

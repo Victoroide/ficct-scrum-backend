@@ -12,29 +12,13 @@ import random
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-import boto3
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from .generate_test_data_helpers import (
-    PROJECT_TEMPLATES,
-    ISSUE_TYPE_TEMPLATES,
-    WORKFLOW_STATUS_TEMPLATES,
-    STORY_TEMPLATES,
-    TASK_TEMPLATES,
-    BUG_TEMPLATES,
-    EPIC_TEMPLATES,
-    ACTIONS,
-    BENEFITS,
-    FEATURES,
-    AREAS,
-    COMPONENTS,
-    PROBLEMS,
-    COMMENT_TEMPLATES,
-)
+import boto3
 
 # Import models
 from apps.organizations.models import Organization, OrganizationMembership
@@ -42,19 +26,28 @@ from apps.projects.models import (
     Board,
     BoardColumn,
     Issue,
-    IssueAttachment,
     IssueComment,
     IssueLink,
-    IssueType,
     Project,
-    ProjectConfiguration,
     ProjectTeamMember,
     Sprint,
-    WorkflowStatus,
-    WorkflowTransition,
 )
-from apps.reporting.models import ActivityLog
 from apps.workspaces.models import Workspace, WorkspaceMember
+
+from .generate_test_data_helpers import (
+    ACTIONS,
+    AREAS,
+    BENEFITS,
+    BUG_TEMPLATES,
+    COMMENT_TEMPLATES,
+    COMPONENTS,
+    EPIC_TEMPLATES,
+    FEATURES,
+    PROBLEMS,
+    PROJECT_TEMPLATES,
+    STORY_TEMPLATES,
+    TASK_TEMPLATES,
+)
 
 User = get_user_model()
 
@@ -72,17 +65,23 @@ class Command(BaseCommand):
         self.all_issues = []
         self.all_sprints = []
         self.stats = {
-            'users': 0, 'organizations': 0, 'workspaces': 0, 'projects': 0,
-            'sprints': 0, 'issues': 0, 'comments': 0, 'attachments': 0,
-            'links': 0,
+            "users": 0,
+            "organizations": 0,
+            "workspaces": 0,
+            "projects": 0,
+            "sprints": 0,
+            "issues": 0,
+            "comments": 0,
+            "attachments": 0,
+            "links": 0,
         }
 
     def add_arguments(self, parser):
-        parser.add_argument('--projects', type=int, default=15)
-        parser.add_argument('--issues-per-project', type=int, default=50)
-        parser.add_argument('--skip-pinecone', action='store_true')
-        parser.add_argument('--skip-s3', action='store_true')
-        parser.add_argument('--skip-csv', action='store_true')
+        parser.add_argument("--projects", type=int, default=15)
+        parser.add_argument("--issues-per-project", type=int, default=50)
+        parser.add_argument("--skip-pinecone", action="store_true")
+        parser.add_argument("--skip-s3", action="store_true")
+        parser.add_argument("--skip-csv", action="store_true")
 
     def handle(self, *args, **options):
         """Main execution method."""
@@ -94,17 +93,17 @@ class Command(BaseCommand):
             with transaction.atomic():
                 self.create_users()
                 self.create_organization_and_workspace()
-                self.create_projects(options['projects'])
+                self.create_projects(options["projects"])
                 self.create_sprints()
-                self.create_issues(options['issues_per_project'])
+                self.create_issues(options["issues_per_project"])
                 self.create_relationships_and_details()
 
-            if not options['skip_csv']:
+            if not options["skip_csv"]:
                 csv_files = self.export_to_csv()
-                if not options['skip_s3']:
+                if not options["skip_s3"]:
                     self.upload_to_s3(csv_files)
 
-            if not options['skip_pinecone']:
+            if not options["skip_pinecone"]:
                 self.sync_to_pinecone()
 
             self.print_summary()
@@ -116,102 +115,102 @@ class Command(BaseCommand):
     def create_users(self):
         """Create user accounts."""
         self.stdout.write("\nCreating users...")
-        
+
         self.owner, created = User.objects.get_or_create(
-            email='owner@ficct.com',
+            email="owner@ficct.com",
             defaults={
-                'username': 'owner',
-                'first_name': 'Organization',
-                'last_name': 'Owner',
-                'is_active': True,
-                'is_verified': True,
-            }
+                "username": "owner",
+                "first_name": "Organization",
+                "last_name": "Owner",
+                "is_active": True,
+                "is_verified": True,
+            },
         )
         if created:
-            self.owner.set_password('Pass123')
+            self.owner.set_password("Pass123")
             self.owner.save()
-        self.stats['users'] += 1
+        self.stats["users"] += 1
 
         team_data = [
-            ('cvictorhugo39@gmail.com', 'victoroide', 'Victor', 'Cuellar'),
-            ('sebamendex11@gmail.com', 'sebamendex', 'Sebastian', 'Mendez'),
-            ('l0nkdev04@gmail.com', 'l0nkdev', 'Lonk', 'Dev'),
-            ('jezabeltamara@gmail.com', 'jezabel', 'Jezabel', 'Tamara'),
-            ('rojas.wilder@ficct.uagrm.edu.bo', 'wilderrojas', 'Wilder', 'Rojas'),
+            ("cvictorhugo39@gmail.com", "victoroide", "Victor", "Cuellar"),
+            ("sebamendex11@gmail.com", "sebamendex", "Sebastian", "Mendez"),
+            ("l0nkdev04@gmail.com", "l0nkdev", "Lonk", "Dev"),
+            ("jezabeltamara@gmail.com", "jezabel", "Jezabel", "Tamara"),
+            ("rojas.wilder@ficct.uagrm.edu.bo", "wilderrojas", "Wilder", "Rojas"),
         ]
 
         for email, username, first_name, last_name in team_data:
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
-                    'username': username,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'is_active': True,
-                    'is_verified': True,
-                }
+                    "username": username,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "is_active": True,
+                    "is_verified": True,
+                },
             )
             if created:
-                user.set_password('Pass123')
+                user.set_password("Pass123")
                 user.save()
             self.team_members.append(user)
-            self.stats['users'] += 1
+            self.stats["users"] += 1
 
         self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['users']} users"))
 
     def create_organization_and_workspace(self):
         """Create organization and workspace."""
         self.stdout.write("\nSetting up organization...")
-        
+
         self.main_organization, _ = Organization.objects.get_or_create(
-            slug='ficct-scrum',
+            slug="ficct-scrum",
             defaults={
-                'name': 'FICCT Scrum Organization',
-                'description': 'Main organization',
-                'organization_type': 'startup',
-                'subscription_plan': 'professional',
-                'owner': self.owner,
-            }
+                "name": "FICCT Scrum Organization",
+                "description": "Main organization",
+                "organization_type": "startup",
+                "subscription_plan": "professional",
+                "owner": self.owner,
+            },
         )
-        self.stats['organizations'] += 1
+        self.stats["organizations"] += 1
 
         OrganizationMembership.objects.get_or_create(
             organization=self.main_organization,
             user=self.owner,
-            defaults={'role': 'owner', 'is_active': True}
+            defaults={"role": "owner", "is_active": True},
         )
 
         for user in self.team_members:
             OrganizationMembership.objects.get_or_create(
                 organization=self.main_organization,
                 user=user,
-                defaults={'role': 'member', 'is_active': True}
+                defaults={"role": "member", "is_active": True},
             )
 
         self.main_workspace, _ = Workspace.objects.get_or_create(
-            slug='main-workspace',
+            slug="main-workspace",
             organization=self.main_organization,
             defaults={
-                'name': 'Main Workspace',
-                'description': 'Primary workspace',
-                'workspace_type': 'development',
-                'visibility': 'private',
-                'created_by': self.owner,
-            }
+                "name": "Main Workspace",
+                "description": "Primary workspace",
+                "workspace_type": "development",
+                "visibility": "private",
+                "created_by": self.owner,
+            },
         )
-        self.stats['workspaces'] += 1
+        self.stats["workspaces"] += 1
 
         WorkspaceMember.objects.get_or_create(
             workspace=self.main_workspace,
             user=self.owner,
-            defaults={'role': 'admin', 'is_active': True}
+            defaults={"role": "admin", "is_active": True},
         )
 
         for user in self.team_members:
             WorkspaceMember.objects.get_or_create(
                 workspace=self.main_workspace,
                 user=user,
-                defaults={'role': 'member', 'is_active': True}
+                defaults={"role": "member", "is_active": True},
             )
 
         self.stdout.write(self.style.SUCCESS("✓ Organization setup complete"))
@@ -219,18 +218,18 @@ class Command(BaseCommand):
     def create_projects(self, num_projects):
         """Generate projects."""
         self.stdout.write(f"\nCreating {num_projects} projects...")
-        
+
         selected_templates = PROJECT_TEMPLATES[:num_projects]
 
         for template in selected_templates:
             project = Project.objects.create(
                 workspace=self.main_workspace,
-                name=template['name'],
-                key=template['key'],
-                description=template['description'],
-                methodology=template['methodology'],
-                status=template['status'],
-                priority=template['priority'],
+                name=template["name"],
+                key=template["key"],
+                description=template["description"],
+                methodology=template["methodology"],
+                status=template["status"],
+                priority=template["priority"],
                 lead=self.owner,
                 start_date=date.today() - timedelta(days=random.randint(30, 180)),
                 created_by=self.owner,
@@ -238,27 +237,30 @@ class Command(BaseCommand):
 
             # Add project team members
             ProjectTeamMember.objects.create(
-                project=project, user=self.owner, role='admin', is_active=True
+                project=project, user=self.owner, role="admin", is_active=True
             )
 
-            roles = ['admin', 'developer', 'developer', 'viewer']
+            roles = ["admin", "developer", "developer", "viewer"]
             for user in self.team_members:
                 ProjectTeamMember.objects.create(
-                    project=project, user=user, role=random.choice(roles), is_active=True
+                    project=project,
+                    user=user,
+                    role=random.choice(roles),
+                    is_active=True,
                 )
 
-            # Note: Issue types, workflow statuses, transitions, and project configuration
+            # Note: Issue types, workflow statuses, transitions, and project configuration  # noqa: E501
             # are created automatically by Django signals when the project is created.
             # No need to manually create them here.
-            
+
             # Get the automatically created statuses for board creation
-            created_statuses = list(project.workflow_statuses.all().order_by('order'))
+            created_statuses = list(project.workflow_statuses.all().order_by("order"))
 
             # Create default board
             board = Board.objects.create(
                 project=project,
-                name='Main Board',
-                board_type='kanban',
+                name="Main Board",
+                board_type="kanban",
                 created_by=self.owner,
             )
 
@@ -272,22 +274,24 @@ class Command(BaseCommand):
                 )
 
             self.projects.append(project)
-            self.stats['projects'] += 1
+            self.stats["projects"] += 1
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['projects']} projects"))
+        self.stdout.write(
+            self.style.SUCCESS(f"✓ Created {self.stats['projects']} projects")
+        )
 
     def create_sprints(self):
         """Generate sprints."""
         self.stdout.write("\nCreating sprints...")
-        
+
         for project in self.projects:
-            if project.methodology != 'scrum':
+            if project.methodology != "scrum":
                 continue
 
             # Determine number of sprints
-            if project.status == 'completed':
+            if project.status == "completed":
                 num_sprints = random.randint(6, 8)
-            elif project.status == 'active':
+            elif project.status == "active":
                 num_sprints = random.randint(3, 6)
             else:
                 num_sprints = random.randint(1, 3)
@@ -300,15 +304,15 @@ class Command(BaseCommand):
 
                 # Determine sprint status
                 if end_date < date.today():
-                    status = 'completed'
+                    status = "completed"
                     completed_at = timezone.make_aware(
                         datetime.combine(end_date, datetime.min.time())
                     )
                 elif start_date <= date.today() <= end_date:
-                    status = 'active'
+                    status = "active"
                     completed_at = None
                 else:
-                    status = 'planning'
+                    status = "planning"
                     completed_at = None
 
                 sprint = Sprint.objects.create(
@@ -319,26 +323,32 @@ class Command(BaseCommand):
                     start_date=start_date,
                     end_date=end_date,
                     committed_points=Decimal(random.randint(20, 50)),
-                    completed_points=Decimal(random.randint(15, 45)) if status == 'completed' else Decimal(0),
+                    completed_points=(
+                        Decimal(random.randint(15, 45))
+                        if status == "completed"
+                        else Decimal(0)
+                    ),
                     created_by=self.owner,
                     completed_at=completed_at,
                 )
 
                 self.all_sprints.append(sprint)
-                self.stats['sprints'] += 1
+                self.stats["sprints"] += 1
                 current_date = end_date + timedelta(days=1)
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['sprints']} sprints"))
+        self.stdout.write(
+            self.style.SUCCESS(f"✓ Created {self.stats['sprints']} sprints")
+        )
 
     def create_issues(self, avg_issues):
         """Generate issues."""
         self.stdout.write(f"\nCreating issues (avg {avg_issues} per project)...")
-        
+
         for project in self.projects:
             # Vary issue count by project size
-            if project.status == 'completed':
+            if project.status == "completed":
                 num_issues = random.randint(80, 100)
-            elif project.status == 'active':
+            elif project.status == "active":
                 num_issues = random.randint(40, 70)
             else:
                 num_issues = random.randint(10, 30)
@@ -354,7 +364,10 @@ class Command(BaseCommand):
                 # Select issue type with distribution
                 type_choice = random.random()
                 if type_choice < 0.50:  # 50% stories
-                    issue_type = next((it for it in issue_types if it.category == 'story'), issue_types[0])
+                    issue_type = next(
+                        (it for it in issue_types if it.category == "story"),
+                        issue_types[0],
+                    )
                     title = random.choice(STORY_TEMPLATES).format(
                         action=random.choice(ACTIONS),
                         benefit=random.choice(BENEFITS),
@@ -362,7 +375,10 @@ class Command(BaseCommand):
                         area=random.choice(AREAS),
                     )
                 elif type_choice < 0.75:  # 25% tasks
-                    issue_type = next((it for it in issue_types if it.category == 'task'), issue_types[0])
+                    issue_type = next(
+                        (it for it in issue_types if it.category == "task"),
+                        issue_types[0],
+                    )
                     title = random.choice(TASK_TEMPLATES).format(
                         component=random.choice(COMPONENTS),
                         technical_item=random.choice(FEATURES),
@@ -371,7 +387,10 @@ class Command(BaseCommand):
                         performance_item=random.choice(COMPONENTS),
                     )
                 elif type_choice < 0.90:  # 15% bugs
-                    issue_type = next((it for it in issue_types if it.category == 'bug'), issue_types[0])
+                    issue_type = next(
+                        (it for it in issue_types if it.category == "bug"),
+                        issue_types[0],
+                    )
                     title = random.choice(BUG_TEMPLATES).format(
                         problem=random.choice(PROBLEMS),
                         area=random.choice(AREAS),
@@ -384,16 +403,24 @@ class Command(BaseCommand):
                     )
                 else:  # 10% epics/improvements
                     if random.random() < 0.5:
-                        issue_type = next((it for it in issue_types if it.category == 'epic'), issue_types[0])
-                        title = random.choice(EPIC_TEMPLATES).format(feature=random.choice(FEATURES).capitalize())
+                        issue_type = next(
+                            (it for it in issue_types if it.category == "epic"),
+                            issue_types[0],
+                        )
+                        title = random.choice(EPIC_TEMPLATES).format(
+                            feature=random.choice(FEATURES).capitalize()
+                        )
                     else:
-                        issue_type = next((it for it in issue_types if it.category == 'improvement'), issue_types[0])
-                        title = f"Improve {random.choice(FEATURES)} {random.choice(['performance', 'usability', 'design'])}"
+                        issue_type = next(
+                            (it for it in issue_types if it.category == "improvement"),
+                            issue_types[0],
+                        )
+                        title = f"Improve {random.choice(FEATURES)} {random.choice(['performance', 'usability', 'design'])}"  # noqa: E501
 
                 # Select status
-                if project.status == 'completed':
+                if project.status == "completed":
                     status = next((s for s in statuses if s.is_final), statuses[-1])
-                elif project.status == 'active':
+                elif project.status == "active":
                     status = random.choice(statuses)
                 else:
                     status = next((s for s in statuses if s.is_initial), statuses[0])
@@ -405,7 +432,7 @@ class Command(BaseCommand):
 
                 # Create issue
                 created_at = timezone.now() - timedelta(days=random.randint(1, 120))
-                
+
                 issue = Issue.objects.create(
                     project=project,
                     issue_type=issue_type,
@@ -414,27 +441,45 @@ class Command(BaseCommand):
                     key=str(issue_counter),
                     title=title[:500],  # Ensure within limit
                     description=f"Detailed description for {title[:100]}...",
-                    priority=random.choice(['P1', 'P2', 'P3', 'P4']),
-                    assignee=random.choice(all_users) if random.random() < 0.8 else None,
+                    priority=random.choice(["P1", "P2", "P3", "P4"]),
+                    assignee=(
+                        random.choice(all_users) if random.random() < 0.8 else None
+                    ),
                     reporter=random.choice(all_users),
-                    story_points=random.choice([1, 2, 3, 5, 8, 13]) if issue_type.category in ['story', 'task'] else None,
-                    estimated_hours=Decimal(random.randint(1, 40)) if issue_type.category == 'task' else None,
-                    actual_hours=Decimal(random.randint(1, 35)) if status.is_final else None,
+                    story_points=(
+                        random.choice([1, 2, 3, 5, 8, 13])
+                        if issue_type.category in ["story", "task"]
+                        else None
+                    ),
+                    estimated_hours=(
+                        Decimal(random.randint(1, 40))
+                        if issue_type.category == "task"
+                        else None
+                    ),
+                    actual_hours=(
+                        Decimal(random.randint(1, 35)) if status.is_final else None
+                    ),
                     order=issue_counter,
                     created_at=created_at,
-                    resolved_at=created_at + timedelta(days=random.randint(1, 14)) if status.is_final else None,
+                    resolved_at=(
+                        created_at + timedelta(days=random.randint(1, 14))
+                        if status.is_final
+                        else None
+                    ),
                 )
 
                 self.all_issues.append(issue)
-                self.stats['issues'] += 1
+                self.stats["issues"] += 1
                 issue_counter += 1
 
-        self.stdout.write(self.style.SUCCESS(f"✓ Created {self.stats['issues']} issues"))
+        self.stdout.write(
+            self.style.SUCCESS(f"✓ Created {self.stats['issues']} issues")
+        )
 
     def create_relationships_and_details(self):
         """Create comments, links, attachments."""
         self.stdout.write("\nCreating relationships...")
-        
+
         all_users = [self.owner] + self.team_members
 
         # Create comments (2-5 per active issue)
@@ -442,7 +487,9 @@ class Command(BaseCommand):
             if random.random() < 0.6:  # 60% of issues get comments
                 num_comments = random.randint(1, 5)
                 for _ in range(num_comments):
-                    comment_date = issue.created_at + timedelta(days=random.randint(0, 10))
+                    comment_date = issue.created_at + timedelta(
+                        days=random.randint(0, 10)
+                    )
                     IssueComment.objects.create(
                         issue=issue,
                         author=random.choice(all_users),
@@ -451,16 +498,20 @@ class Command(BaseCommand):
                         ),
                         created_at=comment_date,
                     )
-                    self.stats['comments'] += 1
+                    self.stats["comments"] += 1
 
         # Create issue links (10% of issues)
-        link_types = ['blocks', 'blocked_by', 'relates_to', 'duplicates']
+        link_types = ["blocks", "blocked_by", "relates_to", "duplicates"]
         potential_links = random.sample(self.all_issues, min(len(self.all_issues), 100))
-        
+
         for source_issue in potential_links:
             if random.random() < 0.3:
                 # Find a target in the same project
-                project_issues = [i for i in self.all_issues if i.project == source_issue.project and i != source_issue]
+                project_issues = [
+                    i
+                    for i in self.all_issues
+                    if i.project == source_issue.project and i != source_issue
+                ]
                 if project_issues:
                     target_issue = random.choice(project_issues)
                     IssueLink.objects.create(
@@ -469,97 +520,293 @@ class Command(BaseCommand):
                         link_type=random.choice(link_types),
                         created_by=random.choice(all_users),
                     )
-                    self.stats['links'] += 1
+                    self.stats["links"] += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f"✓ Created {self.stats['comments']} comments and {self.stats['links']} links"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ Created {self.stats['comments']} comments and {self.stats['links']} links"  # noqa: E501
+            )
+        )
 
     def export_to_csv(self):
         """Export data to CSV files."""
         self.stdout.write("\nExporting to CSV...")
-        
+
         csv_files = {}
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export organizations
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'slug', 'owner_email', 'organization_type', 'subscription_plan', 'created_at'])
+        writer.writerow(
+            [
+                "id",
+                "name",
+                "slug",
+                "owner_email",
+                "organization_type",
+                "subscription_plan",
+                "created_at",
+            ]
+        )
         for org in Organization.objects.all():
-            writer.writerow([str(org.id), org.name, org.slug, org.owner.email, org.organization_type, org.subscription_plan, org.created_at])
-        csv_files['organizations.csv'] = output.getvalue()
+            writer.writerow(
+                [
+                    str(org.id),
+                    org.name,
+                    org.slug,
+                    org.owner.email,
+                    org.organization_type,
+                    org.subscription_plan,
+                    org.created_at,
+                ]
+            )
+        csv_files["organizations.csv"] = output.getvalue()
         output.close()
 
         # Export workspaces
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'slug', 'organization_id', 'workspace_type', 'visibility', 'created_at'])
+        writer.writerow(
+            [
+                "id",
+                "name",
+                "slug",
+                "organization_id",
+                "workspace_type",
+                "visibility",
+                "created_at",
+            ]
+        )
         for ws in Workspace.objects.all():
-            writer.writerow([str(ws.id), ws.name, ws.slug, str(ws.organization_id), ws.workspace_type, ws.visibility, ws.created_at])
-        csv_files['workspaces.csv'] = output.getvalue()
+            writer.writerow(
+                [
+                    str(ws.id),
+                    ws.name,
+                    ws.slug,
+                    str(ws.organization_id),
+                    ws.workspace_type,
+                    ws.visibility,
+                    ws.created_at,
+                ]
+            )
+        csv_files["workspaces.csv"] = output.getvalue()
         output.close()
 
         # Export users
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'email', 'username', 'first_name', 'last_name', 'is_active', 'is_verified', 'created_at'])
+        writer.writerow(
+            [
+                "id",
+                "email",
+                "username",
+                "first_name",
+                "last_name",
+                "is_active",
+                "is_verified",
+                "created_at",
+            ]
+        )
         for user in User.objects.all():
-            writer.writerow([str(user.id), user.email, user.username, user.first_name, user.last_name, user.is_active, user.is_verified, user.created_at])
-        csv_files['users.csv'] = output.getvalue()
+            writer.writerow(
+                [
+                    str(user.id),
+                    user.email,
+                    user.username,
+                    user.first_name,
+                    user.last_name,
+                    user.is_active,
+                    user.is_verified,
+                    user.created_at,
+                ]
+            )
+        csv_files["users.csv"] = output.getvalue()
         output.close()
 
         # Export projects
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'name', 'key', 'workspace_id', 'methodology', 'status', 'priority', 'lead_email', 'start_date', 'created_at'])
+        writer.writerow(
+            [
+                "id",
+                "name",
+                "key",
+                "workspace_id",
+                "methodology",
+                "status",
+                "priority",
+                "lead_email",
+                "start_date",
+                "created_at",
+            ]
+        )
         for project in Project.objects.all():
-            writer.writerow([str(project.id), project.name, project.key, str(project.workspace_id), project.methodology, project.status, project.priority, project.lead.email if project.lead else '', project.start_date, project.created_at])
-        csv_files['projects.csv'] = output.getvalue()
+            writer.writerow(
+                [
+                    str(project.id),
+                    project.name,
+                    project.key,
+                    str(project.workspace_id),
+                    project.methodology,
+                    project.status,
+                    project.priority,
+                    project.lead.email if project.lead else "",
+                    project.start_date,
+                    project.created_at,
+                ]
+            )
+        csv_files["projects.csv"] = output.getvalue()
         output.close()
 
         # Export sprints
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'project_key', 'name', 'status', 'start_date', 'end_date', 'committed_points', 'completed_points', 'created_at'])
+        writer.writerow(
+            [
+                "id",
+                "project_key",
+                "name",
+                "status",
+                "start_date",
+                "end_date",
+                "committed_points",
+                "completed_points",
+                "created_at",
+            ]
+        )
         for sprint in Sprint.objects.all():
-            writer.writerow([str(sprint.id), sprint.project.key, sprint.name, sprint.status, sprint.start_date, sprint.end_date, sprint.committed_points, sprint.completed_points, sprint.created_at])
-        csv_files['sprints.csv'] = output.getvalue()
+            writer.writerow(
+                [
+                    str(sprint.id),
+                    sprint.project.key,
+                    sprint.name,
+                    sprint.status,
+                    sprint.start_date,
+                    sprint.end_date,
+                    sprint.committed_points,
+                    sprint.completed_points,
+                    sprint.created_at,
+                ]
+            )
+        csv_files["sprints.csv"] = output.getvalue()
         output.close()
 
         # Export issues
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'project_key', 'key', 'title', 'issue_type', 'status', 'priority', 'assignee_email', 'reporter_email', 'story_points', 'estimated_hours', 'actual_hours', 'sprint_name', 'created_at', 'resolved_at'])
-        for issue in Issue.objects.select_related('project', 'issue_type', 'status', 'assignee', 'reporter', 'sprint').all():
-            writer.writerow([str(issue.id), issue.project.key, issue.key, issue.title, issue.issue_type.name, issue.status.name, issue.priority, issue.assignee.email if issue.assignee else '', issue.reporter.email, issue.story_points, issue.estimated_hours, issue.actual_hours, issue.sprint.name if issue.sprint else '', issue.created_at, issue.resolved_at])
-        csv_files['issues.csv'] = output.getvalue()
+        writer.writerow(
+            [
+                "id",
+                "project_key",
+                "key",
+                "title",
+                "issue_type",
+                "status",
+                "priority",
+                "assignee_email",
+                "reporter_email",
+                "story_points",
+                "estimated_hours",
+                "actual_hours",
+                "sprint_name",
+                "created_at",
+                "resolved_at",
+            ]
+        )
+        for issue in Issue.objects.select_related(
+            "project", "issue_type", "status", "assignee", "reporter", "sprint"
+        ).all():
+            writer.writerow(
+                [
+                    str(issue.id),
+                    issue.project.key,
+                    issue.key,
+                    issue.title,
+                    issue.issue_type.name,
+                    issue.status.name,
+                    issue.priority,
+                    issue.assignee.email if issue.assignee else "",
+                    issue.reporter.email,
+                    issue.story_points,
+                    issue.estimated_hours,
+                    issue.actual_hours,
+                    issue.sprint.name if issue.sprint else "",
+                    issue.created_at,
+                    issue.resolved_at,
+                ]
+            )
+        csv_files["issues.csv"] = output.getvalue()
         output.close()
 
         # Export comments
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'issue_key', 'author_email', 'content', 'created_at'])
-        for comment in IssueComment.objects.select_related('issue', 'author').all():
-            writer.writerow([str(comment.id), f"{comment.issue.project.key}-{comment.issue.key}", comment.author.email, comment.content, comment.created_at])
-        csv_files['comments.csv'] = output.getvalue()
+        writer.writerow(["id", "issue_key", "author_email", "content", "created_at"])
+        for comment in IssueComment.objects.select_related("issue", "author").all():
+            writer.writerow(
+                [
+                    str(comment.id),
+                    f"{comment.issue.project.key}-{comment.issue.key}",
+                    comment.author.email,
+                    comment.content,
+                    comment.created_at,
+                ]
+            )
+        csv_files["comments.csv"] = output.getvalue()
         output.close()
 
         # Export issue links
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['id', 'source_issue_key', 'target_issue_key', 'link_type', 'created_at'])
-        for link in IssueLink.objects.select_related('source_issue', 'target_issue').all():
-            writer.writerow([str(link.id), f"{link.source_issue.project.key}-{link.source_issue.key}", f"{link.target_issue.project.key}-{link.target_issue.key}", link.link_type, link.created_at])
-        csv_files['issue_links.csv'] = output.getvalue()
+        writer.writerow(
+            ["id", "source_issue_key", "target_issue_key", "link_type", "created_at"]
+        )
+        for link in IssueLink.objects.select_related(
+            "source_issue", "target_issue"
+        ).all():
+            writer.writerow(
+                [
+                    str(link.id),
+                    f"{link.source_issue.project.key}-{link.source_issue.key}",
+                    f"{link.target_issue.project.key}-{link.target_issue.key}",
+                    link.link_type,
+                    link.created_at,
+                ]
+            )
+        csv_files["issue_links.csv"] = output.getvalue()
         output.close()
 
         # Export metadata
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['generated_at', 'total_users', 'total_organizations', 'total_workspaces', 'total_projects', 'total_sprints', 'total_issues', 'total_comments', 'total_links'])
-        writer.writerow([timestamp, self.stats['users'], self.stats['organizations'], self.stats['workspaces'], self.stats['projects'], self.stats['sprints'], self.stats['issues'], self.stats['comments'], self.stats['links']])
-        csv_files['metadata.csv'] = output.getvalue()
+        writer.writerow(
+            [
+                "generated_at",
+                "total_users",
+                "total_organizations",
+                "total_workspaces",
+                "total_projects",
+                "total_sprints",
+                "total_issues",
+                "total_comments",
+                "total_links",
+            ]
+        )
+        writer.writerow(
+            [
+                timestamp,
+                self.stats["users"],
+                self.stats["organizations"],
+                self.stats["workspaces"],
+                self.stats["projects"],
+                self.stats["sprints"],
+                self.stats["issues"],
+                self.stats["comments"],
+                self.stats["links"],
+            ]
+        )
+        csv_files["metadata.csv"] = output.getvalue()
         output.close()
 
         self.stdout.write(self.style.SUCCESS(f"✓ Exported {len(csv_files)} CSV files"))
@@ -568,40 +815,42 @@ class Command(BaseCommand):
     def upload_to_s3(self, csv_files):
         """Upload CSV files to S3."""
         self.stdout.write("\nUploading to S3...")
-        
+
         if not settings.USE_S3:
             self.stdout.write(self.style.WARNING("  ! S3 is disabled, skipping upload"))
             return
 
         try:
             s3_client = boto3.client(
-                's3',
+                "s3",
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_S3_REGION_NAME,
             )
 
             bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             s3_folder = f"datasets/generation_{timestamp}/"
 
             uploaded_urls = []
 
             for filename, content in csv_files.items():
                 s3_key = s3_folder + filename
-                
+
                 s3_client.put_object(
                     Bucket=bucket_name,
                     Key=s3_key,
-                    Body=content.encode('utf-8'),
-                    ContentType='text/csv',
+                    Body=content.encode("utf-8"),
+                    ContentType="text/csv",
                 )
 
                 url = f"s3://{bucket_name}/{s3_key}"
                 uploaded_urls.append(url)
                 self.stdout.write(f"  ✓ Uploaded {filename}")
 
-            self.stdout.write(self.style.SUCCESS(f"\n✓ Uploaded {len(csv_files)} files to S3"))
+            self.stdout.write(
+                self.style.SUCCESS(f"\n✓ Uploaded {len(csv_files)} files to S3")
+            )
             self.stdout.write(f"  S3 Location: s3://{bucket_name}/{s3_folder}")
 
         except Exception as e:
@@ -610,27 +859,37 @@ class Command(BaseCommand):
     def sync_to_pinecone(self):
         """Sync vectors to Pinecone."""
         self.stdout.write("\nSyncing to Pinecone...")
-        
+
         try:
             from django.core.management import call_command
-            
+
             self.stdout.write("  Syncing projects...")
-            call_command('sync_pinecone_vectors', '--namespace=projects', '--batch-size=100')
-            
+            call_command(
+                "sync_pinecone_vectors", "--namespace=projects", "--batch-size=100"
+            )
+
             self.stdout.write("  Syncing issues...")
-            call_command('sync_pinecone_vectors', '--namespace=issues', '--batch-size=100')
-            
+            call_command(
+                "sync_pinecone_vectors", "--namespace=issues", "--batch-size=100"
+            )
+
             self.stdout.write("  Syncing sprints...")
-            call_command('sync_pinecone_vectors', '--namespace=sprints', '--batch-size=100')
-            
+            call_command(
+                "sync_pinecone_vectors", "--namespace=sprints", "--batch-size=100"
+            )
+
             self.stdout.write("  Syncing users...")
-            call_command('sync_pinecone_vectors', '--namespace=users', '--batch-size=100')
-            
+            call_command(
+                "sync_pinecone_vectors", "--namespace=users", "--batch-size=100"
+            )
+
             self.stdout.write(self.style.SUCCESS("✓ Pinecone sync complete"))
-            
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ✗ Pinecone sync failed: {str(e)}"))
-            self.stdout.write("  Note: Make sure Pinecone is configured and sync command exists")
+            self.stdout.write(
+                "  Note: Make sure Pinecone is configured and sync command exists"
+            )
 
     def print_summary(self):
         """Print generation summary."""

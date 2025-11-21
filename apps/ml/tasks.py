@@ -26,7 +26,7 @@ def retrain_ml_models(self):
         dict: Training results summary
     """
     try:
-        from apps.ml.models import MLModel, PredictionHistory
+        from apps.ml.models import MLModel
         from apps.ml.services import ModelTrainer
         from apps.projects.models import Issue
 
@@ -48,7 +48,7 @@ def retrain_ml_models(self):
                 if not model_trainer.should_retrain(ml_model):
                     results["models_skipped"] += 1
                     logger.info(
-                        f"Skipping retraining for {ml_model.name} - insufficient new data"
+                        f"Skipping retraining for {ml_model.name} - insufficient new data"  # noqa: E501
                     )
                     continue
 
@@ -70,7 +70,7 @@ def retrain_ml_models(self):
 
                     if training_data_count < 100:  # Minimum threshold
                         logger.warning(
-                            f"Insufficient training data for {ml_model.name}: {training_data_count} samples"
+                            f"Insufficient training data for {ml_model.name}: {training_data_count} samples"  # noqa: E501
                         )
                         results["models_skipped"] += 1
                         continue
@@ -100,13 +100,13 @@ def retrain_ml_models(self):
 
                             results["models_retrained"] += 1
                             logger.info(
-                                f"Successfully retrained {ml_model.name} - New accuracy: {evaluation.get('accuracy')}"
+                                f"Successfully retrained {ml_model.name} - New accuracy: {evaluation.get('accuracy')}"  # noqa: E501
                             )
                         else:
                             new_model.delete()
                             results["models_skipped"] += 1
                             logger.info(
-                                f"New model for {ml_model.name} not better than current, keeping existing"
+                                f"New model for {ml_model.name} not better than current, keeping existing"  # noqa: E501
                             )
 
             except Exception as e:
@@ -180,7 +180,7 @@ def detect_project_anomalies_periodic(self):
 
                     if recent_detection:
                         logger.debug(
-                            f"Skipping duplicate anomaly {anomaly_data['anomaly_type']} for project {project.key}"
+                            f"Skipping duplicate anomaly {anomaly_data['anomaly_type']} for project {project.key}"  # noqa: E501
                         )
                         continue
 
@@ -196,11 +196,11 @@ def detect_project_anomalies_periodic(self):
                         results["notifications_sent"] += 1
 
                         logger.info(
-                            f"Detected and notified {anomaly_data['severity']} anomaly in project {project.key}"
+                            f"Detected and notified {anomaly_data['severity']} anomaly in project {project.key}"  # noqa: E501
                         )
 
                     except Exception as e:
-                        error_msg = f"Error notifying anomaly for project {project.key}: {str(e)}"
+                        error_msg = f"Error notifying anomaly for project {project.key}: {str(e)}"  # noqa: E501
                         logger.exception(error_msg)
                         results["errors"].append(error_msg)
 

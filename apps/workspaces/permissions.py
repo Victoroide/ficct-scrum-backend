@@ -2,6 +2,7 @@
 RBAC Permission Classes for Workspace Resources.
 Implements role-based access control for workspaces and workspace members.
 """
+
 from rest_framework import permissions
 
 from apps.organizations.models import OrganizationMembership

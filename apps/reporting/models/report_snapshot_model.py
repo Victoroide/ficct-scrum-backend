@@ -55,7 +55,7 @@ class ReportSnapshot(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.project.key} - {self.get_report_type_display()} - {self.generated_at.date()}"
+        return f"{self.project.key} - {self.get_report_type_display()} - {self.generated_at.date()}"  # noqa: E501
 
     @property
     def formatted_period(self):

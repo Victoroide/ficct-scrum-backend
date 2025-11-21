@@ -1,6 +1,7 @@
 """
 Tests for organization permissions.
 """
+
 import pytest
 from rest_framework.test import APIRequestFactory
 
@@ -127,7 +128,7 @@ class TestCanManageMembers:
         """Test owner can manage any member."""
         owner = UserFactory()
         org = OrganizationFactory()
-        owner_membership = OrganizationMembershipFactory(
+        _owner_membership = OrganizationMembershipFactory(  # noqa: F841
             organization=org, user=owner, role="owner"
         )
 

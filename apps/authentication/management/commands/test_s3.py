@@ -2,6 +2,7 @@
 Management command to test S3 bucket configuration and permissions.
 Usage: python manage.py test_s3
 """
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 

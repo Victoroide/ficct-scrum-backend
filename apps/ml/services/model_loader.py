@@ -7,11 +7,9 @@ Loads trained models from S3 with in-memory caching for performance.
 import io
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, Optional
 
-from django.core.cache import cache
-from django.utils import timezone
 
 import joblib
 

@@ -84,7 +84,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.reporting.middleware.ActivityLogMiddleware",  # Track user for ActivityLog
-    "apps.admin_tools.middleware.PerformanceMonitoringMiddleware",  # Monitor performance
+    "apps.admin_tools.middleware.PerformanceMonitoringMiddleware",  # Monitor performance  # noqa: E501
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -147,7 +147,7 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",  # noqa: E501
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -274,7 +274,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-from datetime import timedelta
+from datetime import timedelta  # noqa: E402
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
@@ -297,7 +297,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
-    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",  # noqa: E501
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "TOKEN_TYPE_CLAIM": "token_type",
     "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
@@ -379,11 +379,11 @@ SPECTACULAR_SETTINGS = {
     "TAGS": [
         {
             "name": "Authentication",
-            "description": "User registration, authentication, profiles and password management",
+            "description": "User registration, authentication, profiles and password management",  # noqa: E501
         },
         {
             "name": "Organizations",
-            "description": "Organization creation, management, member administration and invitations",
+            "description": "Organization creation, management, member administration and invitations",  # noqa: E501
         },
         {
             "name": "Workspaces",
@@ -399,7 +399,7 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Boards",
-            "description": "Kanban board management, columns and workflow visualization",
+            "description": "Kanban board management, columns and workflow visualization",  # noqa: E501
         },
         {
             "name": "Sprints",
@@ -407,11 +407,11 @@ SPECTACULAR_SETTINGS = {
         },
         {
             "name": "Integrations",
-            "description": "Third-party integrations including GitHub repositories, commits and pull requests",
+            "description": "Third-party integrations including GitHub repositories, commits and pull requests",  # noqa: E501
         },
         {
             "name": "Reporting",
-            "description": "Analytics, reports, diagrams, activity logs and custom filters",
+            "description": "Analytics, reports, diagrams, activity logs and custom filters",  # noqa: E501
         },
         {
             "name": "Logging",
@@ -440,7 +440,7 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/2",
+            "LOCATION": f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/2",  # noqa: E501
             "TIMEOUT": 300,  # 5 minutes default
         }
     }
@@ -546,13 +546,13 @@ CORS_ALLOW_CREDENTIALS = True
 # Celery Broker URL (use same Redis as Channel Layers)
 CELERY_BROKER_URL = os.getenv(
     "CELERY_BROKER_URL",
-    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/0",
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/0",  # noqa: E501
 )
 
 # Celery Result Backend
 CELERY_RESULT_BACKEND = os.getenv(
     "CELERY_RESULT_BACKEND",
-    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1",
+    f"redis://:{config('REDIS_PASSWORD', default='redis123')}@{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1",  # noqa: E501
 )
 
 # Celery Task Settings

@@ -6,8 +6,7 @@ recent version of each vector based on metadata timestamps.
 """
 
 import logging
-from collections import defaultdict
-from typing import Dict, List, Set
+from typing import Dict, List
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -33,7 +32,9 @@ class Command(BaseCommand):
             help="Specific namespace to deduplicate",
         )
         parser.add_argument(
-            "--confirm", action="store_true", help="Actually delete duplicates (required)"
+            "--confirm",
+            action="store_true",
+            help="Actually delete duplicates (required)",
         )
         parser.add_argument(
             "--dry-run",
@@ -58,7 +59,9 @@ class Command(BaseCommand):
                 raise CommandError(
                     f"RAG service unavailable: {self.rag_service.error_message}"
                 )
-            self.stdout.write(self.style.SUCCESS("[OK] Pinecone connection established"))
+            self.stdout.write(
+                self.style.SUCCESS("[OK] Pinecone connection established")
+            )
         except Exception as e:
             raise CommandError(f"Failed to connect to Pinecone: {str(e)}")
 
@@ -79,7 +82,9 @@ class Command(BaseCommand):
 
         # Step 3: Execute cleanup if confirmed
         total_to_delete = sum(
-            len(dups) for namespace_dups in duplicates.values() for dups in namespace_dups.values()
+            len(dups)
+            for namespace_dups in duplicates.values()
+            for dups in namespace_dups.values()
         )
 
         if total_to_delete == 0:
@@ -88,7 +93,9 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING(f"\n[DRY RUN] Would delete {total_to_delete} duplicate vectors")
+                self.style.WARNING(
+                    f"\n[DRY RUN] Would delete {total_to_delete} duplicate vectors"
+                )
             )
             return
 
@@ -96,7 +103,9 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR("\n[ERROR] Use --confirm to execute deletion")
             )
-            self.stdout.write("   python manage.py cleanup_pinecone_duplicates --confirm")
+            self.stdout.write(
+                "   python manage.py cleanup_pinecone_duplicates --confirm"
+            )
             return
 
         # Execute cleanup
@@ -142,14 +151,12 @@ class Command(BaseCommand):
                 # we use query with dummy vector to get samples
                 # This is a limitation - can't easily get ALL IDs
 
+                self.stdout.write("  [WARNING] Cannot efficiently list all vector IDs")
                 self.stdout.write(
-                    f"  [WARNING] Cannot efficiently list all vector IDs"
+                    "  Pinecone API limitations prevent full duplicate detection"
                 )
                 self.stdout.write(
-                    f"  Pinecone API limitations prevent full duplicate detection"
-                )
-                self.stdout.write(
-                    f"  Recommendation: Use --delete-all-and-resync strategy instead"
+                    "  Recommendation: Use --delete-all-and-resync strategy instead"
                 )
 
                 duplicates[namespace] = {}
@@ -222,13 +229,13 @@ class Command(BaseCommand):
 class NuclearCleanupCommand(BaseCommand):
     """
     NUCLEAR OPTION: Delete ALL vectors and resync from scratch.
-    
+
     This is more reliable than trying to detect duplicates when
     Pinecone API doesn't provide efficient ID listing.
     """
-    
+
     help = "Delete ALL vectors from Pinecone and resync from database (DESTRUCTIVE)"
-    
+
     def add_arguments(self, parser):
         parser.add_argument(
             "--namespace",
@@ -241,41 +248,43 @@ class NuclearCleanupCommand(BaseCommand):
             action="store_true",
             help="REQUIRED: Confirms you want to delete ALL vectors",
         )
-    
+
     def handle(self, *args, **options):
         """Execute nuclear cleanup."""
         if not options["confirm_nuclear"]:
-            self.stdout.write(
-                self.style.ERROR("⚠️ NUCLEAR CLEANUP ABORTED")
-            )
+            self.stdout.write(self.style.ERROR("⚠️ NUCLEAR CLEANUP ABORTED"))
             self.stdout.write("This command will DELETE ALL VECTORS from Pinecone")
             self.stdout.write("To proceed, use: --confirm-nuclear")
             return
-        
+
         self.stdout.write(self.style.ERROR("⚠️ NUCLEAR CLEANUP INITIATED"))
         self.stdout.write("This will delete ALL vectors and require full resync")
         self.stdout.write()
-        
+
         namespace = options["namespace"]
-        
+
         try:
             rag_service = RAGService()
-            
+
             if namespace == "all":
                 namespaces = ["issues", "sprints", "project_context", "team_members"]
             else:
                 namespaces = [namespace]
-            
+
             for ns in namespaces:
                 self.stdout.write(f"Deleting all vectors in {ns}...")
                 rag_service.pinecone.index.delete(delete_all=True, namespace=ns)
                 self.stdout.write(self.style.SUCCESS(f"  [OK] {ns} cleared"))
-            
+
             self.stdout.write()
             self.stdout.write(self.style.SUCCESS("[OK] All vectors deleted"))
             self.stdout.write()
             self.stdout.write("Next step: Resync from database")
-            self.stdout.write("  python manage.py sync_pinecone_vectors --mode sync --confirm")
-            
+            self.stdout.write(
+                "  python manage.py sync_pinecone_vectors --mode sync --confirm"
+            )
+
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error during nuclear cleanup: {str(e)}"))
+            self.stdout.write(
+                self.style.ERROR(f"Error during nuclear cleanup: {str(e)}")
+            )

@@ -2,6 +2,7 @@
 ViewSet for organization invitation management.
 Handles invitation creation, verification, acceptance, and revocation.
 """
+
 from django.db import transaction
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -10,7 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.organizations.models import Organization, OrganizationInvitation
+from apps.organizations.models import OrganizationInvitation
 from apps.organizations.serializers import (
     OrganizationInvitationAcceptSerializer,
     OrganizationInvitationCreateSerializer,
@@ -24,7 +25,7 @@ from apps.organizations.serializers import (
         tags=["Organizations"],
         operation_id="organization_invitations_list",
         summary="List Organization Invitations",
-        description="List all invitations for an organization. Requires owner/admin/manager role.",
+        description="List all invitations for an organization. Requires owner/admin/manager role.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="organization",
@@ -51,7 +52,7 @@ from apps.organizations.serializers import (
         tags=["Organizations"],
         operation_id="organization_invitations_revoke",
         summary="Revoke Invitation",
-        description="Revoke/cancel a pending invitation. Only owner/admin or inviter can revoke.",
+        description="Revoke/cancel a pending invitation. Only owner/admin or inviter can revoke.",  # noqa: E501
     ),
 )
 class OrganizationInvitationViewSet(viewsets.ModelViewSet):
@@ -104,7 +105,7 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         description=(
             "Invite a user to join an organization by email. "
             "If user exists: creates membership directly and sends notification. "
-            "If user doesn't exist: creates pending invitation and sends invitation email with token. "
+            "If user doesn't exist: creates pending invitation and sends invitation email with token. "  # noqa: E501
             "Requires owner/admin/manager role in the organization."
         ),
         request=OrganizationInvitationCreateSerializer,
@@ -129,8 +130,8 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         summary="Verify Invitation Token",
         description=(
             "Verify an invitation token before user registration. "
-            "Returns invitation details including organization info and pre-filled email. "
-            "This endpoint is PUBLIC (no authentication required) to support the registration flow."
+            "Returns invitation details including organization info and pre-filled email. "  # noqa: E501
+            "This endpoint is PUBLIC (no authentication required) to support the registration flow."  # noqa: E501
         ),
         parameters=[
             OpenApiParameter(
@@ -203,7 +204,7 @@ class OrganizationInvitationViewSet(viewsets.ModelViewSet):
         summary="Accept Invitation",
         description=(
             "Accept an organization invitation using the token. "
-            "User must be authenticated and their email must match the invitation email. "
+            "User must be authenticated and their email must match the invitation email. "  # noqa: E501
             "Creates organization membership and sends welcome email."
         ),
         request=OrganizationInvitationAcceptSerializer,

@@ -2,6 +2,7 @@
 RBAC Permission Classes for Project Resources.
 Implements role-based access control for projects and project team members.
 """
+
 from rest_framework import permissions
 
 from apps.organizations.models import OrganizationMembership

@@ -95,7 +95,7 @@ class ExportRequestSerializer(serializers.Serializer):
     filters = serializers.JSONField(
         required=False,
         default=dict,
-        help_text="(Deprecated) Use specific filter fields instead. Legacy JSON filter object.",
+        help_text="(Deprecated) Use specific filter fields instead. Legacy JSON filter object.",  # noqa: E501
     )
 
 

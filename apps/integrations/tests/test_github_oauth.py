@@ -7,16 +7,16 @@ Tests cover:
 - Error handling (missing fields, invalid permissions)
 - Direct creation endpoint validation
 """
-from unittest.mock import MagicMock, Mock, patch
+
+from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
 
 from rest_framework import status
-from rest_framework.test import APIClient, force_authenticate
+from rest_framework.test import APIClient
 
 from apps.integrations.models import GitHubIntegration
-from apps.integrations.viewsets import GitHubIntegrationViewSet
 from apps.organizations.models import Organization, OrganizationMembership
 from apps.projects.models import Project, ProjectTeamMember
 from apps.users.models import User
@@ -373,7 +373,7 @@ class GitHubIntegrationValidationTestCase(TestCase):
         )
 
     def test_create_without_project_returns_403(self):
-        """Test creating integration without project field returns 403 with clear message"""
+        """Test creating integration without project field returns 403 with clear message"""  # noqa: E501
         self.client.force_authenticate(user=self.owner_user)
 
         response = self.client.post(
@@ -390,7 +390,7 @@ class GitHubIntegrationValidationTestCase(TestCase):
         self.assertIn("missing", response.data["detail"].lower())
 
     def test_create_without_access_token_returns_400(self):
-        """Test creating integration without access_token returns 400 with clear message"""
+        """Test creating integration without access_token returns 400 with clear message"""  # noqa: E501
         self.client.force_authenticate(user=self.owner_user)
 
         response = self.client.post(
@@ -424,7 +424,7 @@ class GitHubIntegrationValidationTestCase(TestCase):
         self.assertIn("repository_url", response.data)
 
     def test_create_with_nonexistent_project_returns_403(self):
-        """Test creating integration with non-existent project returns 403 with clear message"""
+        """Test creating integration with non-existent project returns 403 with clear message"""  # noqa: E501
         self.client.force_authenticate(user=self.owner_user)
 
         response = self.client.post(

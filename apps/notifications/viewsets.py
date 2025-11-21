@@ -55,7 +55,7 @@ class NotificationFilter(filters.FilterSet):
     list=extend_schema(
         tags=["Notifications"],
         summary="List user notifications",
-        description="Get paginated list of notifications for authenticated user with filtering and search",
+        description="Get paginated list of notifications for authenticated user with filtering and search",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="notification_type",
@@ -68,12 +68,12 @@ class NotificationFilter(filters.FilterSet):
             OpenApiParameter(
                 name="created_after",
                 type=str,
-                description="Filter notifications created after this datetime (ISO 8601)",
+                description="Filter notifications created after this datetime (ISO 8601)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="created_before",
                 type=str,
-                description="Filter notifications created before this datetime (ISO 8601)",
+                description="Filter notifications created before this datetime (ISO 8601)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="search", type=str, description="Search in title and message"
@@ -81,7 +81,7 @@ class NotificationFilter(filters.FilterSet):
             OpenApiParameter(
                 name="ordering",
                 type=str,
-                description="Order by field (prefix with - for descending). Options: created_at, -created_at",
+                description="Order by field (prefix with - for descending). Options: created_at, -created_at",  # noqa: E501
             ),
             OpenApiParameter(name="page", type=int, description="Page number"),
             OpenApiParameter(
@@ -201,7 +201,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         count = (
             Notification.objects.filter(
                 recipient_id=self.request.user.id,  # Use recipient_id to avoid JOIN
-                is_read=False
+                is_read=False,
             )
             .values("id")  # Force index-only scan
             .count()
@@ -251,7 +251,7 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Notifications"],
         summary="Get or Update notification preferences",
-        description="GET: Retrieve current user's preferences. PATCH: Partially update preferences.",
+        description="GET: Retrieve current user's preferences. PATCH: Partially update preferences.",  # noqa: E501
         request=NotificationPreferenceSerializer,
         responses={
             200: NotificationPreferenceSerializer,
@@ -294,7 +294,7 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Notifications"],
         summary="Create/Update notification preferences (POST)",
-        description="Create or update current user's notification preferences via POST /preferences/",
+        description="Create or update current user's notification preferences via POST /preferences/",  # noqa: E501
         request=NotificationPreferenceSerializer,
         responses={
             200: NotificationPreferenceSerializer,
@@ -345,7 +345,7 @@ class NotificationPreferenceViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Notifications"],
         summary="Update notification preferences",
-        description="Update current user's notification preferences (supports partial updates via PATCH)",
+        description="Update current user's notification preferences (supports partial updates via PATCH)",  # noqa: E501
         request=NotificationPreferenceSerializer,
         responses={
             200: NotificationPreferenceSerializer,

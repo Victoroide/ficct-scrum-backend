@@ -14,7 +14,6 @@ Enhanced with:
 
 import logging
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -109,7 +108,7 @@ def should_create_activity(obj, action_type):
         bool: True if activity should be created
     """
     global _redis_warning_logged
-    
+
     try:
         cache_key = f"activity_log_{obj._meta.model_name}_{obj.id}_{action_type}"
         if cache.get(cache_key):
@@ -161,7 +160,7 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
             content_type = ContentType.objects.get_for_model(obj)
         except Exception as e:
             logger.error(
-                f"[ACTIVITY] ContentType lookup failed for {obj.__class__.__name__}: {e}. "
+                f"[ACTIVITY] ContentType lookup failed for {obj.__class__.__name__}: {e}. "  # noqa: E501
                 "Run: python manage.py migrate --run-syncdb"
             )
             return  # Cannot create activity without ContentType
@@ -205,10 +204,12 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
                 ip_address=ip_address,
             )
         except IntegrityError as e:
-            logger.error(f"[ACTIVITY] Database constraint error creating activity log: {e}")
+            logger.error(
+                f"[ACTIVITY] Database constraint error creating activity log: {e}"
+            )
         except Exception as e:
             logger.error(f"[ACTIVITY] Unexpected error creating activity log: {e}")
-            
+
     except Exception as e:
         # Catch-all to ensure signal never breaks main operation
         logger.error(f"[ACTIVITY] Failed to create activity log: {e}", exc_info=True)
@@ -374,7 +375,7 @@ def log_issue_activity(sender, instance, created, **kwargs):
                     new_status_name = (
                         instance.status.name if instance.status else "None"
                     )
-                except:
+                except Exception:
                     old_status_name = str(old_status)
                     new_status_name = str(instance.status_id)
 
@@ -407,7 +408,7 @@ def log_issue_activity(sender, instance, created, **kwargs):
                         if instance.assignee
                         else "Unassigned"
                     )
-                except:
+                except Exception:
                     old_assignee_name = str(old_assignee)
                     new_assignee_name = str(instance.assignee_id)
 
@@ -433,9 +434,9 @@ def log_issue_activity(sender, instance, created, **kwargs):
                         obj=instance,
                         changes={
                             "field": "sprint",
-                            "sprint_name": instance.sprint.name
-                            if instance.sprint
-                            else "",
+                            "sprint_name": (
+                                instance.sprint.name if instance.sprint else ""
+                            ),
                         },
                         request=get_current_request(),
                     )

@@ -6,10 +6,10 @@ workload, and past performance.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, DurationField, ExpressionWrapper, F, Q
+from django.db.models import Avg, DurationField, ExpressionWrapper, F
 from django.utils import timezone
 
 from apps.projects.models import Issue, ProjectTeamMember
@@ -189,17 +189,20 @@ class RecommendationService:
         completion_rate = completed_issues / assigned_issues
 
         # Check average resolution time (in days)
-        avg_resolution = Issue.objects.filter(
-            project_id=project_id,
-            assignee=user,
-            status__is_final=True,
-            resolved_at__isnull=False,
-        ).annotate(
-            resolution_time=ExpressionWrapper(
-                F('resolved_at') - F('created_at'),
-                output_field=DurationField()
+        avg_resolution = (
+            Issue.objects.filter(
+                project_id=project_id,
+                assignee=user,
+                status__is_final=True,
+                resolved_at__isnull=False,
             )
-        ).aggregate(avg_time=Avg('resolution_time'))['avg_time']
+            .annotate(
+                resolution_time=ExpressionWrapper(
+                    F("resolved_at") - F("created_at"), output_field=DurationField()
+                )
+            )
+            .aggregate(avg_time=Avg("resolution_time"))["avg_time"]
+        )
 
         # Combine completion rate with speed
         # Bonus for fast resolution (if avg < 7 days)

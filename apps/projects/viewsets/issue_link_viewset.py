@@ -1,10 +1,9 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 from apps.logging.services import LoggerService
-from apps.projects.models import Issue, IssueLink
+from apps.projects.models import IssueLink
 from apps.projects.permissions import CanAccessProject, IsProjectTeamMember
 from apps.projects.serializers import IssueLinkSerializer
 
@@ -26,7 +25,7 @@ from apps.projects.serializers import IssueLinkSerializer
         tags=["Issues"],
         operation_id="issue_links_create",
         summary="Create Issue Link ",
-        description="Link issues together. Creates reciprocal link automatically (e.g., 'blocks' creates 'blocked_by').",
+        description="Link issues together. Creates reciprocal link automatically (e.g., 'blocks' creates 'blocked_by').",  # noqa: E501
     ),
     destroy=extend_schema(
         tags=["Issues"],

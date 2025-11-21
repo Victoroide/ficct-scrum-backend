@@ -9,7 +9,7 @@ Generates various diagrams from Angular code analysis:
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from django.utils import timezone
 
@@ -208,7 +208,8 @@ class AngularDiagramGenerator:
             Hierarchical component structure
         """
         # For now, return flat list with selectors
-        # In a full implementation, would parse templates to find parent-child relationships
+        # In a full implementation, would parse templates to find parent-child
+        # relationships
 
         hierarchy = []
 

@@ -1,6 +1,7 @@
 """
 Tests for authentication API endpoints.
 """
+
 from django.urls import reverse
 
 import pytest

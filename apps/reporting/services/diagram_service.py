@@ -14,7 +14,6 @@ from .architecture_generator import ArchitectureGenerator
 from .diagram_data_service import DiagramDataService
 from .github_code_fetcher import GitHubCodeFetcher
 from .python_code_analyzer import PythonCodeAnalyzer
-from .uml_generator import UMLGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +192,7 @@ class DiagramService:
         Generate UML diagram by analyzing Django ORM models in the application.
 
         Uses Django internals (apps.get_models()) to introspect actual database models.
-        This shows the REAL structure of ficct-scrum-backend, not GitHub repository code.
+        This shows the REAL structure of ficct-scrum-backend, not GitHub repository code.  # noqa: E501
 
         Args:
             project: Project instance (used for context, not filtering)
@@ -206,7 +205,7 @@ class DiagramService:
         Raises:
             ValueError: On analysis errors
         """
-        logger.info(f"Generating UML diagram - analyzing local Django models")
+        logger.info("Generating UML diagram - analyzing local Django models")
 
         # Check cache first
         cache_key = self._generate_cache_key("uml", project.id)
@@ -399,7 +398,7 @@ class DiagramService:
                 "cached": False,
             }
 
-        except ValueError as e:
+        except ValueError as e:  # noqa: F841
             # Re-raise ValueError as-is
             raise
         except Exception as e:
@@ -464,7 +463,7 @@ class DiagramService:
         )
 
         logger.debug(
-            f"Cached {diagram_type} diagram with key {cache_key[:8]}... (TTL: {ttl_minutes}min)"
+            f"Cached {diagram_type} diagram with key {cache_key[:8]}... (TTL: {ttl_minutes}min)"  # noqa: E501
         )
 
     def _get_data_version_hash(self, project, diagram_type: str) -> str:
@@ -576,7 +575,7 @@ class DiagramService:
             # Validate that access token exists (is_connected is a property)
             if not integration.access_token:
                 logger.error(
-                    f"GitHub integration exists but has no access token for project {project.id}"
+                    f"GitHub integration exists but has no access token for project {project.id}"  # noqa: E501
                 )
                 raise ValueError(
                     "GitHub integration is not properly configured. "
@@ -607,7 +606,7 @@ class DiagramService:
             ValueError: On analysis errors
         """
         logger.info(
-            f"Analyzing repository: {integration.repository_owner}/{integration.repository_name}"
+            f"Analyzing repository: {integration.repository_owner}/{integration.repository_name}"  # noqa: E501
         )
 
         try:
@@ -634,7 +633,7 @@ class DiagramService:
 
             return analysis
 
-        except ValueError as e:
+        except ValueError as e:  # noqa: F841
             # Re-raise ValueError as-is (these are user-facing errors)
             raise
         except Exception as e:
@@ -824,9 +823,11 @@ class DiagramService:
 
             attr_info = {
                 "name": field.name,
-                "type": field.get_internal_type()
-                if hasattr(field, "get_internal_type")
-                else "Unknown",
+                "type": (
+                    field.get_internal_type()
+                    if hasattr(field, "get_internal_type")
+                    else "Unknown"
+                ),
                 "required": not getattr(field, "null", True),
                 "primary_key": getattr(field, "primary_key", False),
             }

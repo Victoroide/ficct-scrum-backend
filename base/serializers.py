@@ -7,7 +7,7 @@ from rest_framework import serializers
 class UserBasicSerializer(serializers.ModelSerializer):
     """
     Basic user info for nested representation across all apps.
-    
+
     CRITICAL: Must include user_uuid for frontend assignment functionality.
     Frontend expects user_uuid (UUID string) for assignee/reporter fields.
     """

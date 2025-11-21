@@ -82,23 +82,17 @@ class SprintViewSet(viewsets.ModelViewSet):
                     project__team_members__is_active=True,
                 )
             )
-            .select_related(
-                "project",
-                "project__workspace",
-                "created_by"
-            )
+            .select_related("project", "project__workspace", "created_by")
             .annotate(
                 # Pre-calculate counts to avoid N queries
                 _issue_count=Count(
-                    "issues",
-                    filter=Q(issues__is_active=True),
-                    distinct=True
+                    "issues", filter=Q(issues__is_active=True), distinct=True
                 ),
                 _completed_issue_count=Count(
                     "issues",
                     filter=Q(issues__is_active=True, issues__status__is_final=True),
-                    distinct=True
-                )
+                    distinct=True,
+                ),
             )
             .distinct()
         )
@@ -120,10 +114,10 @@ class SprintViewSet(viewsets.ModelViewSet):
         - Structural Management (create, update, delete): Requires CanManageSprint
           → Only project lead/admin can create/edit/delete sprint structure
 
-        - Sprint Operations (start, complete, add_issue, remove_issue): Requires CanAccessProject
+        - Sprint Operations (start, complete, add_issue, remove_issue): Requires CanAccessProject  # noqa: E501
           → Any project or workspace member can operate sprints
 
-        - Read Operations (list, retrieve, progress, burndown): Requires CanAccessProject
+        - Read Operations (list, retrieve, progress, burndown): Requires CanAccessProject  # noqa: E501
           → Any project or workspace member can view sprints
         """
         # Structural management requires admin/lead role
@@ -131,7 +125,8 @@ class SprintViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), CanManageSprint()]
 
         # All other operations (including custom actions) require project access only
-        # Custom actions: start_sprint, complete_sprint, add_issue, remove_issue, progress, burndown
+        # Custom actions: start_sprint, complete_sprint, add_issue, remove_issue,
+        # progress, burndown
         return [IsAuthenticated(), CanAccessProject()]
 
     @transaction.atomic
@@ -153,7 +148,7 @@ class SprintViewSet(viewsets.ModelViewSet):
         tags=["Sprints"],
         operation_id="sprints_start",
         summary="Start Sprint ",
-        description="Start a sprint. Only one active sprint allowed per project. Sprint must have issues.",
+        description="Start a sprint. Only one active sprint allowed per project. Sprint must have issues.",  # noqa: E501
     )
     @action(detail=True, methods=["post"], url_path="start")
     def start_sprint(self, request, pk=None):
@@ -216,7 +211,7 @@ class SprintViewSet(viewsets.ModelViewSet):
         tags=["Sprints"],
         operation_id="sprints_complete",
         summary="Complete Sprint ",
-        description="Complete a sprint. Moves incomplete issues to backlog. Calculates final metrics.",
+        description="Complete a sprint. Moves incomplete issues to backlog. Calculates final metrics.",  # noqa: E501
     )
     @action(detail=True, methods=["post"], url_path="complete")
     def complete_sprint(self, request, pk=None):
@@ -375,9 +370,9 @@ class SprintViewSet(viewsets.ModelViewSet):
                 {
                     "day": day,
                     "date": str(current_date),
-                    "remaining_points": round(remaining, 2)
-                    if remaining is not None
-                    else None,
+                    "remaining_points": (
+                        round(remaining, 2) if remaining is not None else None
+                    ),
                 }
             )
             current_date += timedelta(days=1)
@@ -423,7 +418,7 @@ class SprintViewSet(viewsets.ModelViewSet):
                 },
             },
             400: {
-                "description": "Bad request - missing issue_id, wrong project, or sprint completed",
+                "description": "Bad request - missing issue_id, wrong project, or sprint completed",  # noqa: E501
                 "content": {
                     "application/json": {
                         "examples": {

@@ -1,8 +1,5 @@
-import mimetypes
-import os
 from pathlib import Path
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.urls import path
 from django.views.generic import TemplateView
@@ -47,7 +44,7 @@ def serve_swagger_file(request, filename):
         file_path = static_dir / "swagger-ui-bundle.js"
         if not file_path.exists():
             response = requests.get(
-                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"
+                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"  # noqa: E501
             )
             with open(file_path, "wb") as f:
                 f.write(response.content)
@@ -59,7 +56,7 @@ def serve_swagger_file(request, filename):
         file_path = static_dir / "swagger-ui-standalone-preset.js"
         if not file_path.exists():
             response = requests.get(
-                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"
+                "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"  # noqa: E501
             )
             with open(file_path, "wb") as f:
                 f.write(response.content)

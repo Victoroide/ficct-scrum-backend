@@ -10,6 +10,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.authentication.models import User, UserProfile
 
 

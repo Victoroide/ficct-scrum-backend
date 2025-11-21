@@ -8,8 +8,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
-from django.db import models
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 import numpy as np
@@ -174,10 +173,12 @@ class AnomalyDetectionService:
         if actual_completion < expected_completion - 0.2:  # 20% behind
             return {
                 "risk_type": "burndown_velocity",
-                "severity": "high"
-                if actual_completion < expected_completion - 0.3
-                else "medium",
-                "description": f"Sprint is {int((expected_completion - actual_completion) * 100)}% behind expected progress",
+                "severity": (
+                    "high"
+                    if actual_completion < expected_completion - 0.3
+                    else "medium"
+                ),
+                "description": f"Sprint is {int((expected_completion - actual_completion) * 100)}% behind expected progress",  # noqa: E501
                 "expected_completion": round(expected_completion * 100, 1),
                 "actual_completion": round(actual_completion * 100, 1),
                 "mitigation_suggestions": [
@@ -204,7 +205,7 @@ class AnomalyDetectionService:
             return {
                 "risk_type": "unassigned_issues",
                 "severity": "high" if unassigned_ratio > 0.5 else "medium",
-                "description": f"{unassigned_count} out of {total_issues} issues lack assignee",
+                "description": f"{unassigned_count} out of {total_issues} issues lack assignee",  # noqa: E501
                 "unassigned_count": unassigned_count,
                 "total_count": total_issues,
                 "mitigation_suggestions": [
@@ -256,7 +257,7 @@ class AnomalyDetectionService:
             return {
                 "risk_type": "scope_creep",
                 "severity": "medium",
-                "description": f"{issues_added_after_start} issues added after sprint started",
+                "description": f"{issues_added_after_start} issues added after sprint started",  # noqa: E501
                 "added_count": issues_added_after_start,
                 "mitigation_suggestions": [
                     "Limit mid-sprint additions",
@@ -273,7 +274,9 @@ class AnomalyDetectionService:
         assigned_users = sprint.issues.values("assignee").distinct().count()
 
         # Get team size
-        team_size = sprint.project.team_members.filter(is_active=True).count()
+        _team_size = (  # noqa: F841
+            sprint.project.team_members.filter(is_active=True).count()
+        )
 
         # Check if too many issues per person
         total_issues = sprint.issues.count()
@@ -284,7 +287,7 @@ class AnomalyDetectionService:
                 return {
                     "risk_type": "capacity_overload",
                     "severity": "high",
-                    "description": f"Average of {int(issues_per_person)} issues per team member",
+                    "description": f"Average of {int(issues_per_person)} issues per team member",  # noqa: E501
                     "issues_per_person": int(issues_per_person),
                     "mitigation_suggestions": [
                         "Reduce sprint scope",
@@ -324,7 +327,7 @@ class AnomalyDetectionService:
             return {
                 "risk_type": "hours_drift",
                 "severity": "high" if drift_ratio > 1.5 else "medium",
-                "description": f"Actual hours {int((drift_ratio - 1) * 100)}% over estimates",
+                "description": f"Actual hours {int((drift_ratio - 1) * 100)}% over estimates",  # noqa: E501
                 "estimated_hours": round(total_estimated, 1),
                 "actual_hours": round(total_actual, 1),
                 "drift_percentage": round((drift_ratio - 1) * 100, 1),
@@ -382,7 +385,7 @@ class AnomalyDetectionService:
             return {
                 "risk_type": "high_priority_issues",
                 "severity": "high" if high_priority_count > 3 else "medium",
-                "description": f"{high_priority_count} high/critical priority issues in sprint",
+                "description": f"{high_priority_count} high/critical priority issues in sprint",  # noqa: E501
                 "high_priority_count": high_priority_count,
                 "mitigation_suggestions": [
                     "Prioritize critical issues",
@@ -427,7 +430,7 @@ class AnomalyDetectionService:
                 return {
                     "anomaly_type": "velocity_drop",
                     "severity": "high" if z_score < -2 else "medium",
-                    "description": f"Sprint velocity dropped to {latest_velocity} (avg: {avg_velocity:.1f})",
+                    "description": f"Sprint velocity dropped to {latest_velocity} (avg: {avg_velocity:.1f})",  # noqa: E501
                     "current_velocity": latest_velocity,
                     "average_velocity": round(avg_velocity, 1),
                     "deviation_score": round(abs(z_score), 2),
@@ -468,7 +471,7 @@ class AnomalyDetectionService:
             return {
                 "anomaly_type": "stale_issues",
                 "severity": "medium",
-                "description": f"{stale_issues} issues haven't been updated in over 30 days",
+                "description": f"{stale_issues} issues haven't been updated in over 30 days",  # noqa: E501
                 "stale_count": stale_issues,
                 "possible_causes": [
                     "Issues abandoned or forgotten",
@@ -508,7 +511,7 @@ class AnomalyDetectionService:
             return {
                 "anomaly_type": "creation_spike",
                 "severity": "medium",
-                "description": f"Issue creation rate doubled: {recent_count} this week vs {avg_weekly:.0f} avg",
+                "description": f"Issue creation rate doubled: {recent_count} this week vs {avg_weekly:.0f} avg",  # noqa: E501
                 "recent_count": recent_count,
                 "average_count": round(avg_weekly, 1),
                 "possible_causes": [
@@ -551,7 +554,7 @@ class AnomalyDetectionService:
                 return {
                     "anomaly_type": "status_bottleneck",
                     "severity": "medium",
-                    "description": f"{count_in_status} issues stuck in '{status.name}' status",
+                    "description": f"{count_in_status} issues stuck in '{status.name}' status",  # noqa: E501
                     "status_name": status.name,
                     "count_in_status": count_in_status,
                     "total_open": total_open,

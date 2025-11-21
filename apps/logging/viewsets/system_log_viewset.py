@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import permissions, viewsets
+from rest_framework import viewsets
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 from apps.logging.models import SystemLog
@@ -11,7 +11,7 @@ from apps.logging.serializers import SystemLogSerializer
         tags=["Logging"],
         operation_id="system_logs_list",
         summary="List System Logs",
-        description="Retrieve system logs with filtering and search capabilities. Admin access required.",
+        description="Retrieve system logs with filtering and search capabilities. Admin access required.",  # noqa: E501
     ),
     retrieve=extend_schema(
         tags=["Logging"],

@@ -203,7 +203,7 @@ class OrganizationInvitationSerializer(serializers.ModelSerializer):
         invitation_url = f"{settings.FRONTEND_URL}/invitations/{invitation.token}"
         send_mail(
             subject=f"Invitation to join {organization.name}",
-            message=f"You have been invited to join {organization.name}. Click here to accept: {invitation_url}",
+            message=f"You have been invited to join {organization.name}. Click here to accept: {invitation_url}",  # noqa: E501
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[invitation.email],
             fail_silently=False,

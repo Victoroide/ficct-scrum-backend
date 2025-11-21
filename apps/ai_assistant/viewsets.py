@@ -8,8 +8,6 @@ import logging
 import uuid
 from functools import wraps
 
-from django.core.exceptions import ValidationError
-
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
@@ -147,13 +145,14 @@ class AIAssistantViewSet(viewsets.ViewSet):
             )
 
         project_id = request.data.get("project_id")
-        
+
         # 🔒 SECURITY: Validate user has access to requested project
         if project_id:
             try:
                 from apps.projects.models import Project
+
                 project = Project.objects.get(id=project_id)
-                
+
                 # Check if user has access using existing permission class
                 permission = CanAccessProject()
                 if not permission.has_object_permission(request, self, project):
@@ -170,7 +169,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     {"error": "Project not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-        
+
         top_k = request.data.get("top_k", 10)
         filters = request.data.get("filters", {})
 
@@ -178,7 +177,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
         results = self.rag_service.semantic_search(
             query=query, project_id=project_id, top_k=top_k, filters=filters
         )
-        
+
         # 📊 Security audit log
         logger.info(
             f"AI search: user={request.user.id}, project={project_id}, "
@@ -190,7 +189,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["AI Assistant"],
         summary="Find similar issues",
-        description="Find issues similar to a given issue for duplicate detection using semantic search.",
+        description="Find issues similar to a given issue for duplicate detection using semantic search.",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="top_k",
@@ -322,7 +321,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     "metric": self.rag_service.pinecone.metric,
                 }
                 logger.info(
-                    f"[DIAGNOSTICS] Pinecone connected: {stats.get('total_vector_count')} vectors"
+                    f"[DIAGNOSTICS] Pinecone connected: {stats.get('total_vector_count')} vectors"  # noqa: E501
                 )
             except Exception as e:
                 error_msg = f"Pinecone connection failed: {type(e).__name__}: {str(e)}"
@@ -341,21 +340,21 @@ class AIAssistantViewSet(viewsets.ViewSet):
 
                 diagnostics["azure_openai"] = {
                     "status": "connected",
-                    "embedding_deployment": self.rag_service.openai.embedding_deployment,
+                    "embedding_deployment": self.rag_service.openai.embedding_deployment,  # noqa: E501
                     "embedding_dimension": len(embedding),
                     "endpoint": self.rag_service.openai.endpoint,
                     "api_version": self.rag_service.openai.api_version,
                 }
                 logger.info(
-                    f"[DIAGNOSTICS] Azure OpenAI connected: embedding dimension {len(embedding)}"
+                    f"[DIAGNOSTICS] Azure OpenAI connected: embedding dimension {len(embedding)}"  # noqa: E501
                 )
 
                 # Verify dimension matches Pinecone
                 if diagnostics["pinecone"].get("dimension"):
                     if len(embedding) != diagnostics["pinecone"]["dimension"]:
                         error_msg = (
-                            f"DIMENSION MISMATCH: Azure OpenAI returns {len(embedding)} dimensions "
-                            f"but Pinecone expects {diagnostics['pinecone']['dimension']}"
+                            f"DIMENSION MISMATCH: Azure OpenAI returns {len(embedding)} dimensions "  # noqa: E501
+                            f"but Pinecone expects {diagnostics['pinecone']['dimension']}"  # noqa: E501
                         )
                         diagnostics["errors"].append(error_msg)
                         logger.error(f"[DIAGNOSTICS] {error_msg}")
@@ -376,14 +375,14 @@ class AIAssistantViewSet(viewsets.ViewSet):
             # Add recommendation if errors exist
             if diagnostics["errors"]:
                 diagnostics["recommendations"] = [
-                    "Check .env file for correct PINECONE_API_KEY and AZURE_OPENAI_API_KEY",
-                    "Verify Pinecone index exists and dimension matches Azure OpenAI model",
+                    "Check .env file for correct PINECONE_API_KEY and AZURE_OPENAI_API_KEY",  # noqa: E501
+                    "Verify Pinecone index exists and dimension matches Azure OpenAI model",  # noqa: E501
                     "Check server logs for detailed error messages",
-                    "Ensure Pinecone index dimension is 1536 for text-embedding-3-small model",
+                    "Ensure Pinecone index dimension is 1536 for text-embedding-3-small model",  # noqa: E501
                 ]
 
             logger.info(
-                f"[DIAGNOSTICS] Complete: status={diagnostics['status']}, errors={len(diagnostics['errors'])}"
+                f"[DIAGNOSTICS] Complete: status={diagnostics['status']}, errors={len(diagnostics['errors'])}"  # noqa: E501
             )
 
             return Response(diagnostics, status=status.HTTP_200_OK)
@@ -415,13 +414,14 @@ class AIAssistantViewSet(viewsets.ViewSet):
             )
 
         project_id = request.data.get("project_id")
-        
+
         # 🔒 SECURITY: Validate user has access to requested project
         if project_id:
             try:
                 from apps.projects.models import Project
+
                 project = Project.objects.get(id=project_id)
-                
+
                 # Check if user has access using existing permission class
                 permission = CanAccessProject()
                 if not permission.has_object_permission(request, self, project):
@@ -438,7 +438,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
                     {"error": "Project not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-        
+
         conversation_history = request.data.get("conversation_history", [])
 
         # ✅ Safe to proceed with validated project_id
@@ -447,7 +447,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
             project_id=project_id,
             conversation_history=conversation_history,
         )
-        
+
         # 📊 Security audit log
         logger.info(
             f"AI query: user={request.user.id}, project={project_id}, "
@@ -460,7 +460,7 @@ class AIAssistantViewSet(viewsets.ViewSet):
         tags=["AI Assistant"],
         summary="Full Pinecone Synchronization",
         description=(
-            "⚠️ DESTRUCTIVE: Clears Pinecone 'issues' namespace and reindexes ALL active issues from DB. "
+            "⚠️ DESTRUCTIVE: Clears Pinecone 'issues' namespace and reindexes ALL active issues from DB. "  # noqa: E501
             "Use for initial setup or full resync after schema changes."
         ),
         request={
@@ -515,18 +515,19 @@ class AIAssistantViewSet(viewsets.ViewSet):
                 {"error": "issue_description and project_id are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # 🔒 SECURITY: Validate user has access to requested project
         try:
             from apps.projects.models import Project
+
             project = Project.objects.get(id=project_id)
-            
+
             # Check if user has access using existing permission class
             permission = CanAccessProject()
             if not permission.has_object_permission(request, self, project):
                 logger.warning(
                     f"SECURITY: User {request.user.id} ({request.user.username}) "
-                    f"attempted solution suggestions for project {project_id} without permission"
+                    f"attempted solution suggestions for project {project_id} without permission"  # noqa: E501
                 )
                 return Response(
                     {"error": "You do not have access to this project"},
@@ -542,11 +543,9 @@ class AIAssistantViewSet(viewsets.ViewSet):
         suggestions = self.assistant_service.suggest_solutions(
             issue_description=issue_description, project_id=project_id
         )
-        
+
         # 📊 Security audit log
-        logger.info(
-            f"AI suggestions: user={request.user.id}, project={project_id}"
-        )
+        logger.info(f"AI suggestions: user={request.user.id}, project={project_id}")
 
         return Response(suggestions, status=status.HTTP_200_OK)
 

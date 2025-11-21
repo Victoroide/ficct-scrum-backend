@@ -83,13 +83,13 @@ class ActivityLogFilter(filters.FilterSet):
         operation_id="activity_logs_list",
         summary="List Activity Logs",
         description=(
-            "Get activity history with flexible filtering options. Similar to Jira's Activity Stream.\n\n"
+            "Get activity history with flexible filtering options. Similar to Jira's Activity Stream.\n\n"  # noqa: E501
             "**Filter by Scope:**\n"
             "- Organization: `?organization=<uuid>` - All activity in organization\n"
-            "- Workspace: `?workspace=<uuid>` or `?workspace_key=SCRUM` - All activity in workspace\n"
-            "- Project: `?project=<uuid>` or `?project_key=FICCT` - All activity in project\n\n"
+            "- Workspace: `?workspace=<uuid>` or `?workspace_key=SCRUM` - All activity in workspace\n"  # noqa: E501
+            "- Project: `?project=<uuid>` or `?project_key=FICCT` - All activity in project\n\n"  # noqa: E501
             "**Filter by Action:**\n"
-            "- Action type: `?action_type=created` (created, updated, deleted, transitioned, etc.)\n"
+            "- Action type: `?action_type=created` (created, updated, deleted, transitioned, etc.)\n"  # noqa: E501
             "- Object type: `?object_type=issue` (issue, sprint, board, etc.)\n"
             "- User: `?user=<uuid>` or `?user_email=user@example.com`\n\n"
             "**Filter by Time:**\n"
@@ -120,7 +120,7 @@ class ActivityLogFilter(filters.FilterSet):
                 name="workspace_key",
                 type=str,
                 location=OpenApiParameter.QUERY,
-                description="Filter by workspace key (e.g., 'SCRUM'). Case-insensitive.",
+                description="Filter by workspace key (e.g., 'SCRUM'). Case-insensitive.",  # noqa: E501
             ),
             OpenApiParameter(
                 name="project",
@@ -150,25 +150,25 @@ class ActivityLogFilter(filters.FilterSet):
                 name="action_type",
                 type=str,
                 location=OpenApiParameter.QUERY,
-                description="Filter by action type (created, updated, deleted, transitioned, commented, etc.)",
+                description="Filter by action type (created, updated, deleted, transitioned, commented, etc.)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="object_type",
                 type=str,
                 location=OpenApiParameter.QUERY,
-                description="Filter by object type (issue, sprint, board, project, etc.)",
+                description="Filter by object type (issue, sprint, board, project, etc.)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="created_after",
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
-                description="Filter activities created after this datetime (ISO 8601 format)",
+                description="Filter activities created after this datetime (ISO 8601 format)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="created_before",
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
-                description="Filter activities created before this datetime (ISO 8601 format)",
+                description="Filter activities created before this datetime (ISO 8601 format)",  # noqa: E501
             ),
             OpenApiParameter(
                 name="page",
@@ -195,11 +195,11 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only ViewSet for Activity Logs - Similar to Jira's Activity Stream.
 
-    Provides complete activity history across organization, workspace, and project levels.
-    Supports flexible filtering by scope, action type, user, object type, and time range.
+    Provides complete activity history across organization, workspace, and project levels.  # noqa: E501
+    Supports flexible filtering by scope, action type, user, object type, and time range.  # noqa: E501
 
     **Access Control:**
-    - Users can only see activity logs from organizations/workspaces/projects they have access to
+    - Users can only see activity logs from organizations/workspaces/projects they have access to  # noqa: E501
     - Filtering is automatic based on user permissions
 
     **Use Cases:**
@@ -230,7 +230,8 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
 
         # Get all accessible logs based on user memberships
-        # Note: organization.memberships (not members), workspace.members, project.team_members
+        # Note: organization.memberships (not members), workspace.members,
+        # project.team_members
         queryset = (
             ActivityLog.objects.filter(
                 Q(

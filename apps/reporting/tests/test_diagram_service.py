@@ -2,7 +2,6 @@
 Comprehensive tests for DiagramService.
 """
 
-from django.utils import timezone
 
 import pytest
 

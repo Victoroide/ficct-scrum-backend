@@ -2,6 +2,7 @@
 RBAC Permission Classes for Organization Resources.
 Implements role-based access control for organizations and memberships.
 """
+
 from rest_framework import permissions
 
 from apps.organizations.models import OrganizationMembership

@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.authentication.models import User
 from apps.authentication.serializers import UserSerializer
-from apps.workspaces.models import Workspace, WorkspaceMember
+from apps.workspaces.models import WorkspaceMember
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):

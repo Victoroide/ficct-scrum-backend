@@ -1,6 +1,7 @@
 """
 Tests for organization API endpoints.
 """
+
 from django.urls import reverse
 
 import pytest
@@ -43,7 +44,7 @@ class TestOrganizationAPI:
         """Test listing only organizations user is member of."""
         user = UserFactory(password="testpass123")
         org1 = OrganizationFactory()
-        org2 = OrganizationFactory()
+        OrganizationFactory()
 
         # User is only member of org1
         OrganizationMembershipFactory(organization=org1, user=user)

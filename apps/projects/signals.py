@@ -46,7 +46,7 @@ def create_default_issue_types(sender, instance, created, **kwargs):
         {
             "name": "Epic",
             "category": "epic",
-            "description": "A large user story that can be broken down into smaller stories",
+            "description": "A large user story that can be broken down into smaller stories",  # noqa: E501
             "icon": "epic",
             "color": "#904EE2",
             "is_default": True,
@@ -113,7 +113,7 @@ def create_default_issue_types(sender, instance, created, **kwargs):
 
     # Log for debugging (optional)
     print(
-        f"✅ Auto-created {len(issue_types)} default IssueTypes for project: {instance.name}"
+        f"✅ Auto-created {len(issue_types)} default IssueTypes for project: {instance.name}"  # noqa: E501
     )
 
 
@@ -134,7 +134,8 @@ def create_default_workflow_statuses(sender, instance, created, **kwargs):
     if not created:
         return  # Only run for new projects, not updates
 
-    # Check if workflow statuses already exist (in case of race conditions or manual creation)
+    # Check if workflow statuses already exist (in case of race conditions or
+    # manual creation)
     if WorkflowStatus.objects.filter(project=instance).exists():
         return
 
@@ -190,11 +191,12 @@ def create_default_workflow_statuses(sender, instance, created, **kwargs):
 
     # Log for debugging (optional)
     print(
-        f"✅ Auto-created {len(created_statuses)} default WorkflowStatuses for project: {instance.name}"
+        f"✅ Auto-created {len(created_statuses)} default WorkflowStatuses for project: {instance.name}"  # noqa: E501
     )
 
     # Automatically create transitions between the default statuses
-    # This happens immediately after creating statuses to ensure transitions are available
+    # This happens immediately after creating statuses to ensure transitions
+    # are available
     _create_default_workflow_transitions(instance, created_statuses)
 
 
@@ -284,7 +286,7 @@ def _create_default_workflow_transitions(project, statuses):
     if default_transitions:
         WorkflowTransition.objects.bulk_create(default_transitions)
         print(
-            f"✅ Auto-created {len(default_transitions)} default WorkflowTransitions for project: {project.name}"
+            f"✅ Auto-created {len(default_transitions)} default WorkflowTransitions for project: {project.name}"  # noqa: E501
         )
 
 
@@ -293,9 +295,9 @@ def create_transitions_for_new_status(sender, instance, created, **kwargs):
     """
     Automatically create bi-directional transitions when a new WorkflowStatus is added.
 
-    This signal fires after a WorkflowStatus is saved. If it's a new status (created=True),
+    This signal fires after a WorkflowStatus is saved. If it's a new status (created=True),  # noqa: E501
     it creates transitions FROM all existing statuses TO this new status, and FROM this
-    new status TO all existing statuses. This ensures maximum flexibility for custom workflows.
+    new status TO all existing statuses. This ensures maximum flexibility for custom workflows.  # noqa: E501
 
     Args:
         sender: The WorkflowStatus model class
@@ -306,7 +308,8 @@ def create_transitions_for_new_status(sender, instance, created, **kwargs):
     if not created:
         return  # Only run for new statuses, not updates
 
-    # Get all other active statuses in the same project (excluding the newly created one)
+    # Get all other active statuses in the same project (excluding the newly
+    # created one)
     existing_statuses = WorkflowStatus.objects.filter(
         project=instance.project, is_active=True
     ).exclude(id=instance.id)

@@ -1,4 +1,3 @@
-import json
 import time
 
 from django.contrib.auth import get_user_model

@@ -4,7 +4,6 @@ API endpoint tests for ML features.
 Tests authentication, permissions, and response formats.
 """
 
-from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
 

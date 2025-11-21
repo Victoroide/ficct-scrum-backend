@@ -6,12 +6,10 @@ versioning, and cleanup.
 """
 
 import hashlib
-import io
 import logging
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
 

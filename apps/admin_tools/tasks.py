@@ -138,7 +138,7 @@ def backup_database(self):
 
                     results["upload_success"] = True
                     results["s3_location"] = f"s3://{s3_bucket}/{s3_key}"
-                    logger.info(f"Backup uploaded successfully to S3")
+                    logger.info("Backup uploaded successfully to S3")
 
                     # Step 4: Apply retention policy
                     results["retention_applied"] = _apply_retention_policy(
@@ -147,8 +147,7 @@ def backup_database(self):
 
                 else:
                     logger.warning(
-                        "S3 backup not configured - "
-                        "backup saved locally only"
+                        "S3 backup not configured - " "backup saved locally only"
                     )
                     results["upload_success"] = False
 
@@ -210,12 +209,10 @@ def _apply_retention_policy(s3_client, bucket: str) -> bool:
                 # Extract timestamp from filename
                 try:
                     filename = Path(key).name
-                    timestamp_str = filename.replace(
-                        "ficct_scrum_backup_", ""
-                    ).replace(".sql.gz", "")
-                    backup_date = datetime.strptime(
-                        timestamp_str, "%Y%m%d_%H%M%S"
+                    timestamp_str = filename.replace("ficct_scrum_backup_", "").replace(
+                        ".sql.gz", ""
                     )
+                    backup_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
                     backups.append(
                         {
                             "key": key,

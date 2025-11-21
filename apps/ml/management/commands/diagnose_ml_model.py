@@ -150,7 +150,9 @@ class Command(BaseCommand):
         if model.s3_key:
             self.stdout.write(f"S3 Key:            {model.s3_key}")
         else:
-            self.stdout.write(self.style.ERROR("S3 Key:            ✗ NOT SET (PROBLEM!)"))
+            self.stdout.write(
+                self.style.ERROR("S3 Key:            ✗ NOT SET (PROBLEM!)")
+            )
 
         # Step 6: Try to download from S3
         if model.s3_key:
@@ -195,9 +197,7 @@ class Command(BaseCommand):
                     )
 
             except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f"✗ S3 download failed: {str(e)}")
-                )
+                self.stdout.write(self.style.ERROR(f"✗ S3 download failed: {str(e)}"))
 
         # Step 7: Recommendation
         self.stdout.write(f"\n{self.style.WARNING('Step 7: Recommendations')}")
@@ -229,9 +229,7 @@ class Command(BaseCommand):
             for i, solution in enumerate(solutions, 1):
                 self.stdout.write(f"  {i}. {solution}")
         else:
-            self.stdout.write(
-                self.style.SUCCESS("\n✓ Model configuration looks good!")
-            )
+            self.stdout.write(self.style.SUCCESS("\n✓ Model configuration looks good!"))
 
         self.stdout.write(f"\n{self.style.HTTP_INFO('='*80)}\n")
 
@@ -260,9 +258,7 @@ class Command(BaseCommand):
             status_icon = "✓" if model.is_active else "✗"
             status_style = self.style.SUCCESS if model.is_active else self.style.ERROR
 
-            self.stdout.write(
-                f"{status_style(status_icon)} Model {i}: {model.id}"
-            )
+            self.stdout.write(f"{status_style(status_icon)} Model {i}: {model.id}")
             self.stdout.write(f"   Version:    {model.version}")
             self.stdout.write(f"   Status:     {model.status}")
             self.stdout.write(f"   Is Active:  {model.is_active}")
@@ -272,9 +268,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"   Trained:    {model.training_date.strftime('%Y-%m-%d %H:%M')}"
             )
-            self.stdout.write(
-                f"   S3 Key:     {'✓' if model.s3_key else '✗ MISSING'}"
-            )
+            self.stdout.write(f"   S3 Key:     {'✓' if model.s3_key else '✗ MISSING'}")
             self.stdout.write("")
 
             if model.is_active:
@@ -285,9 +279,7 @@ class Command(BaseCommand):
 
         if active_count == 0:
             self.stdout.write(
-                self.style.ERROR(
-                    "\n⚠️  NO ACTIVE MODELS! Predictions will fail."
-                )
+                self.style.ERROR("\n⚠️  NO ACTIVE MODELS! Predictions will fail.")
             )
             latest = models.first()
             if latest:

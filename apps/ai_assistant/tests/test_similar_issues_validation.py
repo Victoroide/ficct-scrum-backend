@@ -4,6 +4,7 @@ Tests for similar_issues endpoint parameter validation.
 Verifies that the endpoint handles invalid UUIDs, parameters, and edge cases
 correctly without returning 500 errors.
 """
+
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -13,8 +14,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.ai_assistant.factories import IssueEmbeddingFactory
-from apps.organizations.models import Organization, OrganizationMembership
-from apps.projects.models import Issue, Project
+from apps.organizations.models import Organization
+from apps.projects.models import Project
 from apps.users.models import User
 from apps.workspaces.models import Workspace, WorkspaceMember
 
@@ -81,7 +82,7 @@ class SimilarIssuesValidationTestCase(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Invalid UUID: plain string
-        response = self.client.get(f"/api/v1/ai/invalid-uuid/similar-issues/")
+        response = self.client.get("/api/v1/ai/invalid-uuid/similar-issues/")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
@@ -92,7 +93,7 @@ class SimilarIssuesValidationTestCase(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Invalid UUID: integer
-        response = self.client.get(f"/api/v1/ai/1/similar-issues/")
+        response = self.client.get("/api/v1/ai/1/similar-issues/")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
@@ -103,7 +104,7 @@ class SimilarIssuesValidationTestCase(TestCase):
         self.client.force_authenticate(user=self.user)
 
         # Malformed UUID
-        response = self.client.get(f"/api/v1/ai/123e4567-e89b-12d3/similar-issues/")
+        response = self.client.get("/api/v1/ai/123e4567-e89b-12d3/similar-issues/")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -266,7 +267,7 @@ class SimilarIssuesValidationTestCase(TestCase):
         """Test that empty string UUID returns 400."""
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.get(f"/api/v1/ai/ /similar-issues/")
+        response = self.client.get("/api/v1/ai/ /similar-issues/")
 
         # Should return 400 or 404 (depending on URL routing)
         self.assertIn(

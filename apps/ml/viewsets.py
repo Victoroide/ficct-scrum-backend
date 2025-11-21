@@ -18,7 +18,6 @@ from apps.ml.services import (
     RecommendationService,
 )
 from apps.projects.permissions import CanAccessProject
-from apps.reporting.services.analytics_service import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Predict issue effort",
-        description="Predict story points or hours required for an issue based on historical data",
+        description="Predict story points or hours required for an issue based on historical data",  # noqa: E501
         request={
             "application/json": {
                 "type": "object",
@@ -118,7 +117,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Estimate sprint duration",
-        description="Predict actual sprint completion time based on planned scope and team velocity",
+        description="Predict actual sprint completion time based on planned scope and team velocity",  # noqa: E501
         request={
             "application/json": {
                 "type": "object",
@@ -158,7 +157,7 @@ class MLViewSet(viewsets.ViewSet):
             )
 
             logger.info(
-                f"[ML] Sprint duration estimated: {estimation.get('estimated_days')} days "
+                f"[ML] Sprint duration estimated: {estimation.get('estimated_days')} days "  # noqa: E501
                 f"(confidence: {estimation.get('confidence')})"
             )
 
@@ -176,7 +175,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Recommend story points",
-        description="Suggest story point estimation for an issue based on historical data",
+        description="Suggest story point estimation for an issue based on historical data",  # noqa: E501
     )
     @action(detail=False, methods=["post"], url_path="recommend-story-points")
     def recommend_story_points(self, request):
@@ -212,7 +211,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Suggest task assignment",
-        description="Recommend best team members for an issue based on skills, workload, and performance",
+        description="Recommend best team members for an issue based on skills, workload, and performance",  # noqa: E501
     )
     @action(detail=False, methods=["post"], url_path="suggest-assignment")
     def suggest_assignment(self, request):
@@ -244,7 +243,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Identify sprint risks",
-        description="Detect if a sprint is at risk of missing deadlines with mitigation suggestions",
+        description="Detect if a sprint is at risk of missing deadlines with mitigation suggestions",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="sprint_id",
@@ -278,7 +277,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Generate AI Project Summary Report",
-        description="Generate comprehensive AI-powered project report with completion %, velocity, and risk score",
+        description="Generate comprehensive AI-powered project report with completion %, velocity, and risk score",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project_id",
@@ -321,7 +320,7 @@ class MLViewSet(viewsets.ViewSet):
         - Risk Score (from ML anomalies + project health)
         """
         try:
-            from django.db.models import Count, Q, Sum
+            from django.db.models import Sum
             from django.db.models.functions import Coalesce
             from django.utils import timezone
 
@@ -444,7 +443,7 @@ class MLViewSet(viewsets.ViewSet):
     @extend_schema(
         tags=["Machine Learning"],
         summary="Detect project anomalies",
-        description="Identify unusual patterns in project (velocity drops, bottlenecks, etc.)",
+        description="Identify unusual patterns in project (velocity drops, bottlenecks, etc.)",  # noqa: E501
         parameters=[
             OpenApiParameter(
                 name="project_id",

@@ -29,16 +29,16 @@ class AssistantPrompts:
             {
                 "role": "system",
                 "content": (
-                    "You are a helpful project management assistant for FICCT-SCRUM system.\n\n"
+                    "You are a helpful project management assistant for FICCT-SCRUM system.\n\n"  # noqa: E501
                     "CAPABILITIES:\n"
                     "- Answer questions about project issues, sprints, and workflows\n"
                     "- Provide insights based on provided context\n"
                     "- Cite specific issues when relevant\n\n"
                     "INSTRUCTIONS:\n"
                     "1. Base answers ONLY on the provided context\n"
-                    "2. If context doesn't contain the answer, say: 'I don't have enough information to answer that based on current project data.'\n"
+                    "2. If context doesn't contain the answer, say: 'I don't have enough information to answer that based on current project data.'\n"  # noqa: E501
                     "3. Be concise and accurate\n"
-                    "4. Reference issue IDs when relevant (e.g., 'According to PROJ-123...')\n"
+                    "4. Reference issue IDs when relevant (e.g., 'According to PROJ-123...')\n"  # noqa: E501
                     "5. Use a professional, friendly tone\n\n"
                     "CONTEXT FORMAT:\n"
                     "The context contains relevant issues from semantic search with:\n"
@@ -57,7 +57,7 @@ class AssistantPrompts:
         messages.append(
             {
                 "role": "user",
-                "content": f"Context (relevant issues from database):\n\n{context}\n\n---\n\nQuestion: {question}",
+                "content": f"Context (relevant issues from database):\n\n{context}\n\n---\n\nQuestion: {question}",  # noqa: E501
             }
         )
 
@@ -83,7 +83,7 @@ class AssistantPrompts:
                 "role": "system",
                 "content": (
                     "You are a helpful project management assistant for FICCT-SCRUM. "
-                    "Answer questions based on the provided context about project issues. "
+                    "Answer questions based on the provided context about project issues. "  # noqa: E501
                     "Be concise, accurate, and cite specific issues when relevant. "
                     "If you don't know the answer based on the context, say so."
                 ),
@@ -98,7 +98,7 @@ class AssistantPrompts:
         messages.append(
             {
                 "role": "user",
-                "content": f"Context (relevant issues):\n{context}\n\nQuestion: {question}",
+                "content": f"Context (relevant issues):\n{context}\n\nQuestion: {question}",  # noqa: E501
             }
         )
 

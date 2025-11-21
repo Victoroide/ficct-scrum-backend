@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, send_mail
-from django.template.loader import render_to_string
 
 from botocore.exceptions import ClientError
 
@@ -206,8 +205,8 @@ The FICCT-SCRUM Team
     <p>Hi <strong>{user.first_name}</strong>,</p>
     <p>You requested to reset your password for your FICCT-SCRUM account.</p>
     <p>
-        <a href="{reset_url}" 
-           style="background-color: #4A90E2; color: white; padding: 12px 24px; 
+        <a href="{reset_url}"
+           style="background-color: #4A90E2; color: white; padding: 12px 24px;
                   text-decoration: none; border-radius: 4px; display: inline-block;">
             Reset Password
         </a>
@@ -247,14 +246,14 @@ The FICCT-SCRUM Team
         message = f"""
 Hola,
 
-{invited_by_name} te ha invitado a unirte a la organización 
+{invited_by_name} te ha invitado a unirte a la organización
 "{organization_name}" en FICCT-SCRUM como {invitation.get_role_display()}.
 
 Para aceptar esta invitación, haz click en el siguiente enlace:
 
 {invite_url}
 
-Si no tienes cuenta en FICCT-SCRUM, el enlace te guiará 
+Si no tienes cuenta en FICCT-SCRUM, el enlace te guiará
 para crear una usando este email: {invitation.email}
 
 Esta invitación expira el {invitation.expires_at.strftime('%d de %B de %Y')}.
@@ -266,32 +265,32 @@ https://scrum.ficct.com
 
         html_message = f"""
 <html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">  # noqa: E501
     <div style="background-color: #4A90E2; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">FICCT-SCRUM</h1>
     </div>
     <div style="padding: 30px; background-color: #f9f9f9;">
         <h2 style="color: #4A90E2;">¡Te han invitado!</h2>
-        <p><strong>{invited_by_name}</strong> te ha invitado a unirte a la organización 
+        <p><strong>{invited_by_name}</strong> te ha invitado a unirte a la organización
            <strong>{organization_name}</strong> en FICCT-SCRUM.</p>
         <p><strong>Rol:</strong> {invitation.get_role_display()}</p>
-        {f'<p style="color: #666;"><strong>Mensaje:</strong> {invitation.message}</p>' if invitation.message else ''}
+        {f'<p style="color: #666;"><strong>Mensaje:</strong> {invitation.message}</p>' if invitation.message else ''}  # noqa: E501
         <p style="text-align: center; margin: 30px 0;">
-            <a href="{invite_url}" 
-               style="background-color: #4A90E2; color: white; padding: 14px 28px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            <a href="{invite_url}"
+               style="background-color: #4A90E2; color: white; padding: 14px 28px;
+                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">  # noqa: E501
                 Aceptar Invitación
             </a>
         </p>
-        <p style="color: #666; font-size: 13px; border-left: 3px solid #4A90E2; padding-left: 15px;">
-            <strong>Nota:</strong> Si no tienes cuenta en FICCT-SCRUM, el enlace te guiará para crear una 
+        <p style="color: #666; font-size: 13px; border-left: 3px solid #4A90E2; padding-left: 15px;">  # noqa: E501
+            <strong>Nota:</strong> Si no tienes cuenta en FICCT-SCRUM, el enlace te guiará para crear una  # noqa: E501
             usando el email: <strong>{invitation.email}</strong>
         </p>
         <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
             Esta invitación expira el {invitation.expires_at.strftime('%d de %B de %Y')}
         </p>
     </div>
-    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
+    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">  # noqa: E501
         <p style="margin: 0;">Equipo FICCT-SCRUM | scrum.ficct.com</p>
     </div>
 </body>
@@ -336,7 +335,7 @@ https://scrum.ficct.com
         message = f"""
 Hola {user.first_name},
 
-{invited_by_name} te ha agregado a la organización "{organization.name}" 
+{invited_by_name} te ha agregado a la organización "{organization.name}"
 en FICCT-SCRUM como {role_display}.
 
 Ahora puedes:
@@ -353,17 +352,17 @@ https://scrum.ficct.com
 
         html_message = f"""
 <html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">  # noqa: E501
     <div style="background-color: #4A90E2; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">FICCT-SCRUM</h1>
     </div>
     <div style="padding: 30px; background-color: #f9f9f9;">
         <h2 style="color: #4A90E2;">¡Te agregaron a una organización!</h2>
         <p>Hola <strong>{user.first_name}</strong>,</p>
-        <p><strong>{invited_by_name}</strong> te ha agregado a la organización 
-           <strong>{organization.name}</strong> como <strong>{role_display}</strong>.</p>
-        
-        <div style="background-color: white; padding: 20px; border-radius: 6px; margin: 20px 0;">
+        <p><strong>{invited_by_name}</strong> te ha agregado a la organización
+           <strong>{organization.name}</strong> como <strong>{role_display}</strong>.</p>  # noqa: E501
+
+        <div style="background-color: white; padding: 20px; border-radius: 6px; margin: 20px 0;">  # noqa: E501
             <h3 style="color: #333; margin-top: 0;">Ahora puedes:</h3>
             <ul style="color: #666;">
                 <li>Ver y participar en workspaces de la organización</li>
@@ -373,14 +372,14 @@ https://scrum.ficct.com
         </div>
 
         <p style="text-align: center; margin: 30px 0;">
-            <a href="{dashboard_url}" 
-               style="background-color: #4A90E2; color: white; padding: 14px 28px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            <a href="{dashboard_url}"
+               style="background-color: #4A90E2; color: white; padding: 14px 28px;
+                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">  # noqa: E501
                 Ir al Dashboard
             </a>
         </p>
     </div>
-    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
+    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">  # noqa: E501
         <p style="margin: 0;">Equipo FICCT-SCRUM | scrum.ficct.com</p>
     </div>
 </body>
@@ -436,16 +435,16 @@ https://scrum.ficct.com
 
         html_message = f"""
 <html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">  # noqa: E501
     <div style="background-color: #4A90E2; padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">FICCT-SCRUM</h1>
     </div>
     <div style="padding: 30px; background-color: #f9f9f9;">
         <h2 style="color: #4A90E2;">¡Bienvenido a {organization.name}!</h2>
         <p>¡Hola <strong>{user.first_name}</strong>!</p>
-        <p>Te has unido exitosamente a <strong>{organization.name}</strong> como <strong>{role_display}</strong>.</p>
-        
-        <div style="background-color: white; padding: 20px; border-radius: 6px; margin: 20px 0;">
+        <p>Te has unido exitosamente a <strong>{organization.name}</strong> como <strong>{role_display}</strong>.</p>  # noqa: E501
+
+        <div style="background-color: white; padding: 20px; border-radius: 6px; margin: 20px 0;">  # noqa: E501
             <h3 style="color: #333; margin-top: 0;">Ahora puedes:</h3>
             <ul style="color: #666;">
                 <li>Ver y participar en workspaces de la organización</li>
@@ -455,14 +454,14 @@ https://scrum.ficct.com
         </div>
 
         <p style="text-align: center; margin: 30px 0;">
-            <a href="{dashboard_url}" 
-               style="background-color: #4A90E2; color: white; padding: 14px 28px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            <a href="{dashboard_url}"
+               style="background-color: #4A90E2; color: white; padding: 14px 28px;
+                      text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">  # noqa: E501
                 Comenzar Ahora
             </a>
         </p>
     </div>
-    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
+    <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">  # noqa: E501
         <p style="margin: 0;">Equipo FICCT-SCRUM | scrum.ficct.com</p>
     </div>
 </body>
@@ -481,7 +480,6 @@ https://scrum.ficct.com
         """Get SES sending statistics (quota, sent count, etc.)."""
         try:
             import boto3
-            from botocore.exceptions import ClientError
 
             ses_client = boto3.client(
                 "ses",

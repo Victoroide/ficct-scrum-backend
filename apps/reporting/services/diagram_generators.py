@@ -6,21 +6,18 @@ Implements all diagram types with professional SVG output:
 - Dependency graphs with connections
 - Burndown charts
 - Velocity charts
-- Cumulative Flow Diagrams  
+- Cumulative Flow Diagrams
 - Roadmap timelines
 - Code metrics (with GitHub integration check)
 """
 
-from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
-from django.db.models import Count, Q
 from django.utils import timezone
 
 from .diagram_utils import (
     BoundingBox,
     DesignSystem,
-    calculate_canvas_size,
     calculate_grid_points,
     create_text_bounding_box,
     estimate_text_height,
@@ -36,8 +33,6 @@ from .svg_builder import (
     create_grid,
     create_legend,
     create_line,
-    create_multiline_text,
-    create_node_box,
     create_path,
     create_rect,
     create_svg_canvas,
@@ -70,7 +65,7 @@ def generate_workflow_diagram_svg(project) -> str:
     Returns:
         SVG string
     """
-    from apps.projects.models import Issue, WorkflowStatus, WorkflowTransition
+    from apps.projects.models import WorkflowStatus, WorkflowTransition
 
     ds = DesignSystem
 
@@ -146,8 +141,8 @@ def generate_workflow_diagram_svg(project) -> str:
     canvas_height = max(calculated_height, ds.LAYOUT["canvas_min_height"])
 
     # Start SVG with improved rendering attributes
-    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg" 
-        width="{canvas_width}" height="{canvas_height}" 
+    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg"
+        width="{canvas_width}" height="{canvas_height}"
         viewBox="0 0 {canvas_width} {canvas_height}"
         style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">"""
 
@@ -443,7 +438,7 @@ def generate_dependency_graph_svg(project, filters=None) -> str:
             "Create issues to visualize dependencies between them",
         )
 
-    issue_ids = [issue.id for issue in issues]
+    [issue.id for issue in issues]
 
     links = list(
         IssueLink.objects.filter(
@@ -510,8 +505,8 @@ def generate_dependency_graph_svg(project, filters=None) -> str:
     canvas_height = min_height
 
     # Start SVG with improved rendering
-    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg" 
-        width="{canvas_width}" height="{canvas_height}" 
+    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg"
+        width="{canvas_width}" height="{canvas_height}"
         viewBox="0 0 {canvas_width} {canvas_height}"
         style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">"""
 
@@ -535,7 +530,7 @@ def generate_dependency_graph_svg(project, filters=None) -> str:
     # Title with filter info
     filter_info = []
     if filters.get("sprint_id"):
-        filter_info.append(f"Sprint filtered")
+        filter_info.append("Sprint filtered")
     if filters.get("status_ids"):
         filter_info.append(f"{len(filters['status_ids'])} statuses")
     if filters.get("priorities"):
@@ -692,7 +687,7 @@ def check_github_integration(project) -> Optional[Dict]:
         return {
             "error": "Project has no GitHub integration.",
             "error_code": "GITHUB_INTEGRATION_REQUIRED",
-            "message": "Connect your GitHub repository to view code metrics and diagrams.",
+            "message": "Connect your GitHub repository to view code metrics and diagrams.",  # noqa: E501
             "help_url": "/docs/integrations/github",
             "suggested_action": "connect_github",
         }
@@ -1125,7 +1120,7 @@ def generate_roadmap_timeline_svg(project) -> str:
     Returns:
         SVG string
     """
-    from apps.projects.models import Issue, Sprint
+    from apps.projects.models import Sprint
 
     ds = DesignSystem
 
@@ -1175,8 +1170,8 @@ def generate_roadmap_timeline_svg(project) -> str:
     chart_height = len(sprints) * row_height
 
     # Start SVG with improved rendering
-    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg" 
-        width="{canvas_width}" height="{canvas_height}" 
+    svg_opening = f"""<svg xmlns="http://www.w3.org/2000/svg"
+        width="{canvas_width}" height="{canvas_height}"
         viewBox="0 0 {canvas_width} {canvas_height}"
         style="shape-rendering: crispEdges; text-rendering: optimizeLegibility;">"""
 
@@ -1203,14 +1198,14 @@ def generate_roadmap_timeline_svg(project) -> str:
             f"{project.name} - Roadmap",
             canvas_width / 2,
             25,
-            subtitle=f"{len(sprints)} sprints from {min_date.strftime('%b %d')} to {max_date.strftime('%b %d, %Y')}",
+            subtitle=f"{len(sprints)} sprints from {min_date.strftime('%b %d')} to {max_date.strftime('%b %d, %Y')}",  # noqa: E501
         )
     )
 
     # Draw timeline axis
     timeline_y = 80
     timeline_x_start = margin + label_width
-    timeline_x_end = timeline_x_start + chart_width
+    timeline_x_start + chart_width
 
     # Today marker
     today = timezone.now().date()
@@ -1292,7 +1287,7 @@ def generate_roadmap_timeline_svg(project) -> str:
 
         # Date range inside bar (if bar is wide enough)
         if bar_width > 100:
-            date_text = f"{sprint.start_date.strftime('%m/%d')} - {sprint.end_date.strftime('%m/%d')}"
+            date_text = f"{sprint.start_date.strftime('%m/%d')} - {sprint.end_date.strftime('%m/%d')}"  # noqa: E501
             parts.append(
                 create_text(
                     bar_x + bar_width / 2,

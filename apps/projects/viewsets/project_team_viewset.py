@@ -9,7 +9,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.authentication.models import User
 from apps.logging.services import LoggerService
 from apps.projects.models import Project, ProjectTeamMember
 from apps.projects.permissions import CanAccessProject, CanManageProjectTeam
@@ -36,7 +35,7 @@ from apps.projects.serializers import (
         tags=["Project Team"],
         operation_id="project_team_members_create",
         summary="Add Team Member",
-        description="Add a new team member to the project. User must be a workspace member.",
+        description="Add a new team member to the project. User must be a workspace member.",  # noqa: E501
         request=AddTeamMemberSerializer,
     ),
     partial_update=extend_schema(
@@ -81,7 +80,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
             "project",
             "project__workspace",
             "project__lead",
-            "project__created_by"
+            "project__created_by",
         )
 
     def get_permissions(self):
@@ -163,7 +162,7 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
             if role not in valid_roles:
                 return Response(
                     {
-                        "error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+                        "error": f"Invalid role. Must be one of: {', '.join(valid_roles)}"  # noqa: E501
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )

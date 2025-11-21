@@ -49,31 +49,31 @@ def create_svg_defs() -> str:
     return f"""
 <defs>
     <!-- Arrow Markers -->
-    <marker id="arrowhead" markerWidth="10" markerHeight="10" 
+    <marker id="arrowhead" markerWidth="10" markerHeight="10"
             refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,6 L9,3 z" fill="{ds.COLORS['arrow_default']}"/>
     </marker>
-    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" 
+    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10"
             refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,6 L9,3 z" fill="{ds.COLORS['arrow_blocked']}"/>
     </marker>
-    <marker id="arrowhead-dependency" markerWidth="10" markerHeight="10" 
+    <marker id="arrowhead-dependency" markerWidth="10" markerHeight="10"
             refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,6 L9,3 z" fill="{ds.COLORS['arrow_depends']}"/>
     </marker>
-    
+
     <!-- Filters -->
     <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-        <feDropShadow dx="{ds.SHAPES['shadow_offset_x']}" 
-                      dy="{ds.SHAPES['shadow_offset_y']}" 
-                      stdDeviation="{ds.SHAPES['shadow_blur']}" 
+        <feDropShadow dx="{ds.SHAPES['shadow_offset_x']}"
+                      dy="{ds.SHAPES['shadow_offset_y']}"
+                      stdDeviation="{ds.SHAPES['shadow_blur']}"
                       flood-opacity="{ds.SHAPES['shadow_opacity']}"/>
     </filter>
-    
+
     <!-- Gradients -->
     <linearGradient id="grad-blue" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" style="stop-color:{ds.COLORS['chart_blue']};stop-opacity:0.8" />
-        <stop offset="100%" style="stop-color:{ds.COLORS['chart_blue']};stop-opacity:0.4" />
+        <stop offset="0%" style="stop-color:{ds.COLORS['chart_blue']};stop-opacity:0.8" />  # noqa: E501
+        <stop offset="100%" style="stop-color:{ds.COLORS['chart_blue']};stop-opacity:0.4" />  # noqa: E501
     </linearGradient>
 </defs>"""
 
@@ -154,7 +154,7 @@ def create_ellipse(
 ) -> str:
     """Create an ellipse."""
     stroke_attr = f'stroke="{stroke}" stroke-width="2"' if stroke else ""
-    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{fill}" {stroke_attr}/>'
+    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{fill}" {stroke_attr}/>'  # noqa: E501
 
 
 # ============================================================================
@@ -264,10 +264,10 @@ def create_text_with_background(
     escaped_text = escape_svg_text(text)
 
     return f"""<g>
-    <rect x="{bg_x}" y="{bg_y}" width="{bg_width}" height="{bg_height}" 
+    <rect x="{bg_x}" y="{bg_y}" width="{bg_width}" height="{bg_height}"
           fill="{bg_fill}" opacity="{bg_opacity}" rx="3"/>
-    <text x="{x}" y="{y}" font-size="{size}" fill="{fill}" 
-          text-anchor="{anchor}" font-weight="{weight}" 
+    <text x="{x}" y="{y}" font-size="{size}" fill="{fill}"
+          text-anchor="{anchor}" font-weight="{weight}"
           font-family="{ds.FONTS["family"]}">{escaped_text}</text>
 </g>"""
 
@@ -859,7 +859,7 @@ def create_axes(
             f'<text x="{x - 40}" y="{y + height / 2}" '
             f'font-size="{ds.FONTS["size_body"]}" '
             f'text-anchor="middle" font-weight="bold" '
-            f'transform="rotate(-90 {x - 40} {y + height / 2})">{escape_svg_text(y_title)}</text>'
+            f'transform="rotate(-90 {x - 40} {y + height / 2})">{escape_svg_text(y_title)}</text>'  # noqa: E501
         )
 
     parts.append("</g>")

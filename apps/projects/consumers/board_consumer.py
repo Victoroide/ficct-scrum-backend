@@ -38,18 +38,18 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
         if not self.user.is_authenticated:
             logger.warning(
-                f"[WS CONSUMER] Rejecting connection: User not authenticated"
+                "[WS CONSUMER] Rejecting connection: User not authenticated"
             )
             await self.close()
             return
 
-        logger.info(f"[WS CONSUMER] Checking board access permissions...")
+        logger.info("[WS CONSUMER] Checking board access permissions...")
         has_permission = await self.check_board_access()
         logger.info(f"[WS CONSUMER] Board access permission: {has_permission}")
 
         if not has_permission:
             logger.warning(
-                f"[WS CONSUMER] Rejecting connection: User does not have board access"
+                "[WS CONSUMER] Rejecting connection: User does not have board access"
             )
             await self.close()
             return
@@ -57,10 +57,10 @@ class BoardConsumer(AsyncWebsocketConsumer):
         logger.info(f"[WS CONSUMER] Adding user to group {self.room_group_name}")
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-        logger.info(f"[WS CONSUMER] Accepting WebSocket connection")
+        logger.info("[WS CONSUMER] Accepting WebSocket connection")
         await self.accept()
 
-        logger.info(f"[WS CONSUMER] Broadcasting user_joined event")
+        logger.info("[WS CONSUMER] Broadcasting user_joined event")
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -69,7 +69,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
                 "user_name": self.user.get_full_name() or self.user.username,
             },
         )
-        logger.info(f"[WS CONSUMER] Connection established successfully")
+        logger.info("[WS CONSUMER] Connection established successfully")
 
     async def disconnect(self, close_code):
         # Only send user_left event if user is authenticated
@@ -92,7 +92,6 @@ class BoardConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         """Handle incoming WebSocket messages from client"""
-        pass
 
     async def user_joined(self, event):
         """Broadcast when user joins the board"""

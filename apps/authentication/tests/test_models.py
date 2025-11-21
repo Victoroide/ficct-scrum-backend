@@ -1,11 +1,12 @@
 """
 Tests for authentication models.
 """
+
 from django.db import IntegrityError
 
 import pytest
 
-from apps.authentication.models import User, UserProfile
+from apps.authentication.models import UserProfile
 from apps.authentication.tests.factories import UserFactory, UserProfileFactory
 
 

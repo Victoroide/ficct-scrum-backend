@@ -33,7 +33,7 @@ class SummarizationPrompts:
             {
                 "role": "system",
                 "content": (
-                    "You are an expert software project manager skilled at summarizing technical discussions.\n\n"
+                    "You are an expert software project manager skilled at summarizing technical discussions.\n\n"  # noqa: E501
                     "TASK: Summarize issue discussions concisely.\n\n"
                     f"OUTPUT REQUIREMENTS:\n"
                     f"- Maximum {max_words} words\n"
@@ -102,7 +102,7 @@ class SummarizationPrompts:
 
         context = (
             f"Sprint: {sprint_name}\n"
-            f"Duration: {sprint_data.get('start_date')} to {sprint_data.get('end_date', 'In Progress')}\n"
+            f"Duration: {sprint_data.get('start_date')} to {sprint_data.get('end_date', 'In Progress')}\n"  # noqa: E501
             f"Completion: {completed}/{total} issues ({completion_rate}%)\n"
         )
 
@@ -110,7 +110,7 @@ class SummarizationPrompts:
             {
                 "role": "system",
                 "content": (
-                    "You are an expert Agile coach generating sprint retrospectives.\n\n"
+                    "You are an expert Agile coach generating sprint retrospectives.\n\n"  # noqa: E501
                     "TASK: Create a structured retrospective summary.\n\n"
                     "OUTPUT STRUCTURE:\n"
                     "1. **What Went Well**: Positive achievements and successes\n"
@@ -125,7 +125,7 @@ class SummarizationPrompts:
             },
             {
                 "role": "user",
-                "content": f"Sprint Data:\n{context}\n\nGenerate a retrospective summary.",
+                "content": f"Sprint Data:\n{context}\n\nGenerate a retrospective summary.",  # noqa: E501
             },
         ]
 
@@ -145,7 +145,7 @@ class SummarizationPrompts:
         """
         context = (
             f"Sprint: {sprint_name}\n"
-            f"Issues: {sprint_data.get('completed', 0)}/{sprint_data.get('total_issues', 0)} completed\n"
+            f"Issues: {sprint_data.get('completed', 0)}/{sprint_data.get('total_issues', 0)} completed\n"  # noqa: E501
             f"Rate: {sprint_data.get('completion_rate', 0)}%\n"
         )
 
@@ -194,8 +194,8 @@ class SummarizationPrompts:
             {
                 "role": "system",
                 "content": (
-                    "You are a technical writer creating release notes for software products.\n\n"
-                    "TASK: Transform completed work items into professional release notes.\n\n"
+                    "You are a technical writer creating release notes for software products.\n\n"  # noqa: E501
+                    "TASK: Transform completed work items into professional release notes.\n\n"  # noqa: E501
                     "OUTPUT REQUIREMENTS:\n"
                     "- Group by category (Features, Bug Fixes, Improvements)\n"
                     "- User-friendly language (avoid technical jargon where possible)\n"

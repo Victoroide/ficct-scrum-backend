@@ -6,7 +6,7 @@ PROJECT_TEMPLATES = [
     {
         'name': 'E-Commerce Platform',
         'key': 'ECOM',
-        'description': 'Next-generation e-commerce platform with AI-powered recommendations',
+        'description': 'Next-generation e-commerce platform with AI-powered recommendations',  # noqa: E501
         'methodology': 'scrum',
         'status': 'active',
         'priority': 'high',
@@ -38,7 +38,7 @@ PROJECT_TEMPLATES = [
     {
         'name': 'Mobile Banking App',
         'key': 'BANK',
-        'description': 'Secure mobile banking application with biometric authentication',
+        'description': 'Secure mobile banking application with biometric authentication',  # noqa: E501
         'methodology': 'scrum',
         'status': 'planning',
         'priority': 'critical',
@@ -175,10 +175,10 @@ ISSUE_TYPE_TEMPLATES = [
 ]
 
 WORKFLOW_STATUS_TEMPLATES = [
-    {'name': 'To Do', 'category': 'to_do', 'color': '#DFE1E6', 'order': 0, 'is_initial': True},
+    {'name': 'To Do', 'category': 'to_do', 'color': '#DFE1E6', 'order': 0, 'is_initial': True},  # noqa: E501
     {'name': 'In Progress', 'category': 'in_progress', 'color': '#0052CC', 'order': 1},
     {'name': 'In Review', 'category': 'in_progress', 'color': '#FF991F', 'order': 2},
-    {'name': 'Done', 'category': 'done', 'color': '#00875A', 'order': 3, 'is_final': True},
+    {'name': 'Done', 'category': 'done', 'color': '#00875A', 'order': 3, 'is_final': True},  # noqa: E501
 ]
 
 # Issue title templates
@@ -214,12 +214,12 @@ EPIC_TEMPLATES = [
 ]
 
 # Word banks for generating titles
-ACTIONS = ['login', 'register', 'search', 'filter', 'export', 'import', 'edit', 'delete', 'share', 'download', 'upload', 'view', 'create', 'update']
-BENEFITS = ['improve usability', 'save time', 'increase productivity', 'better organization', 'easier access', 'reduce errors', 'enhance security']
-FEATURES = ['authentication', 'dashboard', 'reporting', 'notifications', 'settings', 'profile', 'analytics', 'billing', 'messaging', 'calendar']
-AREAS = ['homepage', 'user profile', 'admin panel', 'settings page', 'dashboard', 'reports section', 'navigation menu', 'sidebar']
-COMPONENTS = ['database', 'API', 'frontend', 'backend', 'cache', 'queue', 'websocket', 'server', 'client']
-PROBLEMS = ['crash', 'slow performance', 'memory leak', 'incorrect data', 'UI glitch', 'validation error', 'timeout', 'data loss']
+ACTIONS = ['login', 'register', 'search', 'filter', 'export', 'import', 'edit', 'delete', 'share', 'download', 'upload', 'view', 'create', 'update']  # noqa: E501
+BENEFITS = ['improve usability', 'save time', 'increase productivity', 'better organization', 'easier access', 'reduce errors', 'enhance security']  # noqa: E501
+FEATURES = ['authentication', 'dashboard', 'reporting', 'notifications', 'settings', 'profile', 'analytics', 'billing', 'messaging', 'calendar']  # noqa: E501
+AREAS = ['homepage', 'user profile', 'admin panel', 'settings page', 'dashboard', 'reports section', 'navigation menu', 'sidebar']  # noqa: E501
+COMPONENTS = ['database', 'API', 'frontend', 'backend', 'cache', 'queue', 'websocket', 'server', 'client']  # noqa: E501
+PROBLEMS = ['crash', 'slow performance', 'memory leak', 'incorrect data', 'UI glitch', 'validation error', 'timeout', 'data loss']  # noqa: E501
 
 # Comment templates
 COMMENT_TEMPLATES = [

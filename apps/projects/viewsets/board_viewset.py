@@ -44,7 +44,7 @@ class BoardFilter(filters.FilterSet):
         tags=["Boards"],
         operation_id="boards_retrieve",
         summary="Get Board Details ",
-        description="Get board with columns and issues. Support filtering by assignee, priority, sprint.",
+        description="Get board with columns and issues. Support filtering by assignee, priority, sprint.",  # noqa: E501
     ),
     create=extend_schema(
         tags=["Boards"],
@@ -78,18 +78,22 @@ class BoardViewSet(viewsets.ModelViewSet):
         from django.db.models import Count, Prefetch, Q
 
         # Optimize columns with pre-calculated issue counts
-        optimized_columns = BoardColumn.objects.select_related(
-            "workflow_status"
-        ).annotate(
-            _issue_count=Count(
-                "workflow_status__issues",
-                filter=Q(
-                    workflow_status__issues__is_active=True,
-                    workflow_status__issues__project_id=models.F("board__project_id")
-                ),
-                distinct=True
+        optimized_columns = (
+            BoardColumn.objects.select_related("workflow_status")
+            .annotate(
+                _issue_count=Count(
+                    "workflow_status__issues",
+                    filter=Q(
+                        workflow_status__issues__is_active=True,
+                        workflow_status__issues__project_id=models.F(
+                            "board__project_id"
+                        ),
+                    ),
+                    distinct=True,
+                )
             )
-        ).order_by("order")
+            .order_by("order")
+        )
 
         return (
             Board.objects.filter(
@@ -103,9 +107,7 @@ class BoardViewSet(viewsets.ModelViewSet):
                 )
             )
             .select_related("project", "created_by")
-            .prefetch_related(
-                Prefetch("columns", queryset=optimized_columns)
-            )
+            .prefetch_related(Prefetch("columns", queryset=optimized_columns))
             .distinct()
         )
 
@@ -226,7 +228,7 @@ class BoardViewSet(viewsets.ModelViewSet):
         if workflow_status.project != board.project:
             return Response(
                 {
-                    "error": "Workflow status must belong to the same project as the board"
+                    "error": "Workflow status must belong to the same project as the board"  # noqa: E501
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -278,7 +280,7 @@ class BoardViewSet(viewsets.ModelViewSet):
         url_path="columns/(?P<column_id>[^/.]+)",
     )
     def update_column(self, request, pk=None, column_id=None):
-        from django.db import models
+        pass
 
         board = self.get_object()
 
@@ -374,11 +376,11 @@ class BoardViewSet(viewsets.ModelViewSet):
         tags=["Boards"],
         operation_id="boards_move_issue",
         summary="Move Issue in Board ",
-        description="Move issue between columns. Updates issue status to match column's workflow status.",
+        description="Move issue between columns. Updates issue status to match column's workflow status.",  # noqa: E501
     )
     @action(detail=True, methods=["patch"], url_path="issues/(?P<issue_id>[^/.]+)/move")
     def move_issue(self, request, pk=None, issue_id=None):
-        from django.db import models
+        pass
 
         board = self.get_object()
         column_id = request.data.get("column_id")
@@ -390,30 +392,30 @@ class BoardViewSet(viewsets.ModelViewSet):
 
         # Optimize queries with select_related to load related objects in one query
         try:
-            issue = Issue.objects.select_related(
-                'project',
-                'issue_type',
-                'status',
-                'parent_issue',
-                'sprint',
-                'assignee',
-                'reporter'
-            ).prefetch_related(
-                'comments',
-                'attachments',
-                'source_links',
-                'target_links'
-            ).get(id=issue_id, project=board.project)
+            issue = (
+                Issue.objects.select_related(
+                    "project",
+                    "issue_type",
+                    "status",
+                    "parent_issue",
+                    "sprint",
+                    "assignee",
+                    "reporter",
+                )
+                .prefetch_related(
+                    "comments", "attachments", "source_links", "target_links"
+                )
+                .get(id=issue_id, project=board.project)
+            )
         except Issue.DoesNotExist:
             return Response(
                 {"error": "Issue not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         try:
-            column = BoardColumn.objects.select_related(
-                'workflow_status',
-                'board'
-            ).get(id=column_id, board=board)
+            column = BoardColumn.objects.select_related("workflow_status", "board").get(
+                id=column_id, board=board
+            )
         except BoardColumn.DoesNotExist:
             return Response(
                 {"error": "Column not found"}, status=status.HTTP_404_NOT_FOUND
@@ -430,7 +432,7 @@ class BoardViewSet(viewsets.ModelViewSet):
             ):
                 return Response(
                     {
-                        "error": f"Column has reached maximum WIP limit of {column.max_wip}"
+                        "error": f"Column has reached maximum WIP limit of {column.max_wip}"  # noqa: E501
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -444,7 +446,7 @@ class BoardViewSet(viewsets.ModelViewSet):
             issue.resolved_at = datetime.now()
 
         # Save only - signal will trigger reindexing
-        issue.save(update_fields=['status', 'resolved_at', 'updated_at'])
+        issue.save(update_fields=["status", "resolved_at", "updated_at"])
 
         LoggerService.log_info(
             action="issue_moved_in_board",

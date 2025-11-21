@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 
 from apps.notifications.models import Notification, NotificationPreference
 from base.services import EmailService
@@ -66,7 +65,7 @@ class NotificationService:
             # Check if user wants this type of notification
             if not preferences.is_type_enabled(notification_type):
                 logger.debug(
-                    f"Notification type {notification_type} disabled for {recipient.email}"
+                    f"Notification type {notification_type} disabled for {recipient.email}"  # noqa: E501
                 )
                 return None
 
@@ -108,7 +107,7 @@ class NotificationService:
             assigner = User.objects.get(id=assigner_id)
 
             title = f"Issue assigned: {issue.title}"
-            message = f"{assigner.get_full_name()} assigned you to {issue.project.key}-{issue.key}: {issue.title}"
+            message = f"{assigner.get_full_name()} assigned you to {issue.project.key}-{issue.key}: {issue.title}"  # noqa: E501
             link = f"/projects/{issue.project.key}/issues/{issue.id}"
 
             self.create_notification(
@@ -143,7 +142,7 @@ class NotificationService:
             ]
 
             title = f"Status changed: {issue.title}"
-            message = f"{changed_by.get_full_name()} changed status from {old_status} to {new_status}"
+            message = f"{changed_by.get_full_name()} changed status from {old_status} to {new_status}"  # noqa: E501
             link = f"/projects/{issue.project.key}/issues/{issue.id}"
 
             for recipient in recipients:
@@ -173,7 +172,7 @@ class NotificationService:
                 return
 
             title = f"Deadline approaching: {issue.title}"
-            message = f"Issue {issue.project.key}-{issue.key} is due in {days_until_deadline} day(s)"
+            message = f"Issue {issue.project.key}-{issue.key} is due in {days_until_deadline} day(s)"  # noqa: E501
             link = f"/projects/{issue.project.key}/issues/{issue.id}"
 
             self.create_notification(
@@ -376,7 +375,7 @@ class NotificationService:
         """Send email notification."""
         try:
             # Use existing EmailService
-            subject = notification.title
+            notification.title
             message = notification.message
 
             if notification.link:

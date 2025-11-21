@@ -4,7 +4,6 @@ Unit tests for S3ModelStorageService with moto mocking.
 All S3 operations are mocked - no real AWS calls.
 """
 
-import io
 from unittest.mock import patch
 
 import pytest

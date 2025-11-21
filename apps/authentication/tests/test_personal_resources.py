@@ -9,7 +9,6 @@ This test suite verifies that:
 5. Transaction rollback works correctly on failures
 """
 
-from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase, TransactionTestCase

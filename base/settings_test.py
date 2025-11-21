@@ -5,7 +5,7 @@ Test settings - excludes daphne/channels to avoid Windows OpenSSL issues.
 from .settings import *  # noqa
 
 # Remove daphne from INSTALLED_APPS for testing
-INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "daphne"]
+INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "daphne"]  # noqa: F405
 
 # Disable channels layer for tests
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

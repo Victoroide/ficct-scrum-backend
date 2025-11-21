@@ -12,10 +12,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.authentication.models import User
 from apps.logging.services import LoggerService
 from apps.organizations.models import (
-    Organization,
     OrganizationInvitation,
     OrganizationMembership,
 )
@@ -42,7 +40,7 @@ logger = logging.getLogger(__name__)
         operation_id="organization_members_create",
         summary="Invite Member to Organization",
         description=(
-            "**NEW:** Sends invitation email via AWS SES with accept link (expires in 7 days). "
+            "**NEW:** Sends invitation email via AWS SES with accept link (expires in 7 days). "  # noqa: E501
             "Email delivery failures are logged but do not block membership creation. "
             "Requires permission: Owner, Admin, or Manager can invite members."
         ),
@@ -104,7 +102,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         try:
             organization_id = request.query_params.get("organization")
             logger.info(
-                f"Listing members for organization: {organization_id}, user: {request.user.username}"
+                f"Listing members for organization: {organization_id}, user: {request.user.username}"  # noqa: E501
             )
 
             queryset = self.filter_queryset(self.get_queryset())

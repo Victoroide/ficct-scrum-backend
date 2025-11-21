@@ -9,7 +9,6 @@ Usage:
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 from apps.notifications.models import Notification
 
@@ -72,7 +71,7 @@ class Command(BaseCommand):
             {
                 "notification_type": "issue_commented",
                 "title": "New Comment on Issue",
-                "message": "John Doe commented on issue PROJ-456: 'Please review the changes'",
+                "message": "John Doe commented on issue PROJ-456: 'Please review the changes'",  # noqa: E501
                 "link": "/projects/PROJ/issues/PROJ-456",
                 "data": {"issue_id": "test-uuid-2", "comment_id": "test-comment-1"},
             },
@@ -126,14 +125,14 @@ class Command(BaseCommand):
             {
                 "notification_type": "anomaly_detected",
                 "title": "Anomaly Detected",
-                "message": "Unusual activity detected: 5 issues moved to 'Done' in the last hour",
+                "message": "Unusual activity detected: 5 issues moved to 'Done' in the last hour",  # noqa: E501
                 "link": "/projects/PROJ/dashboard",
                 "data": {"issue_count": 5, "timeframe": "1h"},
             },
             {
                 "notification_type": "sprint_completed",
                 "title": "Sprint Completed",
-                "message": "Sprint 'Q3 Maintenance Sprint' has been completed with 85% completion rate",
+                "message": "Sprint 'Q3 Maintenance Sprint' has been completed with 85% completion rate",  # noqa: E501
                 "link": "/projects/PROJ/sprints/completed",
                 "data": {"sprint_id": "test-sprint-2", "completion_rate": 85},
             },
@@ -169,7 +168,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n✅ Successfully created {created_count} test notifications for {user.email}"
+                f"\n✅ Successfully created {created_count} test notifications for {user.email}"  # noqa: E501
             )
         )
 
@@ -188,10 +187,10 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n🔗 Test the API:"
+                "\n🔗 Test the API:"  # noqa: F541
                 f"\n   - List all: GET /api/v1/notifications/"
                 f"\n   - Unread only: GET /api/v1/notifications/?is_read=false"
-                f"\n   - By type: GET /api/v1/notifications/?notification_type=issue_assigned"
+                f"\n   - By type: GET /api/v1/notifications/?notification_type=issue_assigned"  # noqa: E501
                 f"\n   - Search: GET /api/v1/notifications/?search=sprint"
                 f"\n   - Unread count: GET /api/v1/notifications/unread-count/"
             )

@@ -131,9 +131,11 @@ class SummarizationService:
                 "sprint_metrics": {
                     "total_issues": total_issues,
                     "completed": completed,
-                    "completion_rate": round(completed / total_issues * 100, 1)
-                    if total_issues > 0
-                    else 0,
+                    "completion_rate": (
+                        round(completed / total_issues * 100, 1)
+                        if total_issues > 0
+                        else 0
+                    ),
                 },
             }
 

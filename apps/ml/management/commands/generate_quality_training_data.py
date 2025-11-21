@@ -1,8 +1,8 @@
 """
-Django management command to generate high-quality, coherent training data for ML models.
+Django management command to generate high-quality, coherent training data for ML models.  # noqa: E501
 
 This command creates realistic software development scenarios with temporal coherence,
-skill-task matching, and authentic variance to enable ML models to learn meaningful patterns.
+skill-task matching, and authentic variance to enable ML models to learn meaningful patterns.  # noqa: E501
 
 Usage:
     python manage.py generate_quality_training_data \\
@@ -13,38 +13,32 @@ Usage:
 """
 
 import random
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple
-from uuid import UUID
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 
 from apps.projects.models import (
-    Project,
-    Sprint,
     Issue,
     IssueType,
+    Project,
+    Sprint,
     WorkflowStatus,
-    WorkflowTransition,
-    ProjectTeamMember,
-    IssueLink,
 )
 from apps.workspaces.models import Workspace
-from apps.ml.models import MLModel
 
 # Import generation helper functions
 from .generation_helpers import (
-    generate_team_members_impl,
-    create_projects_impl,
-    generate_sprints_impl,
-    generate_issues_impl,
-    log_effort_data_impl,
     create_dependencies_impl,
+    create_projects_impl,
+    generate_issues_impl,
+    generate_sprints_impl,
+    generate_team_members_impl,
     inject_anomalies_impl,
+    log_effort_data_impl,
 )
 
 User = get_user_model()
@@ -54,7 +48,7 @@ PROJECT_ARCHETYPES = [
     {
         "name": "Admin Dashboard",
         "key": "ADMIN",
-        "description": "Internal administration and management dashboard for system operators",
+        "description": "Internal administration and management dashboard for system operators",  # noqa: E501
         "team_size": 5,
         "duration_weeks": 12,
         "complexity": "medium",
@@ -206,7 +200,7 @@ class Command(BaseCommand):
             "--preserve-project",
             type=str,
             required=True,
-            help="Project UUID to preserve (must be 23b6e5cf-2de5-4d7d-b420-0d6ee9f47cce)",
+            help="Project UUID to preserve (must be 23b6e5cf-2de5-4d7d-b420-0d6ee9f47cce)",  # noqa: E501
         )
         parser.add_argument(
             "--num-projects",
@@ -228,7 +222,7 @@ class Command(BaseCommand):
             "--skip-vectorization",
             action="store_true",
             default=True,
-            help="Skip Pinecone vectorization during generation (recommended for training data). "
+            help="Skip Pinecone vectorization during generation (recommended for training data). "  # noqa: E501
             "Vectorization is for semantic search, not ML training. Default: True",
         )
 
@@ -306,7 +300,7 @@ class Command(BaseCommand):
         expected_workspace = "933607a1-36a8-49e1-991c-fe06350cba26"
         if workspace_uuid != expected_workspace:
             raise CommandError(
-                f"Invalid workspace UUID. Expected: {expected_workspace}, Got: {workspace_uuid}"
+                f"Invalid workspace UUID. Expected: {expected_workspace}, Got: {workspace_uuid}"  # noqa: E501
             )
 
         try:
@@ -331,7 +325,7 @@ class Command(BaseCommand):
         expected_preserve = "23b6e5cf-2de5-4d7d-b420-0d6ee9f47cce"
         if preserve_uuid != expected_preserve:
             raise CommandError(
-                f"Invalid preserve project UUID. Expected: {expected_preserve}, Got: {preserve_uuid}"
+                f"Invalid preserve project UUID. Expected: {expected_preserve}, Got: {preserve_uuid}"  # noqa: E501
             )
 
         try:
@@ -373,7 +367,7 @@ class Command(BaseCommand):
         if other_projects.exists():
             self.stdout.write(
                 self.style.WARNING(
-                    f"WARNING: Found {other_projects.count()} other project(s) in workspace"
+                    f"WARNING: Found {other_projects.count()} other project(s) in workspace"  # noqa: E501
                 )
             )
             for project in other_projects:
@@ -405,7 +399,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Estimated sprints: {plan['total_sprints']}")
         self.stdout.write(f"Estimated issues: {plan['total_issues']}")
         self.stdout.write(
-            f"Timeline: {plan['timeline_start'].date()} to {plan['timeline_end'].date()}"
+            f"Timeline: {plan['timeline_start'].date()} to {plan['timeline_end'].date()}"  # noqa: E501
         )
         self.stdout.write()
 
@@ -594,10 +588,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("  python manage.py shell"))
         self.stdout.write("  >>> from apps.projects.models import Project")
         self.stdout.write(
-            f"  >>> projects = Project.objects.filter(workspace_id='{self.workspace.id}')"
+            f"  >>> projects = Project.objects.filter(workspace_id='{self.workspace.id}')"  # noqa: E501
         )
         self.stdout.write(
-            "  >>> for p in projects: print(f'{p.key}: {p.name} - {p.issues.count()} issues')"
+            "  >>> for p in projects: print(f'{p.key}: {p.name} - {p.issues.count()} issues')"  # noqa: E501
         )
         self.stdout.write()
 
@@ -608,13 +602,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("  python manage.py shell"))
         self.stdout.write("  >>> from apps.projects.models import Issue")
         self.stdout.write(
-            f"  >>> completed = Issue.objects.filter(project__workspace_id='{self.workspace.id}', status__is_final=True, actual_hours__isnull=False)"
+            f"  >>> completed = Issue.objects.filter(project__workspace_id='{self.workspace.id}', status__is_final=True, actual_hours__isnull=False)"  # noqa: E501
         )
         self.stdout.write(
             "  >>> print(f'Completed issues with effort: {completed.count()}')"
         )
         self.stdout.write(
-            '  >>> print(f\'Average effort: {completed.aggregate(avg=models.Avg("actual_hours"))["avg"]:.2f} hours\')'
+            '  >>> print(f\'Average effort: {completed.aggregate(avg=models.Avg("actual_hours"))["avg"]:.2f} hours\')'  # noqa: E501
         )
         self.stdout.write()
 
@@ -651,7 +645,7 @@ class Command(BaseCommand):
         )
         self.stdout.write()
         self.stdout.write(
-            "  Expected: See effort_prediction and story_points models with 'active' status"
+            "  Expected: See effort_prediction and story_points models with 'active' status"  # noqa: E501
         )
         self.stdout.write()
 
@@ -665,12 +659,12 @@ class Command(BaseCommand):
         # Get first generated project
         if self.generated_projects:
             project = self.generated_projects[0]
-            self.stdout.write(f"  >>> result = service.predict_effort(")
-            self.stdout.write(f"  ...     title='Implement user authentication',")
-            self.stdout.write(f"  ...     description='Add JWT-based authentication',")
-            self.stdout.write(f"  ...     issue_type='story',")
+            self.stdout.write("  >>> result = service.predict_effort(")
+            self.stdout.write("  ...     title='Implement user authentication',")
+            self.stdout.write("  ...     description='Add JWT-based authentication',")
+            self.stdout.write("  ...     issue_type='story',")
             self.stdout.write(f"  ...     project_id='{project.id}'")
-            self.stdout.write(f"  ... )")
+            self.stdout.write("  ... )")
             self.stdout.write(
                 "  >>> print(f\"Predicted: {result['predicted_hours']} hours\")"
             )
@@ -714,7 +708,7 @@ class Command(BaseCommand):
 
         Returns list of disconnected signals for later reconnection.
         """
-        from django.db.models.signals import post_save, pre_save, post_delete
+        from django.db.models.signals import post_delete, post_save, pre_save
 
         disconnected = []
 
@@ -774,7 +768,7 @@ class Command(BaseCommand):
         Args:
             disconnected: List of (signal_type, handler, sender) tuples
         """
-        from django.db.models.signals import post_save, pre_save, post_delete
+        from django.db.models.signals import post_delete, post_save, pre_save
 
         signal_map = {
             "post_save": post_save,
@@ -788,11 +782,11 @@ class Command(BaseCommand):
                 signal.connect(handler, sender=sender)
                 if self.verbose_logging:
                     self.stdout.write(
-                        f"[DEBUG] Reconnected {signal_type} signal for {sender.__name__}"
+                        f"[DEBUG] Reconnected {signal_type} signal for {sender.__name__}"  # noqa: E501
                     )
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"[ERROR] Failed to reconnect {signal_type} for {sender.__name__}: {e}"
+                        f"[ERROR] Failed to reconnect {signal_type} for {sender.__name__}: {e}"  # noqa: E501
                     )
                 )

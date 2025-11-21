@@ -1,7 +1,8 @@
 """
 Query Router for Intelligent Intent Classification.
 
-Analyzes user queries to determine intent and routing strategy for multi-namespace search.
+Analyzes user queries to determine intent and routing strategy
+for multi-namespace search.
 """
 
 import logging
@@ -349,8 +350,7 @@ class QueryRouter:
             "filters": filters,
             "top_k": 10,
             "description": (
-                f"Searching for recently updated issues "
-                f"(since {threshold.date()})"
+                f"Searching for recently updated issues " f"(since {threshold.date()})"
             ),
         }
 

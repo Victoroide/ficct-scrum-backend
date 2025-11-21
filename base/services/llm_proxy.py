@@ -15,7 +15,6 @@ Handles:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .llm_providers import (
@@ -186,7 +185,7 @@ class LLMProxyService:
         )
 
         logger.info(
-            f"[LLM PROXY] Starting generation: task={task_type}, fallback={use_fallback}"
+            f"[LLM PROXY] Starting generation: task={task_type}, fallback={use_fallback}"  # noqa: E501
         )
 
         # Build list of providers to try
@@ -251,7 +250,7 @@ class LLMProxyService:
                 else:
                     # Invalid response (empty, too short, repetitive)
                     logger.warning(
-                        f"[LLM PROXY] Invalid response from {provider_key}, trying fallback"
+                        f"[LLM PROXY] Invalid response from {provider_key}, trying fallback"  # noqa: E501
                     )
                     attempts.append(
                         {
@@ -285,7 +284,7 @@ class LLMProxyService:
 
         error_summary = "\n".join(
             [
-                f"  - {attempt['provider']}: {attempt.get('error', attempt.get('status'))}"
+                f"  - {attempt['provider']}: {attempt.get('error', attempt.get('status'))}"  # noqa: E501
                 for attempt in attempts
             ]
         )

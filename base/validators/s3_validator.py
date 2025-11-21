@@ -2,9 +2,8 @@
 S3 Validator - Comprehensive validation of S3 bucket configuration.
 Tests bucket accessibility, permissions, CORS, and file operations.
 """
-import io
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 from django.conf import settings
 
@@ -144,7 +143,7 @@ class S3Validator:
         test_key = "test/ficct_scrum_write_test.txt"
 
         try:
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=test_key)
+            _response = self.s3_client.get_object(Bucket=self.bucket_name, Key=test_key)  # noqa: F841, E501
             return True, "Read permission confirmed"
 
         except ClientError as e:
@@ -260,12 +259,12 @@ class S3Validator:
                     Bucket=self.bucket_name
                 )
                 info["versioning"] = versioning.get("Status", "Disabled")
-            except:
+            except Exception:
                 info["versioning"] = "Unknown"
 
             # Get encryption status
             try:
-                encryption = self.s3_client.get_bucket_encryption(
+                _encryption = self.s3_client.get_bucket_encryption(  # noqa: F841
                     Bucket=self.bucket_name
                 )
                 info["encryption"] = "Enabled"
@@ -294,7 +293,7 @@ class S3Validator:
 
                 info["object_count"] = count
                 info["total_size"] = total_size
-            except:
+            except Exception:
                 pass
 
         except Exception as e:

@@ -2,6 +2,7 @@
 Management command to test email delivery via SES.
 Usage: python manage.py test_email --email=test@example.com
 """
+
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 

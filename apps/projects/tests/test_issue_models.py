@@ -2,13 +2,12 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
-from apps.projects.models import Issue, IssueLink
+from apps.projects.models import IssueLink
 from apps.projects.tests.factories import (
     IssueFactory,
     IssueLinkFactory,
     IssueTypeFactory,
     ProjectFactory,
-    WorkflowStatusFactory,
 )
 
 

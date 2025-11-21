@@ -42,13 +42,13 @@ class SearchPrompts:
                     "4. Keep it concise (max 20 words)\n\n"
                     "EXAMPLE:\n"
                     "Input: 'login bug'\n"
-                    "Output: 'authentication login error issue user cannot access credentials failure'\n\n"
+                    "Output: 'authentication login error issue user cannot access credentials failure'\n\n"  # noqa: E501
                     "OUTPUT: Enhanced query only, no explanation."
                 ),
             },
             {
                 "role": "user",
-                "content": f"Original query: {user_query}{context_info}\n\nEnhanced query:",
+                "content": f"Original query: {user_query}{context_info}\n\nEnhanced query:",  # noqa: E501
             },
         ]
 
@@ -142,7 +142,7 @@ class SearchPrompts:
         return [
             {
                 "role": "system",
-                "content": "Summarize these search results concisely, highlighting key themes and top matches.",
+                "content": "Summarize these search results concisely, highlighting key themes and top matches.",  # noqa: E501
             },
             {
                 "role": "user",

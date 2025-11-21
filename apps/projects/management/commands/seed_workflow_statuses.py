@@ -1,11 +1,11 @@
 """
 Management command to seed default WorkflowStatuses for EXISTING projects.
 
-NOTE: This command populates default workflow statuses for projects that don't have them.
+NOTE: This command populates default workflow statuses for projects that don't have them.  # noqa: E501
       These statuses are used in issue status dropdowns and board columns.
 
 Usage:
-    python manage.py seed_workflow_statuses                  # Seed all existing projects
+    python manage.py seed_workflow_statuses                  # Seed all existing projects  # noqa: E501
     python manage.py seed_workflow_statuses --project=UUID   # Seed specific project
     python manage.py seed_workflow_statuses --force          # Recreate for all projects
 """
@@ -96,7 +96,7 @@ class Command(BaseCommand):
             if existing_count > 0 and not force:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"   ⏭️  Skipping - already has {existing_count} workflow statuses"
+                        f"   ⏭️  Skipping - already has {existing_count} workflow statuses"  # noqa: E501
                     )
                 )
                 skipped_count += 1

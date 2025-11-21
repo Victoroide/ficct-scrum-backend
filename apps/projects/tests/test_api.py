@@ -1,6 +1,7 @@
 """
 Tests for project API endpoints.
 """
+
 from django.urls import reverse
 
 import pytest
@@ -12,7 +13,7 @@ from apps.organizations.tests.factories import (
     OrganizationMembershipFactory,
 )
 from apps.projects.models import Project, WorkflowStatus
-from apps.projects.tests.factories import ProjectFactory, ProjectTeamMemberFactory
+from apps.projects.tests.factories import ProjectFactory
 from apps.workspaces.tests.factories import WorkspaceFactory, WorkspaceMemberFactory
 
 
@@ -77,8 +78,8 @@ class TestProjectAPI:
         WorkspaceMemberFactory(workspace=workspace, user=user)
 
         # Create projects
-        project1 = ProjectFactory(workspace=workspace)
-        project2 = ProjectFactory(workspace=workspace)
+        _project1 = ProjectFactory(workspace=workspace)  # noqa: F841
+        _project2 = ProjectFactory(workspace=workspace)  # noqa: F841
 
         api_client.force_authenticate(user=user)
 

@@ -4,12 +4,12 @@ Unit tests for ML prediction service.
 CRITICAL: All external API calls are mocked - NO real Azure OpenAI calls.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from apps.ml.services import PredictionService
-from apps.ml.tests.factories import MLModelFactory, PredictionHistoryFactory
+from apps.ml.tests.factories import PredictionHistoryFactory
 from apps.projects.tests.factories import IssueFactory, ProjectFactory
 
 
@@ -67,7 +67,7 @@ class TestPredictionService:
 
     def test_predict_sprint_duration_with_velocity(self):
         """Test sprint duration prediction with historical velocity."""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         from django.utils import timezone
 

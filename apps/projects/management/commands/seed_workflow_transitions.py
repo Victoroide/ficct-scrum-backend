@@ -5,9 +5,9 @@ NOTE: This command creates the transition rules between workflow statuses.
       Without these transitions, users cannot change issue status in the UI.
 
 Usage:
-    python manage.py seed_workflow_transitions                  # Seed all existing projects
+    python manage.py seed_workflow_transitions                  # Seed all existing projects  # noqa: E501
     python manage.py seed_workflow_transitions --project=UUID   # Seed specific project
-    python manage.py seed_workflow_transitions --force          # Recreate for all projects
+    python manage.py seed_workflow_transitions --force          # Recreate for all projects  # noqa: E501
 """
 
 from django.core.management.base import BaseCommand
@@ -71,10 +71,10 @@ class Command(BaseCommand):
                 done = WorkflowStatus.objects.get(
                     project=project, category="done", is_active=True
                 )
-            except WorkflowStatus.DoesNotExist as e:
+            except WorkflowStatus.DoesNotExist as e:  # noqa: F841
                 self.stdout.write(
                     self.style.ERROR(
-                        f"   ❌ Error: Missing workflow statuses. "
+                        "   ❌ Error: Missing workflow statuses. "  # noqa: F541
                         f"Run 'python manage.py seed_workflow_statuses' first."
                     )
                 )
@@ -87,7 +87,7 @@ class Command(BaseCommand):
             if existing_count > 0 and not force:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"   ⏭️  Skipping - already has {existing_count} workflow transitions"
+                        f"   ⏭️  Skipping - already has {existing_count} workflow transitions"  # noqa: E501
                     )
                 )
                 skipped_count += 1
@@ -187,7 +187,9 @@ class Command(BaseCommand):
 
         # Summary
         self.stdout.write("\n" + "=" * 70)
-        self.stdout.write(self.style.SUCCESS("✅ WORKFLOW TRANSITIONS SEEDING COMPLETE"))
+        self.stdout.write(
+            self.style.SUCCESS("✅ WORKFLOW TRANSITIONS SEEDING COMPLETE")
+        )
         self.stdout.write("=" * 70)
         self.stdout.write(f"Created: {created_count} workflow transitions")
         if force:

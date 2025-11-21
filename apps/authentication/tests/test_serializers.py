@@ -1,6 +1,7 @@
 """
 Tests for authentication serializers.
 """
+
 import pytest
 
 from apps.authentication.serializers import (

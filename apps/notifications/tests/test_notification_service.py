@@ -11,13 +11,13 @@ from django.utils import timezone
 import pytest
 
 from apps.authentication.tests.factories import UserFactory
-from apps.notifications.models import Notification, NotificationPreference
+from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.notifications.tests.factories import (
     NotificationFactory,
     NotificationPreferenceFactory,
 )
-from apps.projects.tests.factories import IssueFactory, ProjectFactory
+from apps.projects.tests.factories import ProjectFactory
 
 
 @pytest.mark.django_db
@@ -184,7 +184,7 @@ class TestNotificationPreferences:
 
     def test_get_user_preferences(self):
         """Test retrieving user preferences."""
-        prefs = NotificationPreferenceFactory(
+        _prefs = NotificationPreferenceFactory(  # noqa: F841
             user=self.user,
             email_enabled=True,
             in_app_enabled=True,

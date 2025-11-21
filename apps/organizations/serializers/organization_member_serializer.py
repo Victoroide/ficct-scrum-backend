@@ -1,6 +1,7 @@
 """
 Serializer for Organization Members with robust error handling.
 """
+
 from rest_framework import serializers
 
 from apps.organizations.models import OrganizationMembership
@@ -72,7 +73,7 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
                 "full_name": user.get_full_name() or user.username,
                 "avatar": avatar_url,
             }
-        except Exception as e:
+        except Exception:
             # Return minimal info if something fails
             return {
                 "id": None,
@@ -93,9 +94,9 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
                 "id": str(org.id),
                 "name": org.name,
                 "slug": org.slug,
-                "organization_type": org.organization_type
-                if hasattr(org, "organization_type")
-                else None,
+                "organization_type": (
+                    org.organization_type if hasattr(org, "organization_type") else None
+                ),
             }
         except Exception:
             return None

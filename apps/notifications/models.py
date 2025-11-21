@@ -26,7 +26,7 @@ class NotificationPreference(models.Model):
         default=dict,
         help_text="Dictionary of notification types and their enabled status",
     )
-    # Example: {"issue_assigned": True, "issue_commented": True, "sprint_started": False}
+    # Example: {"issue_assigned": True, "issue_commented": True, "sprint_started": False}  # noqa: E501
 
     # Frequency settings
     digest_enabled = models.BooleanField(

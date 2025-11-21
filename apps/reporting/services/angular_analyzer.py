@@ -7,7 +7,7 @@ Uses regex patterns for parsing (no Node.js dependency required).
 
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +262,7 @@ class AngularAnalyzer:
         dependencies = []
 
         for param_match in param_pattern.finditer(constructor_params):
-            param_name = param_match.group(1)
+            param_match.group(1)
             param_type = param_match.group(2)
 
             # Filter out primitive types

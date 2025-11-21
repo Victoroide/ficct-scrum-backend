@@ -9,7 +9,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -87,13 +87,12 @@ class BaseLLMProvider(ABC):
         self.provider_name = self._get_provider_name()
         self.model_name = model_type.value
         logger.info(
-            f"[{self.provider_name.upper()}] Initialized provider for model: {self.model_name}"
+            f"[{self.provider_name.upper()}] Initialized provider for model: {self.model_name}"  # noqa: E501
         )
 
     @abstractmethod
     def _get_provider_name(self) -> str:
         """Return provider name (e.g., 'bedrock', 'azure')."""
-        pass
 
     @abstractmethod
     def generate(
@@ -118,7 +117,6 @@ class BaseLLMProvider(ABC):
         Raises:
             LLMError: If generation fails
         """
-        pass
 
     @abstractmethod
     def get_cost(self, input_tokens: int, output_tokens: int) -> float:
@@ -132,7 +130,6 @@ class BaseLLMProvider(ABC):
         Returns:
             Cost in USD
         """
-        pass
 
     @abstractmethod
     def _format_messages(self, messages: List[Dict[str, str]]) -> Any:
@@ -145,7 +142,6 @@ class BaseLLMProvider(ABC):
         Returns:
             Provider-specific message format
         """
-        pass
 
     def _validate_response(self, response: LLMResponse) -> bool:
         """
@@ -166,7 +162,7 @@ class BaseLLMProvider(ABC):
         # Note: Valid short responses like "One", "Two", "Three" are 3-5 chars
         if len(response.content.strip()) < 3:
             logger.warning(
-                f"[{self.provider_name.upper()}] Response too short: {len(response.content)} chars"
+                f"[{self.provider_name.upper()}] Response too short: {len(response.content)} chars"  # noqa: E501
             )
             return False
 

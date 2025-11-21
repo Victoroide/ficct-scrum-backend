@@ -1,6 +1,7 @@
 """
 Factory classes for organization models.
 """
+
 import uuid
 
 import factory

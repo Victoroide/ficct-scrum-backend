@@ -20,11 +20,12 @@ class CanManageIntegrations(permissions.BasePermission):
             return True
 
         # Only POST to CREATE endpoint requires project_id in request body
-        # POST to detail endpoints (custom actions like sync_commits) use has_object_permission()
-        # DELETE, PATCH, PUT also use has_object_permission() which gets project from object
+        # POST to detail endpoints (custom actions like sync_commits) use has_object_permission()  # noqa: E501
+        # DELETE, PATCH, PUT also use has_object_permission() which gets project
+        # from object
         if request.method == "POST":
             # Check if this is a detail action (has pk in URL) vs list action (create)
-            # Detail actions: /integrations/github/{pk}/sync_commits/ → Delegate to has_object_permission
+            # Detail actions: /integrations/github/{pk}/sync_commits/ → Delegate to has_object_permission  # noqa: E501
             # List actions: /integrations/github/ → Require project in body
             if view.kwargs.get("pk"):
                 # This is a POST to a detail endpoint (custom action)
@@ -34,7 +35,7 @@ class CanManageIntegrations(permissions.BasePermission):
             # This is a POST to list endpoint (CREATE) - require project in body
             project_id = request.data.get("project") or view.kwargs.get("project_id")
             if not project_id:
-                self.message = "Missing required field 'project'. Please provide project ID in request body."
+                self.message = "Missing required field 'project'. Please provide project ID in request body."  # noqa: E501
                 return False
 
             from apps.organizations.models import OrganizationMembership
@@ -80,7 +81,7 @@ class CanManageIntegrations(permissions.BasePermission):
             ).exists()
 
             if not is_org_admin:
-                self.message = "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."
+                self.message = "You do not have permission to manage integrations for this project. Required role: Project owner/admin, Workspace admin, or Organization owner/admin."  # noqa: E501
 
             return is_org_admin
         else:
