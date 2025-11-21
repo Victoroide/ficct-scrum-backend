@@ -204,7 +204,7 @@ class AnalyticsService:
         start_date = end_date - timedelta(days=days)
 
         # Load statuses from project workflow
-        statuses = list(project.workflow_statuses.all())
+        statuses = list(project.workflow_statuses.all().order_by('order'))
 
         # If no workflow statuses configured, get statuses from actual issues
         if not statuses:
@@ -216,15 +216,19 @@ class AnalyticsService:
                 .distinct()
             )
             statuses = list(
-                WorkflowStatus.objects.filter(id__in=issue_status_ids)
+                WorkflowStatus.objects.filter(id__in=issue_status_ids).order_by('order')
             )
 
+        if not statuses:
+            return {"dates": [], "status_counts": {}}
+
         # Load ALL relevant issues ONCE with select_related
+        # Use __date__lte to properly compare datetime field with date object
         all_issues = (
             Issue.objects.filter(
                 project=project,
                 is_active=True,
-                created_at__lte=end_date,
+                created_at__date__lte=end_date,
             )
             .select_related("status")
             .values("id", "status_id", "created_at")
@@ -492,11 +496,12 @@ class AnalyticsService:
         total_hours = 0
         count = 0
         for issue in resolved:
-            delta = issue.resolved_at - issue.created_at
-            total_hours += delta.total_seconds() / 3600
-            count += 1
+            time_diff = (issue.resolved_at - issue.created_at).total_seconds()
+            if time_diff >= 0:
+                total_hours += time_diff / 3600
+                count += 1
 
-        return round(total_hours / count, 2) if count else 0.0
+        return round(total_hours / count, 2) if count > 0 else 0.0
 
     def _calculate_avg_resolution_time_from_list(self, issues_list) -> float:
         """Calculate avg resolution time from in-memory list (optimized)."""
@@ -504,10 +509,15 @@ class AnalyticsService:
         if not resolved:
             return 0.0
 
-        total_hours = sum(
-            (i.resolved_at - i.created_at).total_seconds() / 3600 for i in resolved
-        )
-        return round(total_hours / len(resolved), 2) if resolved else 0.0
+        total_hours = 0
+        valid_count = 0
+        for issue in resolved:
+            time_diff = (issue.resolved_at - issue.created_at).total_seconds()
+            if time_diff >= 0:
+                total_hours += time_diff / 3600
+                valid_count += 1
+
+        return round(total_hours / valid_count, 2) if valid_count > 0 else 0.0
 
     def _calculate_throughput(self, issues, period: int) -> float:
         completed = issues.filter(status__category="done").count()
