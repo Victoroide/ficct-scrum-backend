@@ -52,13 +52,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    # UUID for frontend compatibility (separate from integer ID for backward compatibility)
+    # UUID for frontend compatibility
+    # (separate from integer ID for backward compatibility)
     user_uuid = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
         unique=True,
         db_index=True,
-        help_text="UUID for frontend API requests (assignee, reporter, etc.)"
+        help_text="UUID for frontend API requests (assignee, reporter, etc.)",
     )
     email = models.EmailField(unique=True, max_length=255)
     username = models.CharField(
@@ -67,7 +68,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         validators=[
             RegexValidator(
                 regex=r"^[\w.@+-]+$",
-                message="Username may only contain letters, numbers and @/./+/-/_ characters.",
+                message=(
+                    "Username may only contain letters, numbers and "
+                    "@/./+/-/_ characters."
+                ),
             )
         ],
     )

@@ -1,13 +1,12 @@
 from django.urls import include, path
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import LoginView, LogoutView, UserSerializer
+from .views import LoginView, LogoutView
 from .viewsets import AuthViewSet, UserProfileViewSet, UserViewSet
 
 

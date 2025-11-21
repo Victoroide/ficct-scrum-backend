@@ -3,17 +3,16 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.contrib.auth import logout
 from django.db import transaction
 from django.utils import timezone
 
-from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.authentication.models import PasswordResetToken, User, UserProfile
+from apps.authentication.models import PasswordResetToken, User
 from apps.authentication.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -55,10 +54,12 @@ class AuthViewSet(viewsets.GenericViewSet):
         description=(
             "Register a new user account. **NEW FEATURES:** "
             "1) Automatically sends welcome email via AWS SES. "
-            "2) Auto-accepts pending organization invitations for the registered email. "
+            "2) Auto-accepts pending organization invitations for the "
+            "registered email. "
             "3) Returns auto_joined_organizations if user had pending invitations. "
             "Email delivery failures are logged but do not block registration. "
-            "Frontend should check for auto_joined_organizations and redirect to suggested organization."
+            "Frontend should check for auto_joined_organizations and redirect "
+            "to suggested organization."
         ),
         request=UserRegistrationSerializer,
         responses={
@@ -138,7 +139,7 @@ class AuthViewSet(viewsets.GenericViewSet):
                     for invitation in pending_invitations:
                         if not invitation.is_expired:
                             try:
-                                membership = invitation.accept(user)
+                                _membership = invitation.accept(user)  # noqa: F841
                                 auto_joined_organizations.append(
                                     {
                                         "id": str(invitation.organization.id),
@@ -207,9 +208,10 @@ class AuthViewSet(viewsets.GenericViewSet):
                         "pending_invitations_accepted"
                     ] = pending_invitations_count
                     if auto_joined_organizations:
+                        org_id = auto_joined_organizations[0]['id']
                         response_data[
                             "redirect_suggestion"
-                        ] = f"/organizations/{auto_joined_organizations[0]['id']}/dashboard"
+                        ] = f"/organizations/{org_id}/dashboard"
 
                 return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -256,7 +258,8 @@ class AuthViewSet(viewsets.GenericViewSet):
 
                 # Reload user with profile to avoid N+1 query
                 from apps.authentication.models import User
-                user = User.objects.select_related('profile').get(pk=user.pk)
+
+                user = User.objects.select_related("profile").get(pk=user.pk)
 
                 # Create JWT tokens
                 refresh = RefreshToken.for_user(user)
@@ -353,9 +356,12 @@ class AuthViewSet(viewsets.GenericViewSet):
         operation_id="auth_password_reset_request",
         summary="Request Password Reset",
         description=(
-            "Send password reset email to user. **NEW:** Sends email via AWS SES with reset token (expires in 1 hour). "
-            "Returns same success message even if email doesn't exist (security measure). "
-            "Frontend should display: 'If an account exists with this email, a password reset link has been sent.'"
+            "Send password reset email to user. **NEW:** Sends email via AWS SES "
+            "with reset token (expires in 1 hour). "
+            "Returns same success message even if email doesn't exist "
+            "(security measure). "
+            "Frontend should display: 'If an account exists with this email, "
+            "a password reset link has been sent.'"
         ),
         request=PasswordResetRequestSerializer,
         responses={

@@ -6,4 +6,4 @@ class AuthenticationConfig(AppConfig):
     name = "apps.authentication"
 
     def ready(self):
-        import apps.authentication.signals
+        import apps.authentication.signals  # noqa: F401

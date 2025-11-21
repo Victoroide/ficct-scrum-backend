@@ -3,7 +3,6 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,7 +22,6 @@ class LoginView(APIView):
     )
     def post(self, request, *args, **kwargs):
         from django.contrib.auth import authenticate
-
         from rest_framework.authtoken.models import Token
 
         email = request.data.get("email")

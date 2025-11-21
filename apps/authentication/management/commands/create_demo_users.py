@@ -105,12 +105,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("\nLogin Credentials:"))
             self.stdout.write(self.style.SUCCESS("------------------"))
             self.stdout.write(
-                self.style.SUCCESS(f"Superuser: superuser@ficct.com / Pass123")
+                self.style.SUCCESS("Superuser: superuser@ficct.com / Pass123")
             )
-            self.stdout.write(self.style.SUCCESS(f"Owner: owner@ficct.com / Pass123"))
-            self.stdout.write(self.style.SUCCESS(f"Admin: admin@ficct.com / Pass123"))
+            self.stdout.write(self.style.SUCCESS("Owner: owner@ficct.com / Pass123"))
+            self.stdout.write(self.style.SUCCESS("Admin: admin@ficct.com / Pass123"))
             self.stdout.write(
-                self.style.SUCCESS(f"Manager: manager@ficct.com / Pass123")
+                self.style.SUCCESS("Manager: manager@ficct.com / Pass123")
             )
-            self.stdout.write(self.style.SUCCESS(f"Member: member@ficct.com / Pass123"))
-            self.stdout.write(self.style.SUCCESS(f"Guest: guest@ficct.com / Pass123"))
+            self.stdout.write(self.style.SUCCESS("Member: member@ficct.com / Pass123"))
+            self.stdout.write(self.style.SUCCESS("Guest: guest@ficct.com / Pass123"))

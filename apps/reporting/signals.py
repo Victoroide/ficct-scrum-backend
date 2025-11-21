@@ -12,10 +12,13 @@ Enhanced with:
 - Anti-duplication logic
 """
 
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.db import IntegrityError
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
@@ -25,7 +28,11 @@ from apps.workspaces.models import Workspace
 from .middleware import get_current_request, get_current_user
 from .models import ActivityLog
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
+
+# Track if we've logged Redis unavailability to avoid spam
+_redis_warning_logged = False
 
 
 def get_client_ip(request):
@@ -92,6 +99,7 @@ def should_create_activity(obj, action_type):
     Check if activity should be created (anti-duplication).
 
     Prevents duplicate activities within 60 seconds for same object and action.
+    Falls back to allowing activity if Redis/cache unavailable.
 
     Args:
         obj: Model instance
@@ -100,13 +108,26 @@ def should_create_activity(obj, action_type):
     Returns:
         bool: True if activity should be created
     """
-    cache_key = f"activity_log_{obj._meta.model_name}_{obj.id}_{action_type}"
-    if cache.get(cache_key):
-        return False
+    global _redis_warning_logged
+    
+    try:
+        cache_key = f"activity_log_{obj._meta.model_name}_{obj.id}_{action_type}"
+        if cache.get(cache_key):
+            return False
 
-    # Set cache for 60 seconds
-    cache.set(cache_key, True, 60)
-    return True
+        # Set cache for 60 seconds
+        cache.set(cache_key, True, 60)
+        return True
+    except Exception as e:
+        # Redis/cache unavailable - log once and allow activity
+        if not _redis_warning_logged:
+            logger.warning(
+                f"[ACTIVITY] Cache unavailable for deduplication: {e}. "
+                "Activity logs will be created without deduplication. "
+                "This is normal in development without Redis."
+            )
+            _redis_warning_logged = True
+        return True  # Allow activity creation if cache fails
 
 
 def create_activity_log(user, action_type, obj, changes=None, request=None):
@@ -115,6 +136,7 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
 
     Automatically determines organization, workspace, and project based on object type.
     Works both in request context and outside (e.g., management commands).
+    Resilient to ContentType and database errors - never blocks main operations.
 
     Args:
         user: User performing the action
@@ -123,55 +145,73 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
         changes: Dictionary of changes
         request: HTTP request (optional)
     """
-    if not user:
-        user = get_actor(obj)
+    try:
+        if not user:
+            user = get_actor(obj)
 
-    if not user:
-        return  # No user available, skip
+        if not user:
+            return  # No user available, skip
 
-    # Anti-duplication check
-    if not should_create_activity(obj, action_type):
-        return
+        # Anti-duplication check (resilient to Redis failures)
+        if not should_create_activity(obj, action_type):
+            return
 
-    content_type = ContentType.objects.get_for_model(obj)
+        # Get ContentType safely
+        try:
+            content_type = ContentType.objects.get_for_model(obj)
+        except Exception as e:
+            logger.error(
+                f"[ACTIVITY] ContentType lookup failed for {obj.__class__.__name__}: {e}. "
+                "Run: python manage.py migrate --run-syncdb"
+            )
+            return  # Cannot create activity without ContentType
 
-    # Determine hierarchy based on object type
-    project = None
-    workspace = None
-    organization = None
+        # Determine hierarchy based on object type
+        project = None
+        workspace = None
+        organization = None
 
-    if isinstance(obj, Issue):
-        project = obj.project
-        workspace = project.workspace if project else None
-        organization = workspace.organization if workspace else None
-    elif isinstance(obj, (Board, Sprint)):
-        project = obj.project
-        workspace = project.workspace if project else None
-        organization = workspace.organization if workspace else None
-    elif isinstance(obj, Project):
-        project = obj
-        workspace = obj.workspace
-        organization = workspace.organization if workspace else None
-    elif isinstance(obj, Workspace):
-        workspace = obj
-        organization = obj.organization
+        if isinstance(obj, Issue):
+            project = obj.project
+            workspace = project.workspace if project else None
+            organization = workspace.organization if workspace else None
+        elif isinstance(obj, (Board, Sprint)):
+            project = obj.project
+            workspace = project.workspace if project else None
+            organization = workspace.organization if workspace else None
+        elif isinstance(obj, Project):
+            project = obj
+            workspace = obj.workspace
+            organization = workspace.organization if workspace else None
+        elif isinstance(obj, Workspace):
+            workspace = obj
+            organization = obj.organization
 
-    # Get IP address
-    ip_address = get_client_ip(request) if request else None
+        # Get IP address
+        ip_address = get_client_ip(request) if request else None
 
-    # Create log
-    ActivityLog.objects.create(
-        user=user,
-        action_type=action_type,
-        content_type=content_type,
-        object_id=str(obj.id),
-        object_repr=str(obj),
-        project=project,
-        workspace=workspace,
-        organization=organization,
-        changes=changes or {},
-        ip_address=ip_address,
-    )
+        # Create log with error handling
+        try:
+            ActivityLog.objects.create(
+                user=user,
+                action_type=action_type,
+                content_type=content_type,
+                object_id=str(obj.id),
+                object_repr=str(obj),
+                project=project,
+                workspace=workspace,
+                organization=organization,
+                changes=changes or {},
+                ip_address=ip_address,
+            )
+        except IntegrityError as e:
+            logger.error(f"[ACTIVITY] Database constraint error creating activity log: {e}")
+        except Exception as e:
+            logger.error(f"[ACTIVITY] Unexpected error creating activity log: {e}")
+            
+    except Exception as e:
+        # Catch-all to ensure signal never breaks main operation
+        logger.error(f"[ACTIVITY] Failed to create activity log: {e}", exc_info=True)
 
 
 # ============================================================================
@@ -181,27 +221,32 @@ def create_activity_log(user, action_type, obj, changes=None, request=None):
 
 @receiver(post_save, sender=Board)
 def log_board_activity(sender, instance, created, **kwargs):
-    """Log Board create/update."""
-    action_type = "created" if created else "updated"
-
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type=action_type,
-        obj=instance,
-        changes={},
-        request=get_current_request(),
-    )
+    """Log Board create/update. Never blocks board operations."""
+    try:
+        action_type = "created" if created else "updated"
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type=action_type,
+            obj=instance,
+            changes={},
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Board activity logging failed: {e}")
 
 
 @receiver(post_delete, sender=Board)
 def log_board_delete(sender, instance, **kwargs):
-    """Log Board deletion."""
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type="deleted",
-        obj=instance,
-        request=get_current_request(),
-    )
+    """Log Board deletion. Never blocks board operations."""
+    try:
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type="deleted",
+            obj=instance,
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Board deletion logging failed: {e}")
 
 
 # ============================================================================
@@ -432,27 +477,32 @@ def log_issue_delete(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Project)
 def log_project_activity(sender, instance, created, **kwargs):
-    """Log Project create/update."""
-    action_type = "created" if created else "updated"
-
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type=action_type,
-        obj=instance,
-        changes={},
-        request=get_current_request(),
-    )
+    """Log Project create/update. Never blocks project operations."""
+    try:
+        action_type = "created" if created else "updated"
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type=action_type,
+            obj=instance,
+            changes={},
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Project activity logging failed: {e}")
 
 
 @receiver(post_delete, sender=Project)
 def log_project_delete(sender, instance, **kwargs):
-    """Log Project deletion."""
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type="deleted",
-        obj=instance,
-        request=get_current_request(),
-    )
+    """Log Project deletion. Never blocks project operations."""
+    try:
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type="deleted",
+            obj=instance,
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Project deletion logging failed: {e}")
 
 
 # ============================================================================
@@ -462,24 +512,29 @@ def log_project_delete(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Workspace)
 def log_workspace_activity(sender, instance, created, **kwargs):
-    """Log Workspace create/update."""
-    action_type = "created" if created else "updated"
-
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type=action_type,
-        obj=instance,
-        changes={},
-        request=get_current_request(),
-    )
+    """Log Workspace create/update. Never blocks workspace operations."""
+    try:
+        action_type = "created" if created else "updated"
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type=action_type,
+            obj=instance,
+            changes={},
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Workspace activity logging failed: {e}")
 
 
 @receiver(post_delete, sender=Workspace)
 def log_workspace_delete(sender, instance, **kwargs):
-    """Log Workspace deletion."""
-    create_activity_log(
-        user=None,  # Will use fallback actor detection
-        action_type="deleted",
-        obj=instance,
-        request=get_current_request(),
-    )
+    """Log Workspace deletion. Never blocks workspace operations."""
+    try:
+        create_activity_log(
+            user=None,  # Will use fallback actor detection
+            action_type="deleted",
+            obj=instance,
+            request=get_current_request(),
+        )
+    except Exception as e:
+        logger.error(f"[SIGNAL] Workspace deletion logging failed: {e}")

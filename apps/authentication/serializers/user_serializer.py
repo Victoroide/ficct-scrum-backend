@@ -95,7 +95,7 @@ class UserProfileNestedSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    profile = UserProfileNestedSerializer(read_only=True)
+    profile = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -126,3 +126,27 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_profile(self, obj):
+        """
+        Safely get user profile, handling cases where profile doesn't exist.
+        Creates profile if missing to ensure all users have profiles.
+        """
+        try:
+            if hasattr(obj, 'profile'):
+                return UserProfileNestedSerializer(obj.profile).data
+            else:
+                # Profile doesn't exist, create it
+                from apps.authentication.models import UserProfile
+                profile, created = UserProfile.objects.get_or_create(user=obj)
+                if created:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Created missing profile for user: {obj.email}")
+                return UserProfileNestedSerializer(profile).data
+        except Exception as e:
+            # Log error but don't break serialization
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting profile for user {obj.email}: {str(e)}")
+            return None

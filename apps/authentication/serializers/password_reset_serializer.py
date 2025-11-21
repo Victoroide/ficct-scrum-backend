@@ -10,7 +10,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         try:
-            user = User.objects.get(email=value, is_active=True)
+            _user = User.objects.get(email=value, is_active=True)  # noqa: F841
         except User.DoesNotExist:
             raise serializers.ValidationError("No active user found with this email")
         return value

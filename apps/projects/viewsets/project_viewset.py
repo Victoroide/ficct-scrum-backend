@@ -172,41 +172,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Create project with creator as lead
         project = serializer.save(created_by=self.request.user, lead=self.request.user)
 
-        # Create default workflow statuses
-        default_statuses = [
-            WorkflowStatus(
-                project=project,
-                name="To Do",
-                category="to_do",
-                description="Tasks that are ready to be worked on",
-                color="#DFE1E6",
-                order=1,
-                is_initial=True,
-                is_final=False,
-            ),
-            WorkflowStatus(
-                project=project,
-                name="In Progress",
-                category="in_progress",
-                description="Tasks currently being worked on",
-                color="#0052CC",
-                order=2,
-                is_initial=False,
-                is_final=False,
-            ),
-            WorkflowStatus(
-                project=project,
-                name="Done",
-                category="done",
-                description="Completed tasks",
-                color="#00875A",
-                order=3,
-                is_initial=False,
-                is_final=True,
-            ),
-        ]
-
-        WorkflowStatus.objects.bulk_create(default_statuses)
+        # Note: Default workflow statuses, issue types, transitions, and configuration
+        # are automatically created by signals in apps/projects/signals.py
+        # No manual creation needed here to avoid duplicates
 
         LoggerService.log_info(
             action="project_created_with_workflows",

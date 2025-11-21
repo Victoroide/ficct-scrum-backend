@@ -13,8 +13,9 @@ from apps.logging.services import LoggerService
 @extend_schema(tags=["Authentication"])
 class UserProfileViewSet(viewsets.ModelViewSet):
     """
-    User profile management operations including avatar uploads and personal information.
-    Provides comprehensive profile management with S3 integration for avatar storage.
+    User profile management operations including avatar uploads and
+    personal information. Provides comprehensive profile management with S3
+    integration for avatar storage.
     """
 
     queryset = UserProfile.objects.all()

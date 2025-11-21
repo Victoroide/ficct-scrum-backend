@@ -68,7 +68,10 @@ class TestUserLogin:
 
     def test_login_success(self, api_client):
         """Test successful login."""
-        user = UserFactory(email="user@example.com", password="testpass123")
+        # Create user for login test
+        _user = UserFactory(  # noqa: F841
+            email="user@example.com", password="testpass123"
+        )
 
         url = reverse("authentication-login")
         data = {"email": "user@example.com", "password": "testpass123"}
@@ -103,7 +106,7 @@ class TestPasswordReset:
 
     def test_password_reset_request(self, api_client):
         """Test password reset request."""
-        user = UserFactory(email="user@example.com")
+        _user = UserFactory(email="user@example.com")  # noqa: F841
 
         url = reverse("authentication-request-password-reset")
         data = {"email": "user@example.com"}
@@ -114,7 +117,10 @@ class TestPasswordReset:
 
     def test_password_reset_confirm(self, api_client):
         """Test password reset confirmation."""
-        user = UserFactory(email="user@example.com", password="oldpass123")
+        # Create user for password reset test
+        _user = UserFactory(  # noqa: F841
+            email="user@example.com", password="oldpass123"
+        )
 
         # In real scenario, token would be generated from reset request
         # For testing, we'll test the serializer validation
