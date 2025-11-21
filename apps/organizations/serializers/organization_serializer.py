@@ -16,6 +16,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
     team_members_count = serializers.IntegerField(read_only=True, required=False)
     total_workspaces_count = serializers.IntegerField(read_only=True, required=False)
 
+    active_projects_change_pct = serializers.SerializerMethodField()
+    team_members_change_pct = serializers.SerializerMethodField()
+    total_workspaces_change_pct = serializers.SerializerMethodField()
+
     class Meta:
         model = Organization
         fields = [
@@ -34,8 +38,11 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "member_count",
             "workspace_count",
             "active_projects_count",
+            "active_projects_change_pct",
             "team_members_count",
+            "team_members_change_pct",
             "total_workspaces_count",
+            "total_workspaces_change_pct",
             "created_at",
             "updated_at",
         ]
@@ -51,3 +58,29 @@ class OrganizationSerializer(serializers.ModelSerializer):
         if value and value.size > 5 * 1024 * 1024:  # 5MB limit
             raise serializers.ValidationError("Logo file size cannot exceed 5MB")
         return value
+
+    def get_active_projects_change_pct(self, obj):
+        """Calculate percentage change for active projects."""
+        current = getattr(obj, "active_projects_count", None)
+        previous = getattr(obj, "prev_active_projects", None)
+        return self._calc_pct(current, previous)
+
+    def get_team_members_change_pct(self, obj):
+        """Calculate percentage change for team members."""
+        current = getattr(obj, "team_members_count", None)
+        previous = getattr(obj, "prev_team_members", None)
+        return self._calc_pct(current, previous)
+
+    def get_total_workspaces_change_pct(self, obj):
+        """Calculate percentage change for workspaces."""
+        current = getattr(obj, "total_workspaces_count", None)
+        previous = getattr(obj, "prev_workspaces", None)
+        return self._calc_pct(current, previous)
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if current is None:
+            return None
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0

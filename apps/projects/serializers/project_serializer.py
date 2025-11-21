@@ -24,6 +24,9 @@ class ProjectSerializer(serializers.ModelSerializer):
     team_members_count = serializers.IntegerField(read_only=True, required=False)
     active_issues_count = serializers.IntegerField(read_only=True, required=False)
 
+    team_members_change_pct = serializers.SerializerMethodField()
+    active_issues_change_pct = serializers.SerializerMethodField()
+
     # Use PrimaryKeyRelatedField for automatic UUID to instance conversion
     workspace = serializers.PrimaryKeyRelatedField(
         queryset=Workspace.objects.all(),
@@ -59,7 +62,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             "created_by",
             "team_member_count",
             "team_members_count",
+            "team_members_change_pct",
             "active_issues_count",
+            "active_issues_change_pct",
             "created_at",
             "updated_at",
         ]
@@ -114,6 +119,26 @@ class ProjectSerializer(serializers.ModelSerializer):
         if value and value.size > 50 * 1024 * 1024:
             raise serializers.ValidationError("Attachment file size cannot exceed 50MB")
         return value
+
+    def get_team_members_change_pct(self, obj):
+        """Calculate percentage change for team members."""
+        current = getattr(obj, "team_members_count", None)
+        previous = getattr(obj, "prev_team_members", None)
+        return self._calc_pct(current, previous)
+
+    def get_active_issues_change_pct(self, obj):
+        """Calculate percentage change for active issues."""
+        current = getattr(obj, "active_issues_count", None)
+        previous = getattr(obj, "prev_issues", None)
+        return self._calc_pct(current, previous)
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if current is None:
+            return None
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0
 
 
 class ProjectTeamMemberSerializer(serializers.ModelSerializer):

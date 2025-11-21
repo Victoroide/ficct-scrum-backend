@@ -111,6 +111,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ).distinct()
 
         if self.action == "list":
+            week_ago = timezone.now() - timedelta(days=7)
             queryset = queryset.annotate(
                 team_members_count=Count(
                     "team_members",
@@ -122,13 +123,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     filter=Q(issues__is_active=True),
                     distinct=True,
                 ),
+                prev_team_members=Count(
+                    "team_members",
+                    filter=Q(
+                        team_members__is_active=True,
+                        team_members__joined_at__lte=week_ago,
+                    ),
+                    distinct=True,
+                ),
+                prev_issues=Count(
+                    "issues",
+                    filter=Q(
+                        issues__is_active=True,
+                        issues__created_at__lte=week_ago,
+                    ),
+                    distinct=True,
+                ),
             )
         else:
             queryset = queryset.prefetch_related(
                 "team_members", "team_members__user"
             )
 
-        # Filter by workspace if provided
+        # Apply filters after annotations to avoid conflicts
         workspace_id = self.request.query_params.get("workspace")
         if workspace_id:
             try:

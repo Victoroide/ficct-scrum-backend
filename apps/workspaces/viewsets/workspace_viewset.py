@@ -69,6 +69,7 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         ).select_related("organization", "created_by").distinct()
 
         if self.action == "list":
+            week_ago = timezone.now() - timedelta(days=7)
             queryset = queryset.annotate(
                 active_projects_count=Count(
                     "projects",
@@ -78,6 +79,22 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
                 team_members_count=Count(
                     "members",
                     filter=Q(members__is_active=True),
+                    distinct=True,
+                ),
+                prev_active_projects=Count(
+                    "projects",
+                    filter=Q(
+                        projects__status="active",
+                        projects__created_at__lte=week_ago,
+                    ),
+                    distinct=True,
+                ),
+                prev_team_members=Count(
+                    "members",
+                    filter=Q(
+                        members__is_active=True,
+                        members__joined_at__lte=week_ago,
+                    ),
                     distinct=True,
                 ),
             )
