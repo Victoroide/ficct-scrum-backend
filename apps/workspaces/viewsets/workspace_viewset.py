@@ -115,6 +115,10 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         kwargs["context"] = kwargs.get("context", {})
         kwargs["context"]["request"] = self.request
 
+        # Add global stats for list action
+        if self.action == "list":
+            kwargs["context"]["global_stats"] = self._get_global_stats()
+
         # Handle both JSON and multipart data formats
         if self.request.method == "POST" and hasattr(self.request, "data"):
             # Normalize organization field for both JSON and multipart
@@ -139,6 +143,28 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
                     pass
 
         return super().get_serializer(*args, **kwargs)
+
+    def _get_global_stats(self):
+        """Calculate global statistics once for all items in list."""
+        user = self.request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        workspaces = Workspace.objects.filter(
+            members__user=user, members__is_active=True
+        ).distinct()
+
+        current_count = workspaces.count()
+        previous_count = workspaces.filter(created_at__lte=week_ago).count()
+
+        return {
+            "workspaces_change_pct": self._calc_pct(current_count, previous_count),
+        }
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0
 
     @extend_schema(
         tags=["Workspaces"],
@@ -263,9 +289,3 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
-
-    def _calc_pct(self, current, previous):
-        """Calculate percentage change between two values."""
-        if previous and previous > 0:
-            return int(((current - previous) / previous) * 100)
-        return 100 if current and current > 0 else 0

@@ -148,6 +148,33 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    def get_serializer_context(self):
+        """Add global stats to context for list action."""
+        context = super().get_serializer_context()
+        if self.action == "list":
+            context["global_stats"] = self._get_global_stats()
+        return context
+
+    def _get_global_stats(self):
+        """Calculate global statistics once for all items in list."""
+        user = self.request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        orgs = Organization.objects.filter(
+            memberships__user=user, memberships__is_active=True
+        ).distinct()
+
+        current_org_count = orgs.count()
+        previous_org_count = orgs.filter(created_at__lte=week_ago).count()
+
+        return {
+            "current_org_count": current_org_count,
+            "previous_org_count": previous_org_count,
+            "organizations_change_pct": self._calc_pct(
+                current_org_count, previous_org_count
+            ),
+        }
+
     @transaction.atomic
     def perform_create(self, serializer):
         organization = serializer.save(owner=self.request.user)

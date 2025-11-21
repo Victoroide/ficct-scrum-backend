@@ -197,6 +197,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def get_serializer_context(self):
+        """Add global stats to context for list action."""
+        context = super().get_serializer_context()
+        if self.action == "list":
+            context["global_stats"] = self._get_global_stats()
+        return context
+
+    def _get_global_stats(self):
+        """Calculate global statistics once for all items in list."""
+        user = self.request.user
+        week_ago = timezone.now() - timedelta(days=7)
+
+        projects = Project.objects.filter(
+            workspace__members__user=user,
+            workspace__members__is_active=True,
+        ).distinct()
+
+        current_count = projects.count()
+        previous_count = projects.filter(created_at__lte=week_ago).count()
+
+        return {
+            "projects_change_pct": self._calc_pct(current_count, previous_count),
+        }
+
+    def _calc_pct(self, current, previous):
+        """Calculate percentage change between two values."""
+        if previous and previous > 0:
+            return int(((current - previous) / previous) * 100)
+        return 100 if current and current > 0 else 0
+
     @transaction.atomic
     def perform_create(self, serializer):
         # Create project with creator as lead
@@ -339,9 +369,3 @@ class ProjectViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
-
-    def _calc_pct(self, current, previous):
-        """Calculate percentage change between two values."""
-        if previous and previous > 0:
-            return int(((current - previous) / previous) * 100)
-        return 100 if current and current > 0 else 0

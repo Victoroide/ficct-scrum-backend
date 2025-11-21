@@ -22,6 +22,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
     active_projects_change_pct = serializers.SerializerMethodField()
     team_members_change_pct = serializers.SerializerMethodField()
+    workspaces_change_pct = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -45,6 +46,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "active_projects_change_pct",
             "team_members_count",
             "team_members_change_pct",
+            "workspaces_change_pct",
             "created_at",
             "updated_at",
         ]
@@ -136,6 +138,13 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         current = getattr(obj, "team_members_count", None)
         previous = getattr(obj, "prev_team_members", None)
         return self._calc_pct(current, previous)
+
+    def get_workspaces_change_pct(self, obj):
+        """Calculate percentage change for total workspaces."""
+        global_stats = self.context.get("global_stats")
+        if global_stats:
+            return global_stats.get("workspaces_change_pct")
+        return None
 
     def _calc_pct(self, current, previous):
         """Calculate percentage change between two values."""

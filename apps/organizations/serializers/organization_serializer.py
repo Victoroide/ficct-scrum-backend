@@ -19,6 +19,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     active_projects_change_pct = serializers.SerializerMethodField()
     team_members_change_pct = serializers.SerializerMethodField()
     total_workspaces_change_pct = serializers.SerializerMethodField()
+    organizations_change_pct = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
@@ -43,6 +44,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "team_members_change_pct",
             "total_workspaces_count",
             "total_workspaces_change_pct",
+            "organizations_change_pct",
             "created_at",
             "updated_at",
         ]
@@ -76,6 +78,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
         current = getattr(obj, "total_workspaces_count", None)
         previous = getattr(obj, "prev_workspaces", None)
         return self._calc_pct(current, previous)
+
+    def get_organizations_change_pct(self, obj):
+        """Calculate percentage change for total organizations."""
+        global_stats = self.context.get("global_stats")
+        if global_stats:
+            return global_stats.get("organizations_change_pct")
+        return None
 
     def _calc_pct(self, current, previous):
         """Calculate percentage change between two values."""

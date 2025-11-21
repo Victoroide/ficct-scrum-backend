@@ -26,6 +26,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     team_members_change_pct = serializers.SerializerMethodField()
     active_issues_change_pct = serializers.SerializerMethodField()
+    projects_change_pct = serializers.SerializerMethodField()
 
     # Use PrimaryKeyRelatedField for automatic UUID to instance conversion
     workspace = serializers.PrimaryKeyRelatedField(
@@ -65,6 +66,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "team_members_change_pct",
             "active_issues_count",
             "active_issues_change_pct",
+            "projects_change_pct",
             "created_at",
             "updated_at",
         ]
@@ -131,6 +133,13 @@ class ProjectSerializer(serializers.ModelSerializer):
         current = getattr(obj, "active_issues_count", None)
         previous = getattr(obj, "prev_issues", None)
         return self._calc_pct(current, previous)
+
+    def get_projects_change_pct(self, obj):
+        """Calculate percentage change for total projects."""
+        global_stats = self.context.get("global_stats")
+        if global_stats:
+            return global_stats.get("projects_change_pct")
+        return None
 
     def _calc_pct(self, current, previous):
         """Calculate percentage change between two values."""
