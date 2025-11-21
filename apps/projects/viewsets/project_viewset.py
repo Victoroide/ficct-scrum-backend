@@ -245,7 +245,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "project_key": project.key,
                 "project_name": project.name,
                 "workspace_id": str(project.workspace.id),
-                "workflow_statuses_created": len(default_statuses),  # noqa: F821
             },
         )
 
