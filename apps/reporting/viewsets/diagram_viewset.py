@@ -457,9 +457,9 @@ class DiagramViewSet(viewsets.ViewSet):
                 from django.http import HttpResponse
 
                 response = HttpResponse(svg_content, content_type="image/svg+xml")
-                response["Content-Disposition"] = (
-                    f'attachment; filename="{project.key}_{diagram_type}.svg"'
-                )
+                response[
+                    "Content-Disposition"
+                ] = f'attachment; filename="{project.key}_{diagram_type}.svg"'
                 response["X-Diagram-Type"] = diagram_type
                 response["X-Export-Format"] = "svg"
 
@@ -479,9 +479,9 @@ class DiagramViewSet(viewsets.ViewSet):
                     from django.http import HttpResponse
 
                     response = HttpResponse(png_data, content_type="image/png")
-                    response["Content-Disposition"] = (
-                        f'attachment; filename="{project.key}_{diagram_type}.png"'
-                    )
+                    response[
+                        "Content-Disposition"
+                    ] = f'attachment; filename="{project.key}_{diagram_type}.png"'
                     response["X-Diagram-Type"] = diagram_type
                     response["X-Export-Format"] = "png"
 

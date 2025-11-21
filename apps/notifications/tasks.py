@@ -131,7 +131,9 @@ def check_upcoming_deadlines(self):
                         urgency = (
                             "critical"
                             if days_until == 0
-                            else "high" if days_until == 1 else "medium"
+                            else "high"
+                            if days_until == 1
+                            else "medium"
                         )
                         title = f"Sprint deadline {'today' if days_until == 0 else f'in {days_until} day(s)'}"  # noqa: E501
                         message = f"Sprint '{sprint.name}' ends on {sprint.end_date.strftime('%Y-%m-%d')}"  # noqa: E501

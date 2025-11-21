@@ -70,19 +70,55 @@ class AssistantService:
 
             logger.info(f"Query strategy: {strategy['description']}")
 
-            # Step 2: Execute intelligent semantic search
-            relevant_issues = self.rag.semantic_search(
-                query=question,
-                project_id=project_id,
-                top_k=strategy["top_k"],
-                filters=strategy.get("filters", {}),
-            )
+            # Step 2: Execute multi-namespace search using strategy
+            namespaces = strategy.get("namespaces", ["issues"])
 
-            # Step 3: Build enhanced context from retrieved issues
-            context = self._build_context(relevant_issues, strategy)
+            logger.info(f"[ASSISTANT] Searching namespaces: {namespaces}")
+
+            if len(namespaces) > 1:
+                # Multi-namespace search for comprehensive context
+                relevant_data = self.rag.multi_namespace_search(
+                    query=question,
+                    namespaces=namespaces,
+                    project_id=project_id,
+                    top_k_per_namespace=15,  # 15 per namespace for rich context
+                    filters=strategy.get("filters", {}),
+                )
+            else:
+                # Single namespace fallback to legacy semantic_search
+                relevant_data = self.rag.semantic_search(
+                    query=question,
+                    project_id=project_id,
+                    top_k=strategy["top_k"],
+                    filters=strategy.get("filters", {}),
+                )
+
+            logger.info(f"[ASSISTANT] Retrieved {len(relevant_data)} total results")
+
+            # Log data type distribution
+            data_types = {}
+            for item in relevant_data:
+                item_type = item.get("type", "unknown")
+                data_types[item_type] = data_types.get(item_type, 0) + 1
+            logger.info(f"[ASSISTANT] Data types: {data_types}")
+
+            # Step 3: Build enhanced context from ALL retrieved data
+            context = self._build_context(relevant_data, strategy)
+
+            # Log context to verify it's being built correctly
+            context_preview = context[:500] if len(context) > 500 else context
+            logger.info(
+                f"[ASSISTANT] Context built ({len(context)} chars): "
+                f"{context_preview}..."
+            )
 
             # Step 3: Construct prompt with context
             messages = self._build_messages(question, context, conversation_history)
+            total_chars = sum(len(m.get('content', '')) for m in messages)
+            logger.info(
+                f"[ASSISTANT] Prompt contains {len(messages)} messages, "
+                f"total {total_chars} chars"
+            )
 
             # Step 4: Get response from LLM proxy (Llama 4 → Azure fallback)
             response = self.llm_proxy.generate(
@@ -99,19 +135,55 @@ class AssistantService:
                 f"{response.model}, cost=${response.cost_usd:.4f}"
             )
 
-            # Step 5: Prepare response with sources
+            # Step 5: Prepare response with sources (all data types)
+            sources = []
+            for item in relevant_data[:5]:
+                item_type = item.get("type", "unknown")
+
+                if item_type == "team_member":
+                    sources.append(
+                        {
+                            "type": "team_member",
+                            "full_name": item["full_name"],
+                            "username": item["username"],
+                            "email": item["email"],
+                            "similarity": item["similarity_score"],
+                        }
+                    )
+                elif item_type == "sprint":
+                    sources.append(
+                        {
+                            "type": "sprint",
+                            "sprint_name": item["sprint_name"],
+                            "status": item["status"],
+                            "project_key": item["project_key"],
+                            "similarity": item["similarity_score"],
+                        }
+                    )
+                elif item_type == "project_context":
+                    sources.append(
+                        {
+                            "type": "project_context",
+                            "project_name": item["project_name"],
+                            "project_key": item["project_key"],
+                            "similarity": item["similarity_score"],
+                        }
+                    )
+                else:  # issue
+                    sources.append(
+                        {
+                            "type": "issue",
+                            "issue_id": item.get("issue_id"),
+                            "title": item.get("title"),
+                            "project_key": item.get("project_key"),
+                            "similarity": item["similarity_score"],
+                        }
+                    )
+
             return {
                 "answer": response.content,
-                "sources": [
-                    {
-                        "issue_id": issue["issue_id"],
-                        "title": issue["title"],
-                        "project_key": issue["project_key"],
-                        "similarity": issue["similarity_score"],
-                    }
-                    for issue in relevant_issues[:3]
-                ],
-                "confidence": self._calculate_confidence(relevant_issues),
+                "sources": sources,
+                "confidence": self._calculate_confidence(relevant_data),
                 "tokens_used": response.total_tokens,
                 "provider": response.provider,
                 "model": response.model,
@@ -201,19 +273,91 @@ class AssistantService:
             raise
 
     def _build_context(
-        self, issues: List[Dict[str, Any]], strategy: Dict[str, Any] = None
+        self, data_items: List[Dict[str, Any]], strategy: Dict[str, Any] = None
     ) -> str:
-        """Build context string from retrieved issues."""
-        if not issues:
-            return "No relevant issues found."
+        """
+        Build comprehensive context from ALL data types.
+
+        CRITICAL FIX: Handle team_members, sprints, issues, project_context
+        instead of just issues.
+        """
+        if not data_items:
+            return "No relevant information found."
+
+        # Group by data type
+        grouped = {
+            "team_member": [],
+            "sprint": [],
+            "issue": [],
+            "project_context": [],
+        }
+
+        for item in data_items:
+            item_type = item.get(
+                "type", "issue"
+            )  # Default to issue for backward compat
+            if item_type in grouped:
+                grouped[item_type].append(item)
 
         context_parts = []
-        for i, issue in enumerate(issues[:5], 1):
-            context_parts.append(
-                f"{i}. [{issue['project_key']}] {issue['title']}\n"
-                f"   Type: {issue['issue_type']} | Status: {issue['status']}\n"
-                f"   Description: {issue.get('description', 'N/A')[:200]}\n"
-            )
+
+        # Team members context (CRITICAL for "Who is X" questions)
+        if grouped["team_member"]:
+            context_parts.append("## TEAM MEMBERS:")
+            for member in grouped["team_member"][:5]:
+                context_parts.append(
+                    f"• {member['full_name']} (@{member['username']})\n"
+                    f"  Email: {member['email']}\n"
+                    f"  Assigned Issues: {member['assigned_issues_count']} "
+                    f"({member['in_progress_issues_count']} in progress, "
+                    f"{member['completed_issues_count']} completed)\n"
+                    f"  Story Points: {member['total_story_points']}\n"
+                )
+            context_parts.append("")
+
+        # Sprint context
+        if grouped["sprint"]:
+            context_parts.append("## SPRINTS:")
+            for sprint in grouped["sprint"][:3]:
+                completed = sprint['completed_points']
+                committed = sprint['committed_points']
+                context_parts.append(
+                    f"• {sprint['sprint_name']} ({sprint['status']})\n"
+                    f"  Goal: {sprint['sprint_goal'] or 'No goal set'}\n"
+                    f"  Progress: {sprint['progress_percentage']}%\n"
+                    f"  Points: {completed}/{committed}\n"
+                    f"  Issues: {sprint['issue_count']} total\n"
+                )
+            context_parts.append("")
+
+        # Project context
+        if grouped["project_context"]:
+            context_parts.append("## PROJECT OVERVIEW:")
+            for proj in grouped["project_context"][:2]:
+                desc = proj.get('description', 'No description')[:150]
+                context_parts.append(
+                    f"• {proj['project_name']} ({proj['project_key']})\n"
+                    f"  Description: {desc}\n"
+                    f"  Total Issues: {proj['total_issues']}\n"
+                    f"  Team Size: {proj['team_size']}\n"
+                )
+            context_parts.append("")
+
+        # Issues context
+        if grouped["issue"]:
+            context_parts.append("## ISSUES:")
+            for i, issue in enumerate(grouped["issue"][:10], 1):
+                assignee_info = (
+                    f" | Assignee: {issue['assignee']}"
+                    if issue.get('assignee') else ""
+                )
+                priority = issue.get('priority', 'N/A')
+                context_parts.append(
+                    f"{i}. [{issue['project_key']}] {issue['title']}\n"
+                    f"   Type: {issue['issue_type']} | Status: "
+                    f"{issue['status']} | Priority: {priority}{assignee_info}\n"
+                    f"   Description: {issue.get('description', 'N/A')[:200]}\n"
+                )
 
         return "\n".join(context_parts)
 
@@ -245,18 +389,25 @@ class AssistantService:
         messages.append(
             {
                 "role": "user",
-                "content": f"Context (relevant issues):\n{context}\n\n"
-                f"Question: {question}",
+                "content": (
+                    f"Context (relevant issues):\n{context}\n\n"
+                    f"Question: {question}"
+                ),
             }
         )
 
         return messages
 
-    def _calculate_confidence(self, issues: List[Dict[str, Any]]) -> float:
+    def _calculate_confidence(self, data_items: List[Dict[str, Any]]) -> float:
         """Calculate confidence score based on similarity scores."""
-        if not issues:
+        if not data_items:
             return 0.0
 
-        # Average of top 3 similarity scores
-        top_scores = [issue["similarity_score"] for issue in issues[:3]]
+        # Average of top 3 similarity scores (any data type)
+        top_scores = [
+            item["similarity_score"] for item in data_items[:3]
+            if "similarity_score" in item
+        ]
+        if not top_scores:
+            return 0.0
         return round(sum(top_scores) / len(top_scores), 2)

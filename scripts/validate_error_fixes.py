@@ -13,6 +13,7 @@ import sys
 # Fix Unicode encoding for Windows CMD
 if sys.platform == "win32":
     import codecs
+
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer, "strict")
     sys.stderr = codecs.getwriter("utf-8")(sys.stderr.buffer, "strict")
 
@@ -39,11 +40,7 @@ def run_command(cmd, description):
 
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=120
+            cmd, shell=True, capture_output=True, text=True, timeout=120
         )
 
         if result.returncode == 0:
@@ -75,13 +72,14 @@ def main():
     print_header("TEST 1: Similar Issues Validation Tests")
     success, output = run_command(
         "python manage.py test apps.ai_assistant.tests.test_similar_issues_validation --verbosity=2",  # noqa: E501
-        "Parameter validation tests"
+        "Parameter validation tests",
     )
     results["validation_tests"] = success
 
     if success and "OK" in output:
         # Count tests
         import re
+
         match = re.search(r"Ran (\d+) tests", output)
         if match:
             test_count = match.group(1)
@@ -90,15 +88,14 @@ def main():
     # Test 2: Check for syntax errors
     print_header("TEST 2: Python Syntax Check")
     success, output = run_command(
-        "python -m py_compile apps/ai_assistant/viewsets.py",
-        "Syntax check viewsets.py"
+        "python -m py_compile apps/ai_assistant/viewsets.py", "Syntax check viewsets.py"
     )
     results["syntax_viewsets"] = success
     print_result("viewsets.py syntax", success)
 
     success, output = run_command(
         "python -m py_compile apps/ai_assistant/services/rag_service.py",
-        "Syntax check rag_service.py"
+        "Syntax check rag_service.py",
     )
     results["syntax_rag_service"] = success
     print_result("rag_service.py syntax", success)
@@ -106,15 +103,15 @@ def main():
     # Test 3: Import checks
     print_header("TEST 3: Import Validation")
     success, output = run_command(
-        'python -c "from apps.ai_assistant.viewsets import AIAssistantViewSet; print(\'OK\')"',  # noqa: E501
-        "Import AIAssistantViewSet"
+        "python -c \"from apps.ai_assistant.viewsets import AIAssistantViewSet; print('OK')\"",  # noqa: E501
+        "Import AIAssistantViewSet",
     )
     results["import_viewset"] = success
     print_result("ViewSet imports", success)
 
     success, output = run_command(
-        'python -c "from apps.ai_assistant.services import RAGService; print(\'OK\')"',
-        "Import RAGService"
+        "python -c \"from apps.ai_assistant.services import RAGService; print('OK')\"",
+        "Import RAGService",
     )
     results["import_service"] = success
     print_result("Service imports", success)
@@ -127,7 +124,7 @@ def main():
         results["test_file_exists"] = True
 
         # Count test methods
-        with open(test_file, 'r') as f:
+        with open(test_file, "r") as f:
             content = f.read()
             test_count = content.count("def test_")
             print_result("Test methods found", True, f"{test_count} test methods")
@@ -142,12 +139,14 @@ def main():
         print_result("Documentation exists", True, doc_file)
         results["documentation"] = True
 
-        with open(doc_file, 'r', encoding='utf-8') as f:
+        with open(doc_file, "r", encoding="utf-8") as f:
             content = f.read()
             if "ERROR #1" in content and "ERROR #2" in content:
                 print_result("Documentation complete", True, "All errors documented")
             else:
-                print_result("Documentation complete", False, "Missing error documentation")  # noqa: E501
+                print_result(
+                    "Documentation complete", False, "Missing error documentation"
+                )  # noqa: E501
     else:
         print_result("Documentation exists", False, f"File not found: {doc_file}")
         results["documentation"] = False
@@ -186,5 +185,5 @@ def main():
     sys.exit(0 if failed == 0 else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

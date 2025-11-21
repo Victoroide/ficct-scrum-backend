@@ -21,7 +21,7 @@ import django
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'base.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "base.settings")
 django.setup()
 
 import redis  # noqa: E402
@@ -50,16 +50,20 @@ def test_django_cache():
 
     try:
         # Test set
-        cache.set('test_key_validation', 'test_value', 60)
+        cache.set("test_key_validation", "test_value", 60)
 
         # Test get
-        value = cache.get('test_key_validation')
+        value = cache.get("test_key_validation")
 
-        if value == 'test_value':
-            print_result("Django Cache Write/Read", True, f"URL: {getattr(settings, 'CACHE_REDIS_URL', 'Not using URL')}")  # noqa: E501
+        if value == "test_value":
+            print_result(
+                "Django Cache Write/Read",
+                True,
+                f"URL: {getattr(settings, 'CACHE_REDIS_URL', 'Not using URL')}",
+            )  # noqa: E501
 
             # Clean up
-            cache.delete('test_key_validation')
+            cache.delete("test_key_validation")
             return True
         else:
             print_result("Django Cache Write/Read", False, "Value mismatch")
@@ -84,12 +88,12 @@ def test_celery_broker():
         r.ping()
 
         # Test write/read
-        r.set('celery_test_key', 'test_value', ex=60)
-        value = r.get('celery_test_key')
+        r.set("celery_test_key", "test_value", ex=60)
+        value = r.get("celery_test_key")
 
-        if value == b'test_value':
+        if value == b"test_value":
             print_result("Celery Broker Connection", True, broker_url)
-            r.delete('celery_test_key')
+            r.delete("celery_test_key")
             return True
         else:
             print_result("Celery Broker Connection", False, "Value mismatch")
@@ -115,12 +119,12 @@ def test_celery_result_backend():
         r.ping()
 
         # Test write/read
-        r.set('celery_result_test_key', 'test_value', ex=60)
-        value = r.get('celery_result_test_key')
+        r.set("celery_result_test_key", "test_value", ex=60)
+        value = r.get("celery_result_test_key")
 
-        if value == b'test_value':
+        if value == b"test_value":
             print_result("Celery Result Backend", True, result_url)
-            r.delete('celery_result_test_key')
+            r.delete("celery_result_test_key")
             return True
         else:
             print_result("Celery Result Backend", False, "Value mismatch")
@@ -138,8 +142,8 @@ def test_channel_layers():
 
     try:
         # Get channel layer config
-        channel_config = settings.CHANNEL_LAYERS.get('default', {})
-        hosts = channel_config.get('CONFIG', {}).get('hosts', [])
+        channel_config = settings.CHANNEL_LAYERS.get("default", {})
+        hosts = channel_config.get("CONFIG", {}).get("hosts", [])
 
         if not hosts:
             print_result("Channel Layers Config", False, "No hosts configured")
@@ -171,26 +175,26 @@ def print_environment_info():
     print_header("ENVIRONMENT CONFIGURATION")
 
     env_vars = [
-        'CACHE_REDIS_URL',
-        'CELERY_BROKER_URL',
-        'CELERY_RESULT_BACKEND',
-        'CHANNEL_LAYERS_REDIS_URL',
-        'REDIS_HOST',
-        'REDIS_PORT',
-        'REDIS_PASSWORD',
+        "CACHE_REDIS_URL",
+        "CELERY_BROKER_URL",
+        "CELERY_RESULT_BACKEND",
+        "CHANNEL_LAYERS_REDIS_URL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "REDIS_PASSWORD",
     ]
 
     for var in env_vars:
-        value = os.getenv(var, 'NOT SET')
+        value = os.getenv(var, "NOT SET")
 
         # Mask password
-        if 'PASSWORD' in var and value != 'NOT SET':
-            value = '***MASKED***'
-        elif 'redis://' in value and '@' in value:
+        if "PASSWORD" in var and value != "NOT SET":
+            value = "***MASKED***"
+        elif "redis://" in value and "@" in value:
             # Mask password in URL
-            parts = value.split('@')
-            if ':' in parts[0]:
-                protocol, auth = parts[0].rsplit(':', 1)
+            parts = value.split("@")
+            if ":" in parts[0]:
+                protocol, auth = parts[0].rsplit(":", 1)
                 value = f"{protocol}:***@{parts[1]}"
 
         print(f"  {var}: {value}")
@@ -236,10 +240,10 @@ def main():
 
     # Run tests
     results = {
-        'Django Cache': test_django_cache(),
-        'Celery Broker': test_celery_broker(),
-        'Celery Result Backend': test_celery_result_backend(),
-        'Channel Layers': test_channel_layers(),
+        "Django Cache": test_django_cache(),
+        "Celery Broker": test_celery_broker(),
+        "Celery Result Backend": test_celery_result_backend(),
+        "Channel Layers": test_channel_layers(),
     }
 
     # Print summary
@@ -249,5 +253,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

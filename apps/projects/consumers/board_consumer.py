@@ -37,9 +37,7 @@ class BoardConsumer(AsyncWebsocketConsumer):
             logger.info(f"[WS CONSUMER] User username: {self.user.username}")
 
         if not self.user.is_authenticated:
-            logger.warning(
-                "[WS CONSUMER] Rejecting connection: User not authenticated"
-            )
+            logger.warning("[WS CONSUMER] Rejecting connection: User not authenticated")
             await self.close()
             return
 

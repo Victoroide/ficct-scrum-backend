@@ -103,12 +103,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Returns only projects where user is a workspace member.
         """
         # Base queryset: user must be a member of the workspace
-        queryset = Project.objects.filter(
-            workspace__members__user=self.request.user,
-            workspace__members__is_active=True,
-        ).select_related(
-            "workspace", "workspace__organization", "lead", "created_by"
-        ).distinct()
+        queryset = (
+            Project.objects.filter(
+                workspace__members__user=self.request.user,
+                workspace__members__is_active=True,
+            )
+            .select_related(
+                "workspace", "workspace__organization", "lead", "created_by"
+            )
+            .distinct()
+        )
 
         if self.action == "list":
             week_ago = timezone.now() - timedelta(days=7)
@@ -141,9 +145,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ),
             )
         else:
-            queryset = queryset.prefetch_related(
-                "team_members", "team_members__user"
-            )
+            queryset = queryset.prefetch_related("team_members", "team_members__user")
 
         # Apply filters after annotations to avoid conflicts
         workspace_id = self.request.query_params.get("workspace")

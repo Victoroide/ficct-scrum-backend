@@ -64,9 +64,13 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        queryset = Workspace.objects.filter(
-            members__user=self.request.user, members__is_active=True
-        ).select_related("organization", "created_by").distinct()
+        queryset = (
+            Workspace.objects.filter(
+                members__user=self.request.user, members__is_active=True
+            )
+            .select_related("organization", "created_by")
+            .distinct()
+        )
 
         if self.action == "list":
             week_ago = timezone.now() - timedelta(days=7)
@@ -99,9 +103,7 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
                 ),
             )
         else:
-            queryset = queryset.prefetch_related(
-                "members", "members__user", "projects"
-            )
+            queryset = queryset.prefetch_related("members", "members__user", "projects")
 
         return queryset
 

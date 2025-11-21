@@ -15,7 +15,7 @@ import django
 
 # Setup Django
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'base.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "base.settings")
 django.setup()
 
 import secrets  # noqa: E402
@@ -35,12 +35,12 @@ def test_basic_connection():
     print_header("TEST 1: Basic Redis Connection")
 
     try:
-        cache.set('test_connection', 'success', timeout=60)
-        result = cache.get('test_connection')
+        cache.set("test_connection", "success", timeout=60)
+        result = cache.get("test_connection")
 
-        if result == 'success':
+        if result == "success":
             print("✅ PASS | Redis connection working")
-            cache.delete('test_connection')
+            cache.delete("test_connection")
             return True
         else:
             print(f"❌ FAIL | Expected 'success', got '{result}'")
@@ -58,13 +58,13 @@ def test_oauth_state_storage():
         # Simulate OAuth state
         state = secrets.token_urlsafe(32)
         state_data = {
-            'project_id': 'test-project-uuid-12345',
-            'user_id': 42,
-            'created_at': timezone.now().isoformat(),
+            "project_id": "test-project-uuid-12345",
+            "user_id": 42,
+            "created_at": timezone.now().isoformat(),
         }
 
         # Store with GitHub OAuth prefix
-        cache_key = f'github_oauth_state_{state}'
+        cache_key = f"github_oauth_state_{state}"
         cache.set(cache_key, state_data, timeout=600)  # 10 minutes
 
         print(f"  Stored state: {state[:20]}...")
@@ -99,10 +99,10 @@ def test_state_expiration():
 
     try:
         state = secrets.token_urlsafe(32)
-        cache_key = f'github_oauth_state_{state}'
+        cache_key = f"github_oauth_state_{state}"
 
         # Store with 600s TTL
-        cache.set(cache_key, {'test': 'data'}, timeout=600)
+        cache.set(cache_key, {"test": "data"}, timeout=600)
 
         # Immediately retrieve to verify
         exists = cache.get(cache_key)
@@ -126,10 +126,10 @@ def test_state_deletion():
 
     try:
         state = secrets.token_urlsafe(32)
-        cache_key = f'github_oauth_state_{state}'
+        cache_key = f"github_oauth_state_{state}"
 
         # Store state
-        cache.set(cache_key, {'test': 'data'}, timeout=600)
+        cache.set(cache_key, {"test": "data"}, timeout=600)
 
         # Retrieve
         first_get = cache.get(cache_key)
@@ -162,7 +162,7 @@ def test_cache_backend_info():
 
     from django.conf import settings
 
-    cache_config = settings.CACHES.get('default', {})
+    cache_config = settings.CACHES.get("default", {})
 
     print(f"  Backend: {cache_config.get('BACKEND', 'Not configured')}")
     print(f"  Location: {cache_config.get('LOCATION', 'Not configured')}")
@@ -181,10 +181,10 @@ def main():
     test_cache_backend_info()
 
     # Run tests
-    results['connection'] = test_basic_connection()
-    results['oauth_storage'] = test_oauth_state_storage()
-    results['ttl'] = test_state_expiration()
-    results['one_time_use'] = test_state_deletion()
+    results["connection"] = test_basic_connection()
+    results["oauth_storage"] = test_oauth_state_storage()
+    results["ttl"] = test_state_expiration()
+    results["one_time_use"] = test_state_deletion()
 
     # Summary
     print_header("SUMMARY")
@@ -211,13 +211,19 @@ def main():
 
         print("\n  Troubleshooting:")
         print("    1. Verify Redis service is running: docker-compose ps redis")
-        print("    2. Check CACHE_REDIS_URL in environment: docker-compose exec web_wsgi env | grep CACHE")  # noqa: E501
-        print("    3. Test Redis directly: docker-compose exec redis redis-cli -a redis123 ping")  # noqa: E501
+        print(
+            "    2. Check CACHE_REDIS_URL in environment: "
+            "docker-compose exec web_wsgi env | grep CACHE"
+        )
+        print(
+            "    3. Test Redis directly: "
+            "docker-compose exec redis redis-cli -a redis123 ping"
+        )
 
     print("\n" + "=" * 70 + "\n")
 
     sys.exit(0 if failed == 0 else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

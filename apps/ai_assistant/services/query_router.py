@@ -43,13 +43,19 @@ class QueryRouter:
         "assignee",
         "assigned",
         "working on",
+        "doing",  # "What is X doing?"
         "member",
         "team",
+        "activity",
+        "tasks",
         "quien",
         "asignado",
         "trabajando",
+        "haciendo",  # Spanish "doing"
         "miembro",
         "equipo",
+        "actividad",
+        "tareas",
     ]
 
     SPRINT_KEYWORDS = [
@@ -112,18 +118,48 @@ class QueryRouter:
             logger.info(f"[ROUTER] Classified as priority_query: '{query}'")
             return "priority_query"
 
-        # Member query detection
-        if any(keyword in query_lower for keyword in self.MEMBER_KEYWORDS):
-            logger.info(f"[ROUTER] Classified as member_query: '{query}'")
+        # Check for person names FIRST (both full names and single names)
+        # Full name pattern: "Victor Cuellar", "John Doe"
+        full_name_pattern = r"\b[A-Z][a-z]+\s+[A-Z][a-z]+\b"
+        if re.search(full_name_pattern, query):
+            logger.info(
+                f"[ROUTER] Detected full person name, classified as "
+                f"member_query: '{query}'"
+            )
             return "member_query"
 
-        # Check for person names (capitalized words)
-        # e.g., "Victor Cuellar", "John Doe"
-        name_pattern = r"\b[A-Z][a-z]+\s+[A-Z][a-z]+\b"
-        if re.search(name_pattern, query):
+        # Single capitalized name pattern: "Sebastian", "Victor", "Maria"
+        # Check for capitalized word that's not at sentence start and is likely a name
+        single_name_pattern = r"(?<!^)(?<!\. )\b[A-Z][a-z]{2,}\b"
+        single_names = re.findall(single_name_pattern, query)
+        # Filter out common words that shouldn't be names
+        common_words = {
+            "What",
+            "Who",
+            "How",
+            "Where",
+            "When",
+            "Why",
+            "Which",
+            "This",
+            "That",
+            "These",
+            "Those",
+            "The",
+            "Sprint",
+            "Project",
+        }
+        potential_names = [name for name in single_names if name not in common_words]
+        if potential_names:
             logger.info(
-                f"[ROUTER] Detected person name, classified as member_query: '{query}'"
+                f"[ROUTER] Detected single name(s) {potential_names}, "
+                f"classified as member_query: '{query}'"
             )
+            return "member_query"
+
+        # Member query detection by keywords
+        if any(keyword in query_lower for keyword in self.MEMBER_KEYWORDS):
+            logger.info(f"[ROUTER] Classified as member_query by keyword: '{query}'")
             return "member_query"
 
         # Sprint query detection
@@ -225,16 +261,47 @@ class QueryRouter:
     ) -> Dict:
         """Build search strategy for team member queries."""
 
-        # Extract person name from query
-        name_pattern = r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b"
-        names = re.findall(name_pattern, query)
+        # Extract person names from query (both full and single names)
+        names = []
+
+        # Full names: "Victor Cuellar", "John Doe"
+        full_name_pattern = r"\b([A-Z][a-z]+\s+[A-Z][a-z]+)\b"
+        full_names = re.findall(full_name_pattern, query)
+        names.extend(full_names)
+
+        # Single names: "Sebastian", "Victor", "Maria"
+        single_name_pattern = r"(?<!^)(?<!\.\s)\b[A-Z][a-z]{2,}\b"
+        single_names = re.findall(single_name_pattern, query)
+        # Filter out common words
+        common_words = {
+            "What",
+            "Who",
+            "How",
+            "Where",
+            "When",
+            "Why",
+            "Which",
+            "This",
+            "That",
+            "These",
+            "Those",
+            "The",
+            "Sprint",
+            "Project",
+        }
+        single_names = [name for name in single_names if name not in common_words]
+        names.extend(single_names)
+
+        # Remove duplicates
+        names = list(set(names))
 
         filters = {}
         if project_id:
             filters["project_id"] = project_id
 
-        # Multi-namespace search: team_members + issues
-        namespaces = ["team_members", "issues"]
+        # Multi-namespace search: team_members + issues + sprints
+        # Include sprints to see what sprint the person is working on
+        namespaces = ["team_members", "issues", "sprints"]
 
         logger.debug(
             f"[ROUTER] Member strategy: names={names}, namespaces={namespaces}"

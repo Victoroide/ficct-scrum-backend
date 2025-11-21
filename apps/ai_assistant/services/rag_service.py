@@ -372,6 +372,258 @@ class RAGService:
             logger.exception(f"[FULL SYNC] CRITICAL ERROR after {duration}s: {str(e)}")
             raise
 
+    def multi_namespace_search(
+        self,
+        query: str,
+        namespaces: List[str],
+        project_id: Optional[str] = None,
+        top_k_per_namespace: int = 15,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search across MULTIPLE Pinecone namespaces and merge results.
+
+        CRITICAL FIX: Query team_members, sprints, issues, project_context
+        to build comprehensive context instead of just issues.
+
+        Args:
+            query: Natural language search query
+            namespaces: List of namespaces to query (e.g., ['team_members', 'issues'])
+            project_id: Optional project filter
+            top_k_per_namespace: Results to retrieve per namespace
+            filters: Additional metadata filters
+
+        Returns:
+            Merged and ranked results from all namespaces
+        """
+        self._check_available()
+        try:
+            logger.info(f"[MULTI-NS SEARCH] Query: '{query}'")
+            logger.info(f"[MULTI-NS SEARCH] Namespaces: {namespaces}")
+            logger.info(f"[MULTI-NS SEARCH] Project: {project_id}")
+
+            # Generate query embedding once
+            query_vector = self.openai.generate_embedding(query)
+            logger.debug(
+                f"[MULTI-NS SEARCH] Embedding generated: {len(query_vector)} dims"
+            )
+
+            # Build Pinecone filter
+            pinecone_filter = None
+            if project_id:
+                pinecone_filter = {"project_id": {"$eq": project_id}}
+            if filters and pinecone_filter:
+                pinecone_filter = {
+                    "$and": [
+                        pinecone_filter,
+                        {k: {"$eq": v} for k, v in filters.items()},
+                    ]
+                }
+            elif filters:
+                pinecone_filter = {k: {"$eq": v} for k, v in filters.items()}
+
+            # Query each namespace
+            all_results = []
+            for namespace in namespaces:
+                try:
+                    logger.info(
+                        f"[MULTI-NS SEARCH] Querying '{namespace}' namespace..."
+                    )
+                    results = self.pinecone.query(
+                        vector=query_vector,
+                        top_k=top_k_per_namespace,
+                        filter_dict=pinecone_filter,
+                        namespace=namespace,
+                        include_metadata=True,
+                    )
+                    logger.info(
+                        f"[MULTI-NS SEARCH] '{namespace}' returned "
+                        f"{len(results)} results"
+                    )
+
+                    # Validate and add namespace tag
+                    for result in results:
+                        metadata = result.get("metadata", {})
+                        result_project_id = metadata.get("project_id")
+
+                        # Security validation
+                        if project_id and result_project_id != project_id:
+                            logger.warning(
+                                f"[SECURITY] Filtered out result from wrong "
+                                f"project: expected {project_id}, got "
+                                f"{result_project_id}"
+                            )
+                            continue
+
+                        # Tag with source namespace
+                        result["source_namespace"] = namespace
+                        all_results.append(result)
+
+                except Exception as e:
+                    logger.error(
+                        f"[MULTI-NS SEARCH] Error querying '{namespace}': {str(e)}"
+                    )
+                    # Continue with other namespaces even if one fails
+                    continue
+
+            # Sort by score (descending) and apply score threshold
+            all_results.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+            # Filter by minimum relevance score (70% match)
+            MIN_SCORE = 0.70
+            filtered_results = [
+                r for r in all_results if r.get("score", 0) >= MIN_SCORE
+            ]
+
+            logger.info(
+                f"[MULTI-NS SEARCH] Total results: {len(all_results)}, "
+                f"After filtering (score>={MIN_SCORE}): {len(filtered_results)}"
+            )
+
+            # Enrich results with full data based on namespace
+            enriched_results = []
+            for result in filtered_results[:30]:  # Limit to top 30 for processing
+                try:
+                    enriched = self._enrich_result(result)
+                    if enriched:
+                        enriched_results.append(enriched)
+                except Exception as e:
+                    logger.warning(
+                        f"[MULTI-NS SEARCH] Failed to enrich result: {str(e)}"
+                    )
+                    continue
+
+            logger.info(
+                f"[MULTI-NS SEARCH] SUCCESS: Returning "
+                f"{len(enriched_results)} enriched results"
+            )
+            return enriched_results
+
+        except Exception as e:
+            logger.exception(f"[MULTI-NS SEARCH] ERROR: {str(e)}")
+            raise
+
+    def _enrich_result(
+        self, result: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Enrich Pinecone result with full database data based on namespace.
+
+        Args:
+            result: Raw Pinecone query result
+
+        Returns:
+            Enriched result dictionary or None if data not found
+        """
+        metadata = result.get("metadata", {})
+        namespace = result.get("source_namespace", "unknown")
+        score = result.get("score", 0)
+
+        try:
+            if namespace == "issues":
+                issue_id = metadata.get("issue_id")
+                if issue_id:
+                    issue = Issue.objects.select_related(
+                        "issue_type", "status", "assignee", "project"
+                    ).get(id=issue_id)
+
+                    return {
+                        "type": "issue",
+                        "issue_id": str(issue.id),
+                        "title": issue.title,
+                        "description": issue.description,
+                        "issue_type": issue.issue_type.name,
+                        "status": issue.status.name,
+                        "priority": issue.priority,
+                        "assignee": (
+                            issue.assignee.get_full_name() if issue.assignee else None
+                        ),
+                        "project_key": issue.project.key,
+                        "similarity_score": round(score, 3),
+                        "metadata": metadata,
+                    }
+
+            elif namespace == "team_members":
+                user_id = metadata.get("user_id")
+                if user_id:
+                    from django.contrib.auth import get_user_model
+
+                    User = get_user_model()
+                    user = User.objects.get(id=user_id)
+
+                    return {
+                        "type": "team_member",
+                        "user_id": str(user.id),
+                        "full_name": user.get_full_name(),
+                        "username": user.username,
+                        "email": user.email,
+                        "assigned_issues_count": metadata.get(
+                            "assigned_issues_count", 0
+                        ),
+                        "in_progress_issues_count": metadata.get(
+                            "in_progress_issues_count", 0
+                        ),
+                        "completed_issues_count": metadata.get(
+                            "completed_issues_count", 0
+                        ),
+                        "total_story_points": metadata.get("total_story_points", 0),
+                        "project_key": metadata.get("project_key"),
+                        "similarity_score": round(score, 3),
+                        "metadata": metadata,
+                    }
+
+            elif namespace == "sprints":
+                sprint_id = metadata.get("sprint_id")
+                if sprint_id:
+                    from apps.projects.models import Sprint
+
+                    sprint = Sprint.objects.select_related("project").get(id=sprint_id)
+
+                    return {
+                        "type": "sprint",
+                        "sprint_id": str(sprint.id),
+                        "sprint_name": sprint.name,
+                        "sprint_goal": sprint.goal,
+                        "status": sprint.status,
+                        "progress_percentage": float(sprint.progress_percentage or 0),
+                        "committed_points": float(sprint.committed_points or 0),
+                        "completed_points": float(sprint.completed_points or 0),
+                        "issue_count": int(sprint.issue_count or 0),
+                        "project_key": sprint.project.key,
+                        "similarity_score": round(score, 3),
+                        "metadata": metadata,
+                    }
+
+            elif namespace == "project_context":
+                project_id = metadata.get("project_id")
+                if project_id:
+                    from apps.projects.models import Project
+
+                    project = Project.objects.select_related(
+                        "workspace", "workspace__organization"
+                    ).get(id=project_id)
+
+                    return {
+                        "type": "project_context",
+                        "project_id": str(project.id),
+                        "project_key": project.key,
+                        "project_name": project.name,
+                        "description": project.description,
+                        "total_issues": metadata.get("total_issues", 0),
+                        "team_size": metadata.get("team_size", 0),
+                        "workspace_name": (
+                            project.workspace.name if project.workspace else None
+                        ),
+                        "similarity_score": round(score, 3),
+                        "metadata": metadata,
+                    }
+
+        except Exception as e:
+            logger.warning(f"[ENRICH] Failed to enrich {namespace} result: {str(e)}")
+            return None
+
+        return None
+
     def semantic_search(
         self,
         query: str,
@@ -382,10 +634,8 @@ class RAGService:
         """
         Search for issues using natural language query.
 
-        ENHANCED: More robust search strategy:
-        1. Query Pinecone with generous top_k (2x requested)
-        2. Filter by project_id in Python (not Pinecone filter)
-        3. Return top results after project filtering
+        LEGACY METHOD: Only searches 'issues' namespace for backward compatibility.
+        Use multi_namespace_search() for comprehensive context across all namespaces.
 
         Args:
             query: Natural language search query

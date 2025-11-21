@@ -201,17 +201,17 @@ class AuthViewSet(viewsets.GenericViewSet):
 
                 # Add invitation acceptance info to response
                 if auto_joined_organizations:
-                    response_data["auto_joined_organizations"] = (
-                        auto_joined_organizations
-                    )
-                    response_data["pending_invitations_accepted"] = (
-                        pending_invitations_count
-                    )
+                    response_data[
+                        "auto_joined_organizations"
+                    ] = auto_joined_organizations
+                    response_data[
+                        "pending_invitations_accepted"
+                    ] = pending_invitations_count
                     if auto_joined_organizations:
                         org_id = auto_joined_organizations[0]["id"]
-                        response_data["redirect_suggestion"] = (
-                            f"/organizations/{org_id}/dashboard"
-                        )
+                        response_data[
+                            "redirect_suggestion"
+                        ] = f"/organizations/{org_id}/dashboard"
 
                 return Response(response_data, status=status.HTTP_201_CREATED)
 

@@ -143,7 +143,7 @@ class S3Validator:
         test_key = "test/ficct_scrum_write_test.txt"
 
         try:
-            _response = self.s3_client.get_object(Bucket=self.bucket_name, Key=test_key)  # noqa: F841, E501
+            self.s3_client.get_object(Bucket=self.bucket_name, Key=test_key)
             return True, "Read permission confirmed"
 
         except ClientError as e:

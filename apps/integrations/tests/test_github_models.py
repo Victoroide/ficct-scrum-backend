@@ -1,4 +1,3 @@
-
 import pytest
 
 from apps.integrations.tests.factories import (

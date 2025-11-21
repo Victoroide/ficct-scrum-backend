@@ -75,9 +75,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        queryset = Organization.objects.filter(
-            memberships__user=self.request.user, memberships__is_active=True
-        ).select_related("owner").distinct()
+        queryset = (
+            Organization.objects.filter(
+                memberships__user=self.request.user, memberships__is_active=True
+            )
+            .select_related("owner")
+            .distinct()
+        )
 
         if self.action == "list":
             week_ago = timezone.now() - timedelta(days=7)

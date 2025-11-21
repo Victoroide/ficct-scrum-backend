@@ -187,9 +187,7 @@ class Command(BaseCommand):
 
         # Summary
         self.stdout.write("\n" + "=" * 70)
-        self.stdout.write(
-            self.style.SUCCESS("✅ WORKFLOW TRANSITIONS SEEDING COMPLETE")
-        )
+        self.stdout.write(self.style.SUCCESS("✅ WORKFLOW TRANSITIONS SEEDING COMPLETE"))
         self.stdout.write("=" * 70)
         self.stdout.write(f"Created: {created_count} workflow transitions")
         if force:

@@ -19,13 +19,13 @@ class UserBasicSerializer(serializers.ModelSerializer):
 
         model = User
         fields = [
-            "id",           # Integer ID (for backward compatibility)
-            "user_uuid",    # UUID string (REQUIRED for frontend assignments)
+            "id",  # Integer ID (for backward compatibility)
+            "user_uuid",  # UUID string (REQUIRED for frontend assignments)
             "email",
             "username",
             "first_name",
             "last_name",
-            "full_name"
+            "full_name",
         ]
         read_only_fields = [
             "id",

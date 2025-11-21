@@ -193,7 +193,9 @@ class TestBoardAPI:
         board = BoardFactory(project=project)
         status1 = WorkflowStatusFactory(project=project)
         status2 = WorkflowStatusFactory(project=project)
-        _column1 = BoardColumnFactory(board=board, workflow_status=status1)  # noqa: F841, E501
+        BoardColumn.objects.create(
+            board=board, workflow_status=status1
+        )
         column2 = BoardColumnFactory(board=board, workflow_status=status2)
         issue = IssueFactory(project=project, status=status1)
 
@@ -220,7 +222,9 @@ class TestBoardAPI:
         board = BoardFactory(project=project)
         status1 = WorkflowStatusFactory(project=project)
         status2 = WorkflowStatusFactory(project=project)
-        _column1 = BoardColumnFactory(board=board, workflow_status=status1)  # noqa: F841, E501
+        BoardColumn.objects.create(
+            board=board, workflow_status=status1
+        )
         column2 = BoardColumnFactory(board=board, workflow_status=status2, max_wip=1)
 
         IssueFactory(project=project, status=status2)

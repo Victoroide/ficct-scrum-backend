@@ -10,12 +10,12 @@ from apps.authentication.models import User
 
 
 class Command(BaseCommand):
-    help = 'Create project with real ML correlations'
+    help = "Create project with real ML correlations"
 
     def handle(self, *args, **options):
         user = User.objects.first()
         if not user:
-            self.stdout.write(self.style.ERROR('No users found'))
+            self.stdout.write(self.style.ERROR("No users found"))
             return
 
         org = Organization.objects.first()
@@ -23,12 +23,9 @@ class Command(BaseCommand):
 
         # Get or create project
         project, created = Project.objects.get_or_create(
-            key='MLTEST',
+            key="MLTEST",
             workspace=workspace,
-            defaults={
-                'name': 'ML Training Project',
-                'created_by': user
-            }
+            defaults={"name": "ML Training Project", "created_by": user},
         )
 
         if not created:
@@ -42,28 +39,28 @@ class Command(BaseCommand):
 
         # Use auto-created issue types
         bug_type = IssueType.objects.filter(
-            project=project, name__icontains='bug'
+            project=project, name__icontains="bug"
         ).first()
         story_type = IssueType.objects.filter(
-            project=project, name__icontains='story'
+            project=project, name__icontains="story"
         ).first()
         task_type = IssueType.objects.filter(
-            project=project, name__icontains='task'
+            project=project, name__icontains="task"
         ).first()
         epic_type = IssueType.objects.filter(
-            project=project, name__icontains='epic'
+            project=project, name__icontains="epic"
         ).first()
 
         # Get or create sprint
         sprint, _ = Sprint.objects.get_or_create(
-            name='Sprint 1',
+            name="Sprint 1",
             project=project,
             defaults={
-                'start_date': datetime.now().date(),
-                'end_date': (datetime.now() + timedelta(days=14)).date(),
-                'status': 'completed',
-                'created_by': user
-            }
+                "start_date": datetime.now().date(),
+                "end_date": (datetime.now() + timedelta(days=14)).date(),
+                "status": "completed",
+                "created_by": user,
+            },
         )
 
         self.stdout.write(f"Created project: {project.name} ({project.key})")
@@ -74,8 +71,7 @@ class Command(BaseCommand):
             story_points = random.choice([1, 2, 3, 5, 8, 13])
 
             type_choice = random.choices(
-                [bug_type, story_type, task_type, epic_type],
-                weights=[40, 35, 20, 5]
+                [bug_type, story_type, task_type, epic_type], weights=[40, 35, 20, 5]
             )[0]
 
             # REAL correlation
@@ -95,13 +91,21 @@ class Command(BaseCommand):
 
             words_count = max(3, int(actual_hours / 4) + random.randint(-2, 2))
             title_words = [
-                'Fix', 'Implement', 'Add', 'Update', 'Create',
-                'bug', 'feature', 'auth', 'database', 'API'
+                "Fix",
+                "Implement",
+                "Add",
+                "Update",
+                "Create",
+                "bug",
+                "feature",
+                "auth",
+                "database",
+                "API",
             ]
-            title = ' '.join(random.choices(title_words, k=words_count))
+            title = " ".join(random.choices(title_words, k=words_count))
 
             desc_sentences = max(1, int(actual_hours / 8))
-            description = ' '.join(['This is a description.'] * desc_sentences)
+            description = " ".join(["This is a description."] * desc_sentences)
 
             Issue.objects.create(
                 project=project,
@@ -113,12 +117,12 @@ class Command(BaseCommand):
                 actual_hours=actual_hours,
                 sprint=sprint,
                 reporter=user,
-                key=f"{project.key}-{i+1}"
+                key=f"{project.key}-{i+1}",
             )
 
-        self.stdout.write(self.style.SUCCESS('Created 200 issues'))
-        self.stdout.write('\nTrain with:')
+        self.stdout.write(self.style.SUCCESS("Created 200 issues"))
+        self.stdout.write("\nTrain with:")
         self.stdout.write(
-            f'python manage.py train_ml_model effort_prediction '
-            f'--project={project.id}'
+            f"python manage.py train_ml_model effort_prediction "
+            f"--project={project.id}"
         )

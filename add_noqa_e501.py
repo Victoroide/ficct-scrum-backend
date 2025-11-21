@@ -6,12 +6,10 @@ import subprocess
 def main():
     # Get all E501 violations
     result = subprocess.run(
-        ["flake8", "apps/", "--select=E501"],
-        capture_output=True,
-        text=True
+        ["flake8", "apps/", "--select=E501"], capture_output=True, text=True
     )
 
-    violations = result.stdout.strip().split('\n')
+    violations = result.stdout.strip().split("\n")
 
     files_modified = set()
 
@@ -19,7 +17,7 @@ def main():
         if not line:
             continue
 
-        parts = line.split(':', 3)
+        parts = line.split(":", 3)
         if len(parts) < 4:
             continue
 
@@ -27,19 +25,19 @@ def main():
         line_num = int(parts[1])
 
         # Read file
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         if line_num <= len(lines):
             current_line = lines[line_num - 1].rstrip()
 
             # Check if noqa already exists
-            if '# noqa' not in current_line:
+            if "# noqa" not in current_line:
                 # Add noqa comment
                 lines[line_num - 1] = f"{current_line}  # noqa: E501\n"
 
                 # Write back
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
 
                 files_modified.add(file_path)
@@ -48,5 +46,5 @@ def main():
     print("All violations should now be resolved!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

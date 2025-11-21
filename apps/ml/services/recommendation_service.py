@@ -43,9 +43,7 @@ class RecommendationService:
             List of user recommendations with scores and reasoning
         """
         try:
-            issue = Issue.objects.select_related(
-                "issue_type"
-            ).get(id=issue_id)
+            issue = Issue.objects.select_related("issue_type").get(id=issue_id)
 
             # Pre-calculate issue stats for ALL users in ONE query
             user_stats = self._precalculate_user_stats(project_id, issue)
@@ -229,9 +227,7 @@ class RecommendationService:
             # Bonus for fast resolution
             avg_resolution = stats.get("avg_resolution")
             if avg_resolution:
-                avg_days = (
-                    avg_resolution.days if avg_resolution.days > 0 else 1
-                )
+                avg_days = avg_resolution.days if avg_resolution.days > 0 else 1
                 if avg_days < 7:
                     performance_score = min(completion_rate * 1.2, 1.0)
 
@@ -258,9 +254,7 @@ class RecommendationService:
         # Generate reasoning
         reasoning = []
         if skill_score > 0.7:
-            reasoning.append(
-                f"Strong experience with {issue.issue_type.name} issues"
-            )
+            reasoning.append(f"Strong experience with {issue.issue_type.name} issues")
         if workload_score > 0.7:
             reasoning.append("Currently has capacity")
         if performance_score > 0.7:

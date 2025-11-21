@@ -204,7 +204,7 @@ class AnalyticsService:
         start_date = end_date - timedelta(days=days)
 
         # Load statuses from project workflow
-        statuses = list(project.workflow_statuses.all().order_by('order'))
+        statuses = list(project.workflow_statuses.all().order_by("order"))
 
         # If no workflow statuses configured, get statuses from actual issues
         if not statuses:
@@ -216,7 +216,7 @@ class AnalyticsService:
                 .distinct()
             )
             statuses = list(
-                WorkflowStatus.objects.filter(id__in=issue_status_ids).order_by('order')
+                WorkflowStatus.objects.filter(id__in=issue_status_ids).order_by("order")
             )
 
         if not statuses:

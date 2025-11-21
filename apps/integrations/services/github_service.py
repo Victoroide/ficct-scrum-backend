@@ -12,7 +12,11 @@ from django.utils import timezone
 from github import BadCredentialsException, Github, GithubException
 
 if TYPE_CHECKING:
-    from apps.integrations.models import GitHubCommit, GitHubIntegration, GitHubPullRequest  # noqa: E501
+    from apps.integrations.models import (
+        GitHubCommit,
+        GitHubIntegration,
+        GitHubPullRequest,
+    )  # noqa: E501
 
 logger = logging.getLogger(__name__)
 
@@ -252,9 +256,7 @@ class GitHubService:
             )
 
             if total_pulls == 0:
-                logger.info(
-                    f"[Sync PRs] No pull requests found in {repo_full_name}"
-                )
+                logger.info(f"[Sync PRs] No pull requests found in {repo_full_name}")
                 return 0
 
             synced_count = 0
@@ -297,18 +299,14 @@ class GitHubService:
             return synced_count
 
         except BadCredentialsException as e:
-            logger.error(
-                f"[Sync PRs] Bad credentials for {repo_full_name}: {str(e)}"
-            )
+            logger.error(f"[Sync PRs] Bad credentials for {repo_full_name}: {str(e)}")
             raise ValueError(
                 "GitHub authentication failed. Token is invalid or expired. "
                 "Please reconnect the integration."
             )
 
         except GithubException as e:
-            logger.error(
-                f"[Sync PRs] GitHub API error for {repo_full_name}: {str(e)}"
-            )
+            logger.error(f"[Sync PRs] GitHub API error for {repo_full_name}: {str(e)}")
             raise Exception(f"GitHub API error: {str(e)}")
 
         except IndexError as e:
@@ -322,9 +320,7 @@ class GitHubService:
             )
 
         except Exception as e:  # noqa: F841
-            logger.exception(
-                f"[Sync PRs] Unexpected error syncing {repo_full_name}"
-            )
+            logger.exception(f"[Sync PRs] Unexpected error syncing {repo_full_name}")
             raise
 
     def parse_commit_message(self, message: str) -> List[str]:
