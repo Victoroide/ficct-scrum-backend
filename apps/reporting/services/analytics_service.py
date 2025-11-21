@@ -203,10 +203,21 @@ class AnalyticsService:
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
 
-        # Load statuses ONCE
+        # Load statuses from project workflow
         statuses = list(project.workflow_statuses.all())
-        status_ids = [s.id for s in statuses]
-        _status_names = {s.id: s.name for s in statuses}  # noqa: F841
+
+        # If no workflow statuses configured, get statuses from actual issues
+        if not statuses:
+            from apps.projects.models import WorkflowStatus
+
+            issue_status_ids = (
+                Issue.objects.filter(project=project, is_active=True)
+                .values_list("status_id", flat=True)
+                .distinct()
+            )
+            statuses = list(
+                WorkflowStatus.objects.filter(id__in=issue_status_ids)
+            )
 
         # Load ALL relevant issues ONCE with select_related
         all_issues = (
@@ -214,7 +225,6 @@ class AnalyticsService:
                 project=project,
                 is_active=True,
                 created_at__lte=end_date,
-                status_id__in=status_ids,
             )
             .select_related("status")
             .values("id", "status_id", "created_at")

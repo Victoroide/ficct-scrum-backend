@@ -126,6 +126,7 @@ class PredictionService:
                 return None
 
             model = model_data["model"]
+            scaler = model_data.get("scaler")
             feature_names = model_data.get("feature_names", [])
 
             # Prepare features
@@ -133,8 +134,12 @@ class PredictionService:
                 title, description, issue_type, feature_names
             )
 
-            # Make prediction
-            predicted_hours = float(model.predict([features])[0])
+            # Scale features if scaler is available
+            if scaler is not None:
+                features_scaled = scaler.transform([features])
+                predicted_hours = float(model.predict(features_scaled)[0])
+            else:
+                predicted_hours = float(model.predict([features])[0])
 
             # Clamp to reasonable range
             predicted_hours = max(0.5, min(predicted_hours, 200.0))
@@ -189,25 +194,33 @@ class PredictionService:
             Feature vector matching model's expectations
         """
         # Calculate basic features
-        title_length = len(title.split())
-        desc_length = len(description.split()) if description else 0
-        text_length = title_length + desc_length
+        title = title or ""
+        description = description or ""
+        combined_text = f"{title} {description}"
 
-        # Issue type encoding
+        title_length = len(title.split())
+        desc_length = len(description.split())
+        text_length = len(combined_text.split())
+
+        # Issue type encoding with better granularity
         issue_type_lower = issue_type.lower()
         is_bug = 1 if "bug" in issue_type_lower else 0
         is_story = (
             1 if "story" in issue_type_lower or "feature" in issue_type_lower else 0
         )
         is_task = 1 if "task" in issue_type_lower else 0
+        is_epic = 1 if "epic" in issue_type_lower else 0
 
         # Default priority
-        priority_score = 2  # Medium priority
+        priority_score = 2
 
         # Default story points (will be 0 for new issues)
-        story_points = 0
+        story_points = 0.0
 
-        # Build feature vector matching expected order
+        # Combined complexity score
+        complexity_score = text_length * 0.1 + story_points * 2
+
+        # Build feature vector matching expected order (10 features)
         features = [
             title_length,
             desc_length,
@@ -215,8 +228,10 @@ class PredictionService:
             is_bug,
             is_story,
             is_task,
+            is_epic,
             priority_score,
             story_points,
+            complexity_score,
         ]
 
         return features

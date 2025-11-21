@@ -8,6 +8,7 @@ Tests model loading from S3, caching, and error handling.
 import pickle
 from unittest.mock import MagicMock, patch
 
+import joblib
 import pytest
 
 from apps.ml.models import MLModel
@@ -122,7 +123,9 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})  # noqa: F821, E501
+        mock_storage.download_model.return_value = joblib.dumps(
+            {"model": "test"}
+        )  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Load project-specific model
@@ -151,7 +154,9 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "global"})  # noqa: F821, E501
+        mock_storage.download_model.return_value = joblib.dumps(
+            {"model": "global"}
+        )  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Try to load project-specific, should fallback to global
@@ -176,7 +181,9 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "specific"})  # noqa: F821, E501
+        mock_storage.download_model.return_value = joblib.dumps(
+            {"model": "specific"}
+        )  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Load by ID
@@ -275,7 +282,9 @@ class TestModelLoader:
         )
 
         mock_storage = MagicMock()
-        mock_storage.download_model.return_value = joblib.dumps({"model": "test"})  # noqa: F821, E501
+        mock_storage.download_model.return_value = joblib.dumps(
+            {"model": "test"}
+        )  # noqa: F821, E501
         mock_s3_service.return_value = mock_storage
 
         # Preload specific types

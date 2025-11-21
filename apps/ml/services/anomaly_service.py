@@ -274,9 +274,9 @@ class AnomalyDetectionService:
         assigned_users = sprint.issues.values("assignee").distinct().count()
 
         # Get team size
-        _team_size = (  # noqa: F841
-            sprint.project.team_members.filter(is_active=True).count()
-        )
+        _team_size = sprint.project.team_members.filter(  # noqa: F841
+            is_active=True
+        ).count()
 
         # Check if too many issues per person
         total_issues = sprint.issues.count()

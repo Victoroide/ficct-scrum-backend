@@ -15,7 +15,8 @@ import joblib
 import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from apps.ml.models import MLModel, PredictionHistory
 from apps.ml.services.s3_model_storage import S3ModelStorageService
@@ -30,7 +31,9 @@ class ModelTrainer:
     def __init__(self):
         """Initialize model trainer with S3 storage."""
         self.s3_storage = S3ModelStorageService()
-        self.min_samples = 50  # Minimum training samples required
+        self.min_samples = 50
+        self.min_r2_threshold = 0.20
+        self.max_mae_threshold = 10.0
 
     def train_effort_prediction_model(
         self,
@@ -58,13 +61,24 @@ class ModelTrainer:
             )
 
             # Fetch training data
-            training_data = self._fetch_effort_training_data(project_id)
+            raw_data = self._fetch_effort_training_data(project_id)
 
-            if len(training_data) < self.min_samples:
+            if len(raw_data) < self.min_samples:
                 logger.warning(
-                    f"Insufficient training data: {len(training_data)} samples "
+                    f"Insufficient training data: {len(raw_data)} samples "
                     f"(minimum: {self.min_samples})"
                 )
+                return None
+
+            # Clean data to remove outliers
+            training_data = self._clean_training_data(raw_data)
+            logger.info(
+                f"Data cleaning: {len(raw_data)} -> {len(training_data)} samples "
+                f"({len(raw_data) - len(training_data)} outliers removed)"
+            )
+
+            if len(training_data) < self.min_samples:
+                logger.warning(f"Insufficient clean data: {len(training_data)} samples")
                 return None
 
             # Prepare features and labels
@@ -81,34 +95,99 @@ class ModelTrainer:
                 X, y, test_size=0.2, random_state=42
             )
 
-            # Train model
+            # Scale features for better model performance
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # Train model with improved hyperparameters
             model = GradientBoostingRegressor(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
+                n_estimators=150,
+                max_depth=7,
+                learning_rate=0.05,
+                min_samples_split=10,
+                min_samples_leaf=4,
+                subsample=0.8,
                 random_state=42,
             )
 
             logger.info(f"Training model on {len(X_train)} samples...")
-            model.fit(X_train, y_train)
+            model.fit(X_train_scaled, y_train)
 
-            # Evaluate
-            y_pred = model.predict(X_test)
+            # Diagnose data quality before training
+            logger.info("Data diagnostics:")
+            logger.info(f"  Target mean: {np.mean(y_train):.2f} hours")
+            logger.info(f"  Target std: {np.std(y_train):.2f} hours")
+            logger.info(
+                f"  Target range: {np.min(y_train):.1f} - {np.max(y_train):.1f}"
+            )
+
+            # Check feature correlations
+            correlations = []
+            for i, fname in enumerate(feature_names):
+                corr = np.corrcoef(X_train[:, i], y_train)[0, 1]
+                correlations.append((fname, corr))
+            correlations.sort(key=lambda x: abs(x[1]), reverse=True)
+            logger.info("Feature correlations with target:")
+            for fname, corr in correlations[:5]:
+                logger.info(f"  {fname}: {corr:.3f}")
+
+            # Cross-validation before final evaluation
+            cv_scores = cross_val_score(
+                model, X_train_scaled, y_train, cv=5, scoring="r2"
+            )
+            cv_mean = cv_scores.mean()
+            cv_std = cv_scores.std()
+
+            logger.info(f"Cross-validation R2: {cv_mean:.3f} (+/- {cv_std * 2:.3f})")
+
+            # Quality gate: Accept any model for synthetic/test data
+            if cv_mean < 0.0:
+                logger.warning(f"Model performs below baseline: R2={cv_mean:.3f}")
+                logger.warning(
+                    "Model will be saved but predictions may be unreliable. "
+                    "Current features (word counts, issue types) are weak predictors."
+                )
+
+            # Evaluate on test set
+            y_pred = model.predict(X_test_scaled)
             mae = mean_absolute_error(y_test, y_pred)
             rmse = np.sqrt(mean_squared_error(y_test, y_pred))
             r2 = r2_score(y_test, y_pred)
 
             logger.info(
                 f"Model training complete: MAE={mae:.2f}, RMSE={rmse:.2f}, "
-                f"R²={r2:.3f}"
+                f"R2={r2:.3f}"
             )
 
-            # Serialize model and metadata
+            # Quality gate: Check if test performance is acceptable
+            if r2 < -0.5:
+                logger.error(f"Model R2 extremely low: {r2:.3f}")
+                raise ValueError(f"Model quality unacceptable: R2={r2:.3f}")
+            elif r2 < 0.0:
+                logger.warning(
+                    f"Model R2 negative: {r2:.3f} (worse than mean baseline)"
+                )
+                logger.warning(
+                    "Model will be saved but should not be used in production. "
+                    "Recommendations: 1) Collect richer features, "
+                    "2) Verify data quality, 3) Collect more training samples."
+                )
+            elif r2 < self.min_r2_threshold:
+                logger.warning(f"Model R2 low: {r2:.3f} < {self.min_r2_threshold}")
+                logger.warning("Model quality below ideal threshold")
+
+            if mae > self.max_mae_threshold:
+                logger.warning(f"Model MAE high: {mae:.2f} > {self.max_mae_threshold}")
+                logger.warning("Model error above desired threshold")
+
+            # Serialize model with scaler and metadata
             model_bundle = {
                 "model": model,
+                "scaler": scaler,
                 "feature_names": feature_names,
-                "scaler": None,  # Add scaler if needed
                 "trained_at": datetime.utcnow().isoformat(),
+                "cv_scores": cv_scores.tolist(),
             }
 
             model_bytes = self._serialize_model(model_bundle)
@@ -124,7 +203,10 @@ class ModelTrainer:
                     "mae": mae,
                     "rmse": rmse,
                     "r2": r2,
+                    "cv_mean": float(cv_mean),
+                    "cv_std": float(cv_std),
                     "samples": len(training_data),
+                    "raw_samples": len(raw_data),
                 },
             )
 
@@ -146,12 +228,18 @@ class ModelTrainer:
                     "project_id": project_id,
                     "accuracy": r2,
                     "samples_count": len(training_data),
+                    "raw_samples_count": len(raw_data),
                     "feature_names": feature_names,
+                    "cv_mean": float(cv_mean),
+                    "cv_std": float(cv_std),
                 },
                 hyperparameters={
-                    "n_estimators": 100,
-                    "max_depth": 5,
-                    "learning_rate": 0.1,
+                    "n_estimators": 150,
+                    "max_depth": 7,
+                    "learning_rate": 0.05,
+                    "min_samples_split": 10,
+                    "min_samples_leaf": 4,
+                    "subsample": 0.8,
                 },
                 feature_importance=dict(
                     zip(feature_names, model.feature_importances_.tolist())
@@ -303,6 +391,42 @@ class ModelTrainer:
 
         return training_data
 
+    def _clean_training_data(
+        self, training_data: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Remove outliers using IQR method.
+
+        Args:
+            training_data: Raw training data
+
+        Returns:
+            Cleaned training data without outliers
+        """
+        if len(training_data) < 30:
+            logger.warning("Too few samples for outlier removal")
+            return training_data
+
+        hours = [item["actual_hours"] for item in training_data]
+        q1 = np.percentile(hours, 25)
+        q3 = np.percentile(hours, 75)
+        iqr = q3 - q1
+
+        lower_bound = max(0.5, q1 - 1.5 * iqr)
+        upper_bound = min(80, q3 + 1.5 * iqr)
+
+        logger.info(f"Outlier bounds: {lower_bound:.1f} - {upper_bound:.1f} hours")
+
+        cleaned_data = [
+            item
+            for item in training_data
+            if lower_bound <= item["actual_hours"] <= upper_bound
+            and item.get("title")
+            and len(item["title"]) >= 3
+        ]
+
+        return cleaned_data
+
     def _prepare_effort_features(
         self, training_data: List[Dict[str, Any]]
     ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
@@ -316,28 +440,33 @@ class ModelTrainer:
         labels = []
 
         for item in training_data:
-            # Text features
-            title = item["title"]
-            description = item["description"]
+            # Text features with validation
+            title = item.get("title") or ""
+            description = item.get("description") or ""
             combined_text = f"{title} {description}"
 
             # Numerical features
             title_length = len(title.split())
-            desc_length = len(description.split()) if description else 0
+            desc_length = len(description.split())
             text_length = len(combined_text.split())
 
-            # Issue type encoding
-            issue_type = item["issue_type"].lower()
+            # Issue type encoding with better granularity
+            issue_type = item.get("issue_type", "task").lower()
             is_bug = 1 if "bug" in issue_type else 0
             is_story = 1 if "story" in issue_type or "feature" in issue_type else 0
             is_task = 1 if "task" in issue_type else 0
+            is_epic = 1 if "epic" in issue_type else 0
 
             # Priority encoding
             priority = item.get("priority", "P3")
-            priority_score = {"P0": 4, "P1": 3, "P2": 2, "P3": 1}.get(priority, 1)
+            priority_map = {"P0": 4, "P1": 3, "P2": 2, "P3": 1, "P4": 0}
+            priority_score = priority_map.get(priority, 1)
 
             # Story points if available
-            story_points = item.get("story_points", 0)
+            story_points = float(item.get("story_points", 0))
+
+            # Combined complexity score
+            complexity_score = text_length * 0.1 + story_points * 2
 
             feature_vector = [
                 title_length,
@@ -346,8 +475,10 @@ class ModelTrainer:
                 is_bug,
                 is_story,
                 is_task,
+                is_epic,
                 priority_score,
                 story_points,
+                complexity_score,
             ]
 
             features.append(feature_vector)
@@ -360,8 +491,10 @@ class ModelTrainer:
             "is_bug",
             "is_story",
             "is_task",
+            "is_epic",
             "priority_score",
             "story_points",
+            "complexity_score",
         ]
 
         return np.array(features), np.array(labels), feature_names
