@@ -200,7 +200,9 @@ class AssistantService:
             logger.exception(f"Error suggesting solutions: {str(e)}")
             raise
 
-    def _build_context(self, issues: List[Dict[str, Any]]) -> str:
+    def _build_context(
+        self, issues: List[Dict[str, Any]], strategy: Dict[str, Any] = None
+    ) -> str:
         """Build context string from retrieved issues."""
         if not issues:
             return "No relevant issues found."
